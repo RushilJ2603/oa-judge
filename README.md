@@ -1,71 +1,94 @@
 # OA Judge
 
-A local, HackerRank/LeetCode-style judge for practising OA problems on your own machine. It actually
-**compiles and runs** your solution against real test cases — no eyeballing code. Two modes:
+A self-hosted, LeetCode/HackerRank-style judge for practising OA problems. It actually **compiles
+and runs** your solution against real test cases — no eyeballing code — stores every attempt and
+half-written draft, and lets a group share one growing question bank.
 
 - **LC mode** — every test visible; failures show input, expected, and your output.
-- **OA mode** — tests hidden (HirePro-style), a countdown timer, no post-submit reruns, stray output
-  fails you. Recreates real online-assessment conditions.
+- **OA mode** — tests hidden (HirePro-style), a countdown timer, no post-submit reruns, stray
+  output fails you. Recreates real online-assessment conditions.
+- **Find Failing Test** — races your code against a verified reference on random inputs and shrinks
+  the first disagreement to the smallest failing input.
 
-Plus a **Stress** button: your code is raced against a verified reference on random inputs, and the
-first disagreement is shrunk to the smallest failing input — the thing an OA never shows you.
+## What it keeps
 
-## Run it
+Everything you produce is saved to a local SQLite database (`app/data/judge.db`, private, never
+committed):
 
+- **Every submission with its full source** — browse them per problem, and **diff any two** to see
+  exactly what turned a WA into an AC.
+- **Autosaved drafts** with a **history scrubber** to replay half-written code and restore any point.
+- **Stats** (solve rate, first-try solves, attempts-to-AC, verdict mix), per-problem **notes** with
+  star / revisit / confidence flags, and one-click **Export** to a zip of your code + notes.
+
+The editor is **Monaco** (VS Code's editor), vendored offline, with C++/Python autocomplete and
+competitive-programming snippets.
+
+## Run it locally
+
+```bash
+./setup.sh          # clones the problem bank, checks python3/flask/g++, inits the DB
+./start.sh          # or: python3 app/server.py
 ```
-bash start.sh
-```
-(macOS: double-click `start.command`. Windows-native: `start.bat`.) Then open
-<http://127.0.0.1:5000>. The browser opens automatically.
 
-**Requirements:** `python3` with Flask (`pip install flask`), and `g++` on PATH for C++ problems.
-Both are already present in the environment this was built in.
+Then open <http://127.0.0.1:5137> (the browser opens automatically). On Windows, double-click the
+**OA Judge** desktop shortcut.
 
-## Using it
+**Requirements:** `python3` + Flask (`pip install flask`), and `g++` for C++ problems. `waitress` is
+used automatically if installed.
 
-1. Pick a problem from the sidebar.
-2. Read the statement; code in the editor (C++17 or Python 3 per problem).
-3. **Run** against custom input, **Submit** to judge, **Stress** to hunt a counterexample.
-4. Toggle **LC/OA** per problem. After solving, read the **Editorial** tab.
+## Two repos
 
-## Adding a problem
+The app and the questions are **separate repositories** so they version independently:
 
-You dictate a problem to Claude. If it exists on LeetCode/GfG, Claude gives you the link and imports
-a local copy; otherwise Claude scaffolds it:
+- **oa-judge** (this repo) — the application.
+- **oa-problems** — the shared question bank, cloned into `./problems/`. `setup.sh` does this.
 
-```
-python3 add_problem.py <id> --title "..." --company X --difficulty Medium --lang cpp
-# fill statement.md, stub.cpp, generator.py; drop in a verified reference.cpp
-python3 make_hidden.py <id>      # generates hidden tests from the reference
-python3 verify_all.py <id>       # gate: stub compiles, reference matches samples, generator valid
-```
+Anyone can add a problem to the bank; once it passes CI, everyone gets it on their next **Sync**.
+
+## Sharing a question bank
+
+- **Sync** (header button) — `git pull` the bank; new problems appear immediately.
+- **Add** (header button) — an authoring form: statement, reference, samples. It scaffolds the
+  package, generates hidden tests, **verifies the reference reproduces every sample**, and only then
+  lets you **Publish** (a branch + a ready-to-open PR). A problem whose reference fails its own
+  samples cannot be published — and the bank's GitHub Action re-checks this on every PR.
+
+## Deploying it
+
+See **[DEPLOY.md](DEPLOY.md)**. Short version: it compiles and runs submitted code, so isolation
+matters. Local-only = nothing to do. A trusted friend group = one hardened container. Untrusted or
+public = the `docker` execution backend (container-per-run, `--network none`). Don't skip the threat
+model in DEPLOY.md before exposing it.
 
 ## Layout
 
 ```
-problems/<id>/     one folder per problem (see FORMAT.md)
-app/               Flask server + runner engine + static UI
+app/
   server.py        JSON API (see API.md)
-  runner/          sandbox, cpp/py runners, judge, stress, history, markdown
-  static/          the browser UI
-add_problem.py     scaffold a new problem
-make_hidden.py     generate hidden tests from a problem's reference
-verify_all.py      integration gate over all problems
-_migrated_raw/     original transcribed statements + verified solution sources (reference only)
+  config.py        central settings (env -> config.local.json -> default)
+  db.py, store.py  SQLite persistence (attempts, runs, drafts, snapshots, notes, stats)
+  sharing.py       git sync + problem authoring/publish
+  runner/          sandbox (local + docker backends), cpp/py runners, judge, stress
+  static/          the browser UI (Monaco editor vendored under static/vendor/)
+  migrations/      numbered SQL migrations (Postgres-portable)
+problems/          the oa-problems bank, a separate clone (gitignored here)
+verify_all.py      integration gate: references must reproduce their samples
+make_hidden.py     generate hidden tests from a reference
+Dockerfile, docker-compose.yml, DEPLOY.md
 ```
 
 ## How judging works
 
-Verdicts: `AC` `WA` `TLE` `MLE` `RE` `CE`. Output comparison is whitespace-tokenised by default
-(a problem may opt into exact match). Programs run under CPU-time, memory, and output-size limits so a
-runaway solution reports as TLE/MLE instead of hanging the app. `stderr` is always shown — it is the
-one channel that never pollutes judged output, so it is where your debug prints belong.
+Verdicts: `AC` `WA` `TLE` `MLE` `RE` `CE`. Output comparison is whitespace-tokenised by default (a
+problem may opt into exact match). Programs run under CPU-time, memory, and output-size limits so a
+runaway solution reports TLE/MLE instead of hanging the app. `stderr` is always shown — it never
+pollutes judged output, so it's where debug prints belong.
 
 ## Design notes
 
-- **The reference solutions are the source of truth.** Each was verified against brute force before it
-  came here; hidden tests are generated by running the reference, never hand-written.
-- Statements commit to a single reading where the original OA was ambiguous (e.g. Uber Q1, Q3) — the
-  chosen rule is stated plainly and explained in the editorial.
-- Fully offline and dependency-light: Flask plus the standard library, a hand-rolled Markdown
-  renderer, and an enhanced-textarea editor. No Node, no CDN, no build step.
+- **Reference solutions are the source of truth.** Each was cross-checked against a brute force;
+  hidden tests are generated by running the reference, never hand-written.
+- Ambiguous OA statements commit to one reading, explained in the editorial.
+- Fully offline: Flask + the standard library, a hand-rolled Markdown renderer, and Monaco vendored
+  locally. No Node at runtime, no CDN, no build step.
