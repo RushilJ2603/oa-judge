@@ -5,7 +5,9 @@ import sys
 from flask import Flask, jsonify, request, send_from_directory
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from runner import execute, history, md, problems, stress  # noqa: E402
+import db  # noqa: E402
+import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
+from runner import execute, md, problems, stress  # noqa: E402
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 app = Flask(__name__, static_folder=None)
@@ -35,7 +37,7 @@ def static_files(path):
 # ----------------------------------------------------------------- problem list / detail
 @app.route("/api/problems")
 def api_problems():
-    solved = history.solved_ids()
+    solved = store.solved_ids()
     items = []
     for pid in problems.list_ids():
         s = problems.summary(pid)
@@ -81,6 +83,8 @@ def api_run():
     compiled = execute.compile_for(lang, source)
     if not compiled.ok:
         execute.cleanup(compiled)
+        store.record_run(p["meta"]["id"], lang, source, stdin_data, "",
+                         compiled.compile_output, verdict="CE")
         return jsonify({"verdict": "CE", "compile_output": compiled.compile_output,
                         "stdout": "", "stderr": "", "exit_code": None, "signal": None,
                         "time_ms": 0, "memory_kb": 0})
@@ -90,6 +94,10 @@ def api_run():
     execute.cleanup(compiled)
     from runner import judge
     v = judge.verdict_for_run(res, memory_mb=p["meta"]["limits"]["memory_mb"]) or "OK"
+    # v1 did not log runs at all — you could never look back at what you tried.
+    store.record_run(p["meta"]["id"], lang, source, stdin_data, res.stdout, res.stderr,
+                     exit_code=res.exit_code, signal=res.signal_name,
+                     runtime_ms=res.time_ms, verdict=v)
     return jsonify({
         "verdict": v, "compile_output": "", "stdout": res.stdout, "stderr": res.stderr,
         "exit_code": res.exit_code, "signal": res.signal_name,
@@ -109,17 +117,27 @@ def api_submit():
     if lang not in p["meta"]["languages"]:
         return jsonify({"error": f"language {lang} not enabled for this problem"}), 400
 
+    # Snapshot the exact code being judged before anything can overwrite it.
+    store.snapshot_draft(p["meta"]["id"], lang, source, reason="pre-submit")
+
     compiled = execute.compile_for(lang, source)
     if not compiled.ok:
         execute.cleanup(compiled)
-        history.record(p["meta"]["id"], lang, mode, "CE", 0, 0)
+        attempt_id = store.record_attempt(
+            p["meta"]["id"], lang, mode, "CE", 0, 0,
+            source_code=source,
+            compile_output=compiled.compile_output,
+            duration_s=body.get("duration_s"))
         return jsonify({"verdict": "CE", "compile_output": compiled.compile_output,
-                        "passed": 0, "total": 0, "time_ms_max": 0, "tests": []})
+                        "passed": 0, "total": 0, "time_ms_max": 0, "tests": [],
+                        "attempt_id": attempt_id})
 
     limits, compare = p["meta"]["limits"], p["meta"]["compare"]
     cases = ([("sample", t) for t in p["samples"]] +
              [("hidden", t) for t in p["hidden"]])
     results, passed, tmax, overall = [], 0, 0, "AC"
+    first_fail_idx = None
+    fail_got = fail_stderr = None
     for idx, (group, t) in enumerate(cases, start=1):
         v, got, stderr, tms = execute.judge_case(
             lang, compiled, t["input"], t["output"],
@@ -129,6 +147,8 @@ def api_submit():
             passed += 1
         elif overall == "AC":
             overall = v                       # first failing verdict becomes the overall verdict
+            first_fail_idx = idx
+            fail_got, fail_stderr = got, stderr   # kept for the attempt record, not the response
         visible = (group == "sample") or (mode == "lc")
         row = {"index": idx, "group": group, "verdict": v, "time_ms": tms, "visible": visible}
         if visible:
@@ -142,10 +162,21 @@ def api_submit():
     total = len(cases)
     if total == 0:
         overall = "AC"
-    history.record(p["meta"]["id"], lang, mode, overall, passed, total,
-                   duration_s=body.get("duration_s"))
+    attempt_id = store.record_attempt(
+        p["meta"]["id"], lang, mode, overall, passed, total,
+        source_code=source, duration_s=body.get("duration_s"), runtime_ms=tmax,
+        first_fail_idx=first_fail_idx,
+        stdout_snippet=fail_got, stderr_snippet=fail_stderr)
+
+    # Close an OA session if the frontend opened one, so time-per-problem is real data
+    # rather than the NULL every v1 row carried.
+    sid = body.get("oa_session_id")
+    if sid:
+        store.end_oa_session(int(sid), duration_s=body.get("duration_s"), result=overall)
+
     return jsonify({"verdict": overall, "compile_output": "", "passed": passed,
-                    "total": total, "time_ms_max": tmax, "tests": results})
+                    "total": total, "time_ms_max": tmax, "tests": results,
+                    "attempt_id": attempt_id})
 
 
 # ----------------------------------------------------------------- stress
@@ -165,17 +196,122 @@ def api_stress():
 # ----------------------------------------------------------------- history
 @app.route("/api/history")
 def api_history():
-    return jsonify({"attempts": history.attempts(),
-                    "revisit": history.revisit_list(problems.list_ids())})
+    return jsonify({"attempts": store.attempts(),
+                    "revisit": store.revisit_list(problems.list_ids())})
 
 
 @app.route("/api/history/<pid>")
 def api_history_one(pid):
-    return jsonify({"attempts": history.attempts(pid),
-                    "revisit": history.revisit_list(problems.list_ids())})
+    return jsonify({"attempts": store.attempts(pid),
+                    "revisit": store.revisit_list(problems.list_ids())})
+
+
+# ----------------------------------------------------------------- attempts (with code)
+@app.route("/api/attempt/<int:attempt_id>")
+def api_attempt(attempt_id):
+    """Full attempt including the source that was judged — the code viewer and diff use this."""
+    a = store.attempt(attempt_id)
+    if a is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(a)
+
+
+# ----------------------------------------------------------------- drafts (autosave)
+@app.route("/api/draft/<pid>/<lang>", methods=["GET"])
+def api_get_draft(pid, lang):
+    return jsonify(store.get_draft(pid, lang) or {})
+
+
+@app.route("/api/draft/<pid>/<lang>", methods=["PUT"])
+def api_put_draft(pid, lang):
+    """Debounced autosave target. Replaces browser localStorage, which was per-origin
+    (so the 5000 -> 5137 port move stranded it) and kept no history."""
+    body = request.get_json(force=True)
+    store.save_draft(pid, lang, body.get("source", ""), body.get("cursor_pos"))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/drafts")
+def api_all_drafts():
+    return jsonify({"drafts": store.all_drafts()})
+
+
+# ----------------------------------------------------------------- snapshots (time travel)
+@app.route("/api/snapshots/<pid>")
+def api_snapshots(pid):
+    return jsonify({"snapshots": store.snapshots(pid, request.args.get("lang"))})
+
+
+@app.route("/api/snapshot/<int:snapshot_id>")
+def api_snapshot(snapshot_id):
+    s = store.snapshot(snapshot_id)
+    if s is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(s)
+
+
+@app.route("/api/snapshot", methods=["POST"])
+def api_make_snapshot():
+    body = request.get_json(force=True)
+    sid = store.snapshot_draft(body["problem_id"], body["language"],
+                               body.get("source", ""), body.get("reason", "periodic"))
+    return jsonify({"ok": True, "snapshot_id": sid})   # sid is null when unchanged
+
+
+# ----------------------------------------------------------------- runs
+@app.route("/api/runs/<pid>")
+def api_runs(pid):
+    return jsonify({"runs": store.runs(pid)})
+
+
+# ----------------------------------------------------------------- OA sessions
+@app.route("/api/oa-session", methods=["POST"])
+def api_start_oa_session():
+    body = request.get_json(force=True)
+    return jsonify({"session_id": store.start_oa_session(body["problem_id"])})
+
+
+@app.route("/api/oa-session/<int:session_id>", methods=["DELETE"])
+def api_abandon_oa_session(session_id):
+    store.end_oa_session(session_id, abandoned=True)
+    return jsonify({"ok": True})
+
+
+# ----------------------------------------------------------------- notes / flags
+@app.route("/api/note/<pid>", methods=["GET", "PUT"])
+def api_note(pid):
+    if request.method == "PUT":
+        store.save_note(pid, request.get_json(force=True).get("body", ""))
+        return jsonify({"ok": True})
+    return jsonify({"body": store.get_note(pid)})
+
+
+@app.route("/api/flags/<pid>", methods=["GET", "PUT"])
+def api_flags(pid):
+    if request.method == "PUT":
+        b = request.get_json(force=True)
+        store.save_flags(pid, b.get("starred"), b.get("revisit"), b.get("confidence"))
+        return jsonify({"ok": True})
+    return jsonify(store.get_flags(pid))
+
+
+# ----------------------------------------------------------------- stats / health
+@app.route("/api/stats")
+def api_stats():
+    return jsonify(store.stats())
+
+
+@app.route("/api/health")
+def api_health():
+    """Used by the launcher to detect an already-running instance instead of colliding."""
+    import shutil
+    return jsonify({"ok": True, "version": 2,
+                    "db": db.DB_PATH,
+                    "gpp": bool(shutil.which("g++")),
+                    "problems": len(problems.list_ids())})
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("OAJ_PORT", "5000"))
+    port = int(os.environ.get("OAJ_PORT", "5137"))
     print(f"\n  OA Judge running →  http://127.0.0.1:{port}\n")
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
