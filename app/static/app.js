@@ -127,12 +127,41 @@ function flushOnExit() {
 /* ============================ setup ============================ */
 async function api(path, options = {}) {
     const res = await fetch(path, options);
+    if (res.status === 401) {
+        // Session expired / not signed in (hosted mode) — show the login gate.
+        showLoginGate();
+        throw new Error('login required');
+    }
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json();
 }
 
-function init() {
+function showLoginGate() {
+    const ov = document.getElementById('login-overlay');
+    if (ov) ov.style.display = 'flex';
+}
+
+async function init() {
     setupTheme();
+    // Determine auth state before loading anything personal. Local mode -> {auth:false}.
+    let me = { auth: false };
+    try { me = await api('/api/me'); } catch (e) { /* fall through as local */ }
+    if (me.auth && !me.logged_in) {
+        showLoginGate();
+        return;   // nothing else loads until the user signs in
+    }
+    if (me.auth && me.logged_in && me.user) {
+        const chip = document.getElementById('user-chip');
+        if (chip) {
+            chip.style.display = 'inline-flex';
+            document.getElementById('user-login').textContent = me.user.login;
+            const av = document.getElementById('user-avatar');
+            if (me.user.avatar_url) av.src = me.user.avatar_url; else av.style.display = 'none';
+            document.getElementById('btn-logout').addEventListener('click', () => {
+                window.location.href = '/auth/logout';
+            });
+        }
+    }
     setupEventListeners();
     fetchProblemsAndHistory();
 }

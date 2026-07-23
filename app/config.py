@@ -48,6 +48,21 @@ PORT = int(get("port", 5137))
 # Identity stamped onto problems you author + publish (Phase 5). Falls back to the OS user.
 AUTHOR = get("author", os.environ.get("USER") or os.environ.get("USERNAME") or "anon")
 
+# --- authentication (hosted, multi-user) ---------------------------------------
+# When a GitHub OAuth app is configured, the judge runs multi-user: everyone signs in and sees
+# only their own data. When it is NOT configured (the default), the judge runs single-user with no
+# login — exactly as it does locally. This is the switch between the two worlds.
+GITHUB_CLIENT_ID = get("github_client_id", "")
+GITHUB_CLIENT_SECRET = get("github_client_secret", "")
+# Public base URL of the deployment, used to build the OAuth callback (e.g. https://oaj.fly.dev).
+BASE_URL = (get("base_url", "") or "").rstrip("/")
+# Signs the session cookie. MUST be set (and stable) in hosted mode or logins won't survive a
+# restart. Locally an ephemeral random key is fine since login is unused.
+SECRET_KEY = get("secret_key", "")
+
+AUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
+
+
 # --- execution backend (Phase 6: hosting) --------------------------------------
 # "local"  — run submissions as a subprocess under rlimits on this machine. Correct for
 #            single-user local use, where the code is your own.
