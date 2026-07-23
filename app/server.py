@@ -346,7 +346,40 @@ def api_health():
                     "problems": len(problems.list_ids())})
 
 
+def _already_running(port: int) -> bool:
+    """True if an OA Judge instance is already answering on this port. Double-clicking the
+    launcher twice otherwise crashes on 'address already in use' with a confusing traceback."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1.5) as r:
+            import json as _json
+            return _json.load(r).get("ok") is True
+    except Exception:
+        return False
+
+
+def _serve(port: int) -> None:
+    """Prefer waitress (a real WSGI server) when it is installed; otherwise fall back to the
+    Flask dev server. Both are fine for single-user local use — waitress just handles
+    concurrent requests more gracefully (e.g. a long stress run while you browse)."""
+    try:
+        from waitress import serve as waitress_serve
+        print("  (serving via waitress)")
+        waitress_serve(app, host="127.0.0.1", port=port, threads=8, _quiet=True)
+    except ImportError:
+        # Not installed, and we deliberately do not force it into an externally-managed
+        # Python. `pip install waitress` upgrades this automatically next launch.
+        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("OAJ_PORT", "5137"))
+    if _already_running(port):
+        print(f"\n  OA Judge is already running →  http://127.0.0.1:{port}")
+        print("  (Opening a second copy is unnecessary; using the existing one.)\n")
+        sys.exit(0)
+    # Warm the DB / apply migrations before accepting requests, so the first click is instant
+    # and any migration error surfaces here rather than mid-request.
+    db.connect()
     print(f"\n  OA Judge running →  http://127.0.0.1:{port}\n")
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    _serve(port)
