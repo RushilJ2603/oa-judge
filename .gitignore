@@ -1,0 +1,30 @@
+# ── Personal data — never shared, never committed ──────────────
+app/data/
+*.db
+*.db-wal
+*.db-shm
+
+# ── Build / run artifacts ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.so
+.build/
+tmp/
+*.out
+*.exe
+a.out
+
+# ── Vendored editor (large; fetched by setup.sh) ───────────────
+# app/static/vendor/monaco/   ← re-enable if the bundle proves too big for git
+
+# ── OS / editor noise ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ── Local overrides ────────────────────────────────────────────
+config.local.json
+.env

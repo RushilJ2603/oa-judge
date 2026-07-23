@@ -1,0 +1,27 @@
+{
+  "id": "uber-q1-min-penalty-partition",
+  "title": "Minimum Penalty String Partition",
+  "company": "Uber",
+  "difficulty": "Medium",
+  "tags": [
+    "dp"
+  ],
+  "languages": [
+    "cpp"
+  ],
+  "runnable": true,
+  "io_mode": "stdin_stdout",
+  "compare": "tokens",
+  "limits": {
+    "time_ms": 2000,
+    "memory_mb": 256
+  },
+  "origin": "Uber OA (formalized from recall)",
+  "links": [
+    {
+      "site": "LeetCode",
+      "url": "https://leetcode.com/problems/optimal-partition-of-string/",
+      "note": "similar structure (greedy/DP string partition)"
+    }
+  ]
+}

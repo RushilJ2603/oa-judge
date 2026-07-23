@@ -1,0 +1,33 @@
+{
+  "_schema": "ai-context-bridge/session-v1",
+  "_note": "Auto-generated at session end. Do not edit manually. Before regenerating, the AI must archive the previous version of this file to .context/sessions/<generated_at-ISO>.json so machine-readable history is preserved. Commit with CHANGELOG.md, PROJECT_STATE.md, and SESSION_LOG.md.",
+  "generated_at": "YYYY-MM-DDTHH:MM:SS+05:30",
+  "session_by": "Name",
+  "session_summary": "One-line description of what happened this session",
+  "current_phase": "Phase N — Description",
+  "build_state": "what is working right now",
+  "blocking_issue": null,
+  "files_modified_this_session": [
+    "src/module.py",
+    "tests/test_module.py"
+  ],
+  "commands_run": [
+    "pytest tests/ -v",
+    "git commit -m 'feat: add X'"
+  ],
+  "decisions_made": [
+    {
+      "decision": "What was decided",
+      "rationale": "Why this was chosen",
+      "locked": true
+    }
+  ],
+  "errors_encountered": [
+    {
+      "error": "Description of the error",
+      "resolved": true,
+      "resolution": "How it was fixed"
+    }
+  ],
+  "next_action": "Precise description of exactly what the next session should do first"
+}

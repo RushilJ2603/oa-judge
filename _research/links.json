@@ -1,0 +1,28 @@
+{
+  "flipkart-q1-golden-price": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/max-sum-of-a-pair-with-equal-sum-of-digits/", "note": "related technique (digit-sum keying)"}
+  ],
+  "flipkart-q2-marathon-checkpoints": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/construct-binary-tree-from-string/", "note": "similar structure (build a tree from a path/string encoding)"}
+  ],
+  "flipkart-q4-shipment-delay-risk": [],
+  "deshaw-q1-music-player": [],
+  "deshaw-q2-max-flips": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/rearrange-array-to-maximize-prefix-score/", "note": "related technique (prefix-sum sign choices)"}
+  ],
+  "deshaw-q3-checkerboard-subgrids": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/count-submatrices-with-all-ones/", "note": "similar structure (histogram submatrix counting)"}
+  ],
+  "millennium-q1-append-reverse": [],
+  "millennium-q2-task-walk": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/shortest-path-visiting-all-nodes/", "note": "very close (BFS + bitmask over must-visit nodes)"}
+  ],
+  "uber-q1-min-penalty-partition": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/optimal-partition-of-string/", "note": "similar structure (greedy/DP string partition)"}
+  ],
+  "uber-q2-bundling-target": [
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/array-partition/", "note": "similar structure (pairing and min/max selection)"},
+     {"site": "LeetCode", "url": "https://leetcode.com/problems/minimize-maximum-pair-sum-in-array/", "note": "related technique (greedy pairing)"}
+  ],
+  "uber-q3-distinct-flips": []
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OA Judge</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <button class="icon-btn" id="sidebar-toggle" title="Toggle problem list" aria-label="Toggle problem list">☰</button>
+            <span class="app-name">OA&nbsp;Judge</span>
+            <span class="breadcrumb" id="breadcrumb">Select a problem</span>
+        </div>
+        <div class="header-right">
+            <button class="icon-btn" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- Problem list -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-heading">Problems</div>
+            <div id="problem-list" class="problem-list"></div>
+        </aside>
+
+        <!-- Statement / editorial -->
+        <section class="statement-pane" id="left-pane">
+            <div class="tabs" id="tabs">
+                <button class="tab-btn active" data-tab="statement">Problem</button>
+                <button class="tab-btn" data-tab="editorial">Editorial</button>
+            </div>
+            <div class="pane-scroll">
+                <div class="tab-content active" id="tab-statement">
+                    <p class="placeholder">Select a problem from the list to begin.</p>
+                </div>
+                <div class="tab-content" id="tab-editorial"></div>
+            </div>
+        </section>
+
+        <div class="divider" id="divider" title="Drag to resize"></div>
+
+        <!-- Code workspace -->
+        <section class="editor-pane" id="right-pane">
+            <div class="editor-toolbar">
+                <select id="lang-select" class="lang-select" title="Language"></select>
+                <div class="toolbar-spacer"></div>
+                <button class="icon-btn" id="btn-reset-stub" title="Reset editor to the starter code">↺ Reset</button>
+            </div>
+
+            <div class="editor-wrapper">
+                <div class="line-numbers" id="line-numbers">1</div>
+                <div class="code-scroll" id="code-scroll">
+                    <pre class="highlight-layer" id="highlight-layer" aria-hidden="true"><code id="highlight-code"></code></pre>
+                    <textarea id="editor" class="code-input" spellcheck="false" wrap="off"
+                              autocomplete="off" autocapitalize="off" autocorrect="off"></textarea>
+                </div>
+            </div>
+
+            <!-- Custom input drawer -->
+            <div class="drawer" id="custom-input-drawer">
+                <div class="drawer-head">
+                    <span class="drawer-title">Custom Input</span>
+                    <button class="drawer-close" id="drawer-close-custom" title="Close">×</button>
+                </div>
+                <div class="drawer-body">
+                    <textarea id="custom-stdin" class="custom-stdin" rows="5" spellcheck="false"
+                              placeholder="Type input here — it's fed to your program on stdin when you press Run."></textarea>
+                </div>
+            </div>
+
+            <!-- Results drawer -->
+            <div class="drawer result-drawer" id="result-drawer">
+                <div class="drawer-head">
+                    <span class="drawer-title" id="drawer-title">Results</span>
+                    <button class="drawer-close" id="drawer-close-result" title="Close">×</button>
+                </div>
+                <div class="drawer-body" id="console"></div>
+            </div>
+
+            <div class="editor-footer">
+                <div class="footer-left">
+                    <div class="mode-switch" role="group" aria-label="Mode">
+                        <label class="mode-opt"><input type="radio" name="mode" value="lc" checked><span>LC</span></label>
+                        <label class="mode-opt"><input type="radio" name="mode" value="oa"><span>OA</span></label>
+                    </div>
+                    <span class="oa-timer" id="oa-timer" title="Elapsed time">00:00</span>
+                    <button class="btn btn-ghost" id="btn-reset-oa" style="display:none">Reveal / Reset</button>
+                </div>
+                <div class="footer-right">
+                    <button class="btn btn-subtle" id="btn-custom-input-toggle" title="Toggle the custom-input box">Custom Input</button>
+                    <button class="btn btn-subtle" id="btn-stress" title="Race your code against the reference on random inputs to surface the smallest input where it fails">Find Failing Test</button>
+                    <button class="btn btn-neutral" id="btn-run" title="Compile and run once against your custom input">Run</button>
+                    <button class="btn btn-primary" id="btn-submit" title="Judge against all tests (Ctrl/Cmd+Enter)">Submit</button>
+                </div>
+            </div>
+        </section>
+    </div>
+    <script src="/static/app.js?v=2"></script>
+</body>
+</html>
