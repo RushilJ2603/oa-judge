@@ -39,6 +39,8 @@ const els = {
     leftPane: document.getElementById('left-pane'),
     drawerTitle: document.getElementById('drawer-title'),
     btnStats: document.getElementById('btn-stats'),
+    btnSync: document.getElementById('btn-sync'),
+    btnAddProblem: document.getElementById('btn-add-problem'),
     btnHistory: document.getElementById('btn-history'),
     attemptsCount: document.getElementById('attempts-count'),
     tabAttempts: document.getElementById('tab-attempts'),
@@ -159,6 +161,8 @@ function setupEventListeners() {
     }));
 
     els.btnStats.addEventListener('click', openStats);
+    els.btnSync.addEventListener('click', syncBank);
+    els.btnAddProblem.addEventListener('click', openAuthoring);
     els.btnHistory.addEventListener('click', openDraftScrubber);
     els.modalClose.addEventListener('click', closeModal);
     els.modalOverlay.addEventListener('click', (e) => { if (e.target === els.modalOverlay) closeModal(); });
@@ -905,6 +909,180 @@ async function updateAttemptsCount() {
         const n = ((await api(`/api/history/${state.currentProblemId}`)).attempts || []).length;
         els.attemptsCount.textContent = n ? `(${n})` : '';
     } catch (e) { els.attemptsCount.textContent = ''; }
+}
+
+/* ============================ Phase 5: sharing ============================ */
+
+/* ---- Sync: pull the shared bank ---- */
+async function syncBank() {
+    const btn = els.btnSync;
+    const prev = btn.textContent;
+    btn.disabled = true; btn.textContent = '⟳ Syncing…';
+    try {
+        const r = await api('/api/bank/sync', { method: 'POST' });
+        if (!r.ok) {
+            toast(r.error || 'Sync failed', 'warn');
+        } else if (!r.changed) {
+            toast('Already up to date', 'ok');
+        } else {
+            const n = (r.new_or_changed || []).length;
+            toast(`Synced — ${n} problem${n === 1 ? '' : 's'} new or updated`, 'ok');
+            fetchProblemsAndHistory();   // the sidebar picks up new problems
+        }
+    } catch (e) {
+        toast('Sync failed: ' + e.message, 'warn');
+    } finally {
+        btn.disabled = false; btn.textContent = prev;
+    }
+}
+
+/* ---- Add Problem: author → verify → publish ---- */
+function openAuthoring() {
+    const body = `
+        <div class="author-form">
+            <div class="af-row">
+                <label>Problem ID<span class="req">*</span>
+                    <input id="af-id" placeholder="company-q1-short-name" autocomplete="off">
+                    <span class="af-hint">lowercase words, hyphen-separated</span>
+                </label>
+                <label>Title<span class="req">*</span>
+                    <input id="af-title" placeholder="Human-readable title" autocomplete="off">
+                </label>
+            </div>
+            <div class="af-row">
+                <label>Company <input id="af-company" placeholder="optional" autocomplete="off"></label>
+                <label>Difficulty
+                    <select id="af-diff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+                </label>
+                <label>Language
+                    <select id="af-lang"><option value="cpp">C++17</option><option value="py">Python 3</option></select>
+                </label>
+            </div>
+            <label>Tags <input id="af-tags" placeholder="comma,separated,tags" autocomplete="off"></label>
+            <label>Statement (Markdown)<span class="req">*</span>
+                <textarea id="af-statement" class="af-ta" rows="6"
+                    placeholder="# Title&#10;&#10;Describe the problem, input, output, constraints…"></textarea>
+            </label>
+            <label>Reference solution<span class="req">*</span>
+                <span class="af-hint">the correct solution — its output defines the expected answers</span>
+                <textarea id="af-reference" class="af-ta mono" rows="8"
+                    placeholder="A verified-correct solution."></textarea>
+            </label>
+            <label>Starter stub (shown in the editor)
+                <textarea id="af-stub" class="af-ta mono" rows="4" placeholder="Optional — a sensible default is used if blank."></textarea>
+            </label>
+            <label>Generator (optional, Python)
+                <span class="af-hint">argv[1]=seed, argv[2]=integer size hint; prints one random input</span>
+                <textarea id="af-generator" class="af-ta mono" rows="4"
+                    placeholder="import sys, random&#10;random.seed(int(sys.argv[1]))&#10;..."></textarea>
+            </label>
+            <div id="af-samples"></div>
+            <button class="mini-btn" id="af-add-sample">＋ Add sample</button>
+            <div class="af-status" id="af-status"></div>
+        </div>`;
+    openModal('Add a problem to the shared bank', body,
+        '<button class="mini-btn" id="af-verify">Verify &amp; preview</button>' +
+        '<button class="mini-btn primary" id="af-publish" disabled>Publish</button>');
+
+    let sampleN = 0;
+    const addSample = (inp = '', out = '') => {
+        sampleN++;
+        const div = document.createElement('div');
+        div.className = 'af-sample';
+        div.innerHTML = `<span class="af-sample-n">#${sampleN}</span>
+            <textarea class="af-si mono" rows="2" placeholder="input">${escapeHTML(inp)}</textarea>
+            <textarea class="af-so mono" rows="2" placeholder="expected output">${escapeHTML(out)}</textarea>
+            <button class="af-rm" title="Remove">×</button>`;
+        div.querySelector('.af-rm').addEventListener('click', () => div.remove());
+        document.getElementById('af-samples').appendChild(div);
+    };
+    addSample();
+    document.getElementById('af-add-sample').addEventListener('click', () => addSample());
+
+    const gather = () => ({
+        id: val('af-id').trim(),
+        title: val('af-title').trim(),
+        company: val('af-company').trim(),
+        difficulty: val('af-diff'),
+        language: val('af-lang'),
+        tags: val('af-tags').split(',').map(t => t.trim()).filter(Boolean),
+        statement: val('af-statement'),
+        reference: val('af-reference'),
+        stub: val('af-stub'),
+        generator: val('af-generator'),
+        samples: [...document.querySelectorAll('.af-sample')].map(s => ({
+            input: s.querySelector('.af-si').value,
+            output: s.querySelector('.af-so').value,
+        })).filter(s => s.input.trim() || s.output.trim()),
+    });
+
+    const status = document.getElementById('af-status');
+    let authoredId = null;
+    document.getElementById('af-verify').addEventListener('click', async () => {
+        const spec = gather();
+        if (!spec.id || !spec.title || !spec.reference || !spec.samples.length) {
+            status.innerHTML = '<span class="warn">Fill ID, title, reference, and at least one sample.</span>';
+            return;
+        }
+        status.innerHTML = '<span class="muted">Scaffolding, generating hidden tests, and verifying…</span>';
+        try {
+            const r = await api('/api/bank/author', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(spec),
+            });
+            if (r.ok) {
+                authoredId = r.id;
+                status.innerHTML = `<span class="ok">✓ Verified — the reference reproduces every sample. `
+                    + `Ready to publish.</span><pre class="af-verify-out">${escapeHTML((r.verify.output||'').slice(-600))}</pre>`;
+                document.getElementById('af-publish').disabled = false;
+                fetchProblemsAndHistory();   // it's already runnable locally
+            } else {
+                const msg = (r.error) || (r.verify && r.verify.output) || 'Verification failed.';
+                status.innerHTML = `<span class="warn">✗ ${escapeHTML(r.error || 'Verification failed — fix the reference or samples.')}</span>`
+                    + `<pre class="af-verify-out">${escapeHTML(((r.verify&&r.verify.output)||msg).slice(-800))}</pre>`;
+                document.getElementById('af-publish').disabled = true;
+            }
+        } catch (e) {
+            status.innerHTML = `<span class="warn">${escapeHTML(e.message)}</span>`;
+        }
+    });
+
+    document.getElementById('af-publish').addEventListener('click', async () => {
+        if (!authoredId) return;
+        status.innerHTML = '<span class="muted">Committing and pushing…</span>';
+        try {
+            const r = await api('/api/bank/publish', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: authoredId }),
+            });
+            if (!r.ok) {
+                status.innerHTML = `<span class="warn">${escapeHTML(r.error || 'Publish failed')}</span>`;
+            } else if (r.pushed) {
+                status.innerHTML = `<span class="ok">✓ Pushed branch <b>${escapeHTML(r.branch)}</b>.</span>`
+                    + (r.pr_url ? ` <a href="${r.pr_url}" target="_blank" rel="noopener">Open a pull request →</a>` : '');
+            } else {
+                status.innerHTML = `<span class="ok">✓ Committed locally.</span> <span class="muted">${escapeHTML(r.note || '')}</span>`;
+            }
+        } catch (e) {
+            status.innerHTML = `<span class="warn">${escapeHTML(e.message)}</span>`;
+        }
+    });
+}
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+/* ---- lightweight toast ---- */
+let toastTimer = null;
+function toast(msg, kind) {
+    let t = document.getElementById('oaj-toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'oaj-toast';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.className = 'toast show ' + (kind || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = 'toast ' + (kind || ''); }, 3200);
 }
 
 /* ---- export everything ---- */

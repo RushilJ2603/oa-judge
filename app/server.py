@@ -6,6 +6,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import db  # noqa: E402
+import sharing  # noqa: E402  (Phase 5: git sync + problem authoring/publish)
 import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
 from runner import execute, md, problems, stress  # noqa: E402
 
@@ -344,6 +345,48 @@ def api_health():
                     "db": db.DB_PATH,
                     "gpp": bool(shutil.which("g++")),
                     "problems": len(problems.list_ids())})
+
+
+# ----------------------------------------------------------------- sharing (Phase 5)
+@app.route("/api/bank/status")
+def api_bank_status():
+    return jsonify(sharing.status())
+
+
+@app.route("/api/bank/sync", methods=["POST"])
+def api_bank_sync():
+    """git pull the problems bank. The listing is read fresh from disk on each request, so any
+    newly pulled problems appear on the next /api/problems without a restart."""
+    return jsonify(sharing.sync())
+
+
+@app.route("/api/bank/author", methods=["POST"])
+def api_bank_author():
+    """Scaffold → generate hidden tests → verify. Only a green package is left on disk ready to
+    publish; a failing one is reported so the author can fix the reference or samples."""
+    spec = request.get_json(force=True)
+    made = sharing.scaffold(spec)
+    if not made.get("ok"):
+        return jsonify(made), 400
+    pid = made["id"]
+    hid = sharing.make_hidden(pid)
+    ver = sharing.verify_one(pid)
+    return jsonify({"ok": ver.get("ok", False), "id": pid,
+                    "hidden": hid, "verify": ver})
+
+
+@app.route("/api/bank/publish", methods=["POST"])
+def api_bank_publish():
+    body = request.get_json(force=True)
+    pid = body.get("id")
+    if not pid:
+        return jsonify({"ok": False, "error": "id required"}), 400
+    # Re-verify before publishing so a package edited after authoring can't ship broken.
+    ver = sharing.verify_one(pid)
+    if not ver.get("ok"):
+        return jsonify({"ok": False, "error": "verification failed — not publishing",
+                        "verify": ver}), 400
+    return jsonify(sharing.publish(pid, body.get("message", "")))
 
 
 def _already_running(port: int) -> bool:
