@@ -1,18 +1,46 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-23 18:45 IST | By: Claude (Opus 4.8)
+# Last Updated: 2026-07-23 (v2 build session) | By: Claude (Opus 4.8)
 
 ## Current Phase
-Phase 3 — Working product; expanding the problem set and polishing UX.
+v2 rework — Phases 0–4 done and verified; Phases 5 (sharing) and 6 (hosting) deferred to the next session by the user. See PLAN_V2.md for the full approved plan.
 
 ## Current Status
-The judge is fully functional end-to-end: Flask backend + execution engine, a HackerRank-style browser UI with syntax highlighting, LC/OA modes, a "Find Failing Test" (stress) feature, attempt history, and a one-click Windows Desktop launcher. **11 of 13 problems are runnable** (Flipkart ×3, DE Shaw ×3, Millennium ×2, Uber ×3), each with sample + curated-edge + random hidden tests, all reference-verified. The full gate is green: every reference ACs its own suite (17–20 tests each) and every stub is correctly rejected. **The two CISCO problems are statement-only** (no verified reference yet) — that's why they show no language dropdown and an empty editor.
+Fully-usable local product. On top of the v1 judge (Flask + execution engine, LC/OA modes,
+Find-Failing-Test, 11/13 runnable problems, Desktop launcher — all still green via verify_all.py):
+
+- **Phase 0 — safety net:** full backup at `../oa-judge-backup-2026-07-23`; git initialised
+  (`.gitignore` excludes `app/data/` + the DB); one-shot `rescue_drafts.py` recovers browser
+  localStorage stranded by the 5000→5137 port move (**still pending the user running it in-browser**).
+- **Phase 1 — persistence:** SQLite at `app/data/judge.db` (WAL, migration runner in `app/db.py`,
+  data access in `app/store.py`). **Every submit stores its full source** + compile output +
+  first-failing-test index + runtime; every custom Run is logged; drafts autosave server-side;
+  draft snapshots enable time-travel; OA sessions record real time-on-problem. The 20 v1
+  `history.json` attempts were imported. Schema is Postgres-portable (for Phase 6).
+- **Phase 2 — editor:** the hand-written textarea+overlay editor is **replaced by Monaco**
+  (vendored offline at `app/static/vendor/monaco/`, ~4.3 MB). Removes the entire caret-drift /
+  paste-misalignment bug class. Autocomplete works: STL/builtin dictionaries + competitive-
+  programming snippets. `app/static/editor.js` is the wrapper (window.OAEditor).
+- **Phase 3 — data UI:** Attempts tab (timeline + view stored code), two-attempt LCS **diff**,
+  **draft scrubber** (History button), **Stats** dashboard, per-problem **Notes** + star/revisit/
+  confidence flags, and **Export all** (`/api/export` → zip of the DB + readable code/notes).
+- **Phase 4 essentials:** verified a forking TLE leaves **zero orphan processes**; server now
+  **prefers waitress** when installed, else Flask dev server; **single-instance guard** — launching
+  twice detects the running instance via `/api/health` and exits cleanly.
 
 ## Blocking Issues
-- NONE
+- NONE for local use.
 
 ## Next Session Must Start With
-> Make **cisco-q1-drone-delivery** and **cisco-q2-sniper-detector** runnable. Specs are already read from `_migrated_raw/cisco/coding.md`: q1 = min-moves 0-1 BFS/Dijkstra over state `(row,col,battery,vouchersLeft)` (samples: 7, 11, -1); q2 = sliding-window sniper detection, output `flag sniper` per line (sample outputs in the file). For each: write a `reference.cpp`, cross-check against an independent brute force on random inputs, add `stub.cpp` (reproduce the provided harness with the `struct InputData` + `parse_input`), `generator.py` (integer size hint), sample tests from the examples, and curated `tests/edge/*.in`; set `problem.json` `runnable=true`, `languages:["cpp"]`; then `make_hidden.py`, `verify_all.py`, `smoke_test.py`.
+> **Phase 5 (sharing) then Phase 6 (deployment)** — decisions locked in PLAN_V2.md: scope 0–6,
+> Monaco, two repos, **public** visibility. Phase 5: split a public `oa-problems` GitHub repo
+> (app reads `PROBLEMS_DIR`); in-app Sync + Add-Problem→verify→Publish; a GitHub Action running
+> `verify_all.py` on every PR; a one-command `setup.sh`. Phase 6: Docker per-run sandbox (the big
+> security piece), Postgres, GitHub OAuth, deploy.
+> **Fold into Phase 5:** make **cisco-q1-drone-delivery** and **cisco-q2-sniper-detector** runnable
+> (specs in `_migrated_raw/cisco/coding.md`).
+> **Also:** import the user's rescued browser drafts once they run `rescue_drafts.py` in-browser
+> (`python3 import_v1_data.py` picks up `app/data/rescued_drafts.json`).
 
 ## Environment Notes
 - OS: Windows 11 + WSL2 (project lives at `C:\Users\jishu\Desktop\oa-judge`, i.e. `/mnt/c/Users/jishu/Desktop/oa-judge` in WSL)

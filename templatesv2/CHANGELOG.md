@@ -1,6 +1,68 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-23] — v2 rework: durable database, Monaco editor, data UI, stability (Phases 0–4) | By: Claude (Opus 4.8)
+
+Approved plan in PLAN_V2.md (scope 0–6, Monaco, two repos, public). This session delivered a
+fully-usable local product through Phase 4; Phases 5 (sharing) and 6 (hosting) were deferred to
+the next session at the user's request ("stop at a point where it's still usable for me fully").
+
+### Done This Session
+- **Phase 0 — safety net.** Full folder backup (`../oa-judge-backup-2026-07-23`). `git init`
+  with a `.gitignore` that keeps personal data (`app/data/`, `*.db`) out of the repo — the
+  project had *no* version control before this. Built `rescue_drafts.py`: a one-shot tool that
+  serves a recovery page on both 5000 and 5137 to pull back editor drafts stranded in
+  per-origin localStorage by the earlier port move. (User still needs to run it in-browser.)
+- **Phase 1 — persistence.** New SQLite DB (`app/data/judge.db`, WAL) with a migration runner
+  (`app/db.py`) and a data-access layer (`app/store.py`) replacing the flat-file
+  `runner/history.py`. **Submits now store the full source code** (v1 discarded it), plus
+  compile output, first-failing-test index and runtime; custom Runs are logged; drafts autosave
+  server-side; snapshots enable draft time-travel; OA sessions capture real time-on-problem
+  (v1's `duration_s` was NULL on every row). Imported the 20 existing `history.json` attempts
+  (`import_v1_data.py`, idempotent). Schema kept Postgres-portable for Phase 6.
+- **Phase 2 — Monaco editor.** Replaced the hand-written transparent-textarea + highlight-overlay
+  editor with vendored Monaco (`app/static/vendor/monaco/`, trimmed to 4.3 MB, fully offline).
+  This eliminates by construction the caret-drift / paste-misalignment / line-height-rounding bug
+  class that cost the most time on this project. Added a wrapper (`app/static/editor.js`,
+  window.OAEditor) with Dracula-matched themes and C++/Python autocomplete: STL + builtin
+  dictionaries and competitive-programming snippets (fori, fastio, vec, dsu, pq, binsearch, memo…).
+  Drafts autosave (debounced) with periodic + pre-submit/reset/switch snapshots; localStorage is
+  demoted to an offline fallback. Deep links via `#problem-id`.
+- **Phase 3 — the data becomes useful.** Attempts tab (every submission, with the stored code);
+  two-attempt **LCS line diff** auto-ordered old→new (see exactly what turned WA into AC); **draft
+  scrubber** slider with Restore; **Stats** dashboard (solved / AC-rate / first-try / avg-attempts-
+  to-AC / verdict bars); per-problem **Notes** with star/revisit/confidence; **Export all** endpoint
+  (zip of the DB + a readable tree of code and notes — data is never locked in the app).
+- **Phase 4 essentials.** Confirmed a forking TLE is killed as a process group and leaves zero
+  orphans (this was already correct in v1's sandbox — verified, not assumed). Server now prefers
+  `waitress` when installed and falls back to the Flask dev server (not force-installed into an
+  externally-managed Python). Added a `/api/health` **single-instance guard**: double-launching
+  detects the running copy and exits cleanly instead of crashing on the port.
+
+### Verified
+- v2 API end-to-end (26 checks): a submit's exact source is retrievable afterwards; drafts,
+  snapshots, runs, OA sessions, notes, flags, stats all round-trip.
+- Monaco headless self-test: boot, exact value/line/cursor round-trip, highlighting, language
+  switch, and the completion widget opening with relevant C++ suggestions (fixed a real bug found
+  there — the snippet enum is `CompletionItemInsertTextRule`, singular).
+- All five Phase 3 views screenshotted with real seeded data; the diff correctly showed
+  `int _m()`→`int main()` and the removed junk line. Export zip passes an integrity check.
+- `verify_all.py` still green — every runnable reference ACs its own suite after all changes.
+
+### Errors Hit
+- Snippet completions silently returned "No suggestions": the insert-rule enum is
+  `CompletionItemInsertTextRule` (singular), not the plural I first wrote. Found by capturing the
+  in-page console error, not by guessing. Fixed.
+- Monaco 0.56 ships hashed ESM chunks needing a bundler; used the 0.52.2 classic AMD build, which
+  self-hosts with no build step.
+
+### Next Session Must
+- Phase 5 (sharing: `oa-problems` repo split, Sync/Add-Problem/Publish UI, CI, `setup.sh`) then
+  Phase 6 (Docker per-run sandbox, Postgres, GitHub OAuth, deploy). Fold in making the two CISCO
+  problems runnable. Import rescued drafts once the user runs `rescue_drafts.py`.
+
+---
+
 ## [2026-07-23 19:00 IST] — Fixed editor paste-misalignment (metrics + browser caching) + auto-indent (same-session follow-up) | By: Claude (Opus 4.8)
 
 ### Done This Session
