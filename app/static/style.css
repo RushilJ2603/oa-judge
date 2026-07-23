@@ -433,3 +433,26 @@ body {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.ok { border-color: var(--success); }
 .toast.warn { border-color: var(--error); }
+
+/* ============================ hosted mode: auth UI ============================ */
+
+.login-overlay { position: fixed; inset: 0; z-index: 300; display: flex;
+    align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 30%, var(--bg-elev), var(--bg)); }
+.login-card { background: var(--bg); border: 1px solid var(--border-strong);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 40px 44px; text-align: center;
+    max-width: 380px; width: 90%; }
+.login-logo { font-size: 24px; font-weight: 750; letter-spacing: -0.01em; margin-bottom: 8px; }
+.login-sub { color: var(--text-muted); font-size: 13.5px; margin: 0 0 24px; line-height: 1.5; }
+.login-btn { display: inline-flex; align-items: center; gap: 9px; text-decoration: none;
+    background: #24292f; color: #fff; padding: 11px 22px; border-radius: 9px; font-size: 14.5px;
+    font-weight: 600; transition: background .15s; }
+.login-btn:hover { background: #32383f; }
+:root[data-theme="dark"] .login-btn { background: #2f363d; }
+:root[data-theme="dark"] .login-btn:hover { background: #3d444d; }
+.gh-mark { font-size: 16px; }
+
+.user-chip { display: inline-flex; align-items: center; gap: 8px; margin-left: 6px;
+    padding-left: 8px; border-left: 1px solid var(--border); }
+.user-chip img { border-radius: 50%; display: block; }
+#user-login { font-size: 12.5px; color: var(--text-muted); }

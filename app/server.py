@@ -1,10 +1,13 @@
 """OA Judge — Flask server. Serves the static UI and the JSON API defined in API.md."""
+import datetime
 import os
+import secrets
 import sys
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory, session
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import auth  # noqa: E402  (GitHub OAuth; no-op when AUTH is not configured)
 import config  # noqa: E402
 import db  # noqa: E402
 import sharing  # noqa: E402  (Phase 5: git sync + problem authoring/publish)
@@ -13,6 +16,38 @@ from runner import execute, md, problems, stress  # noqa: E402
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 app = Flask(__name__, static_folder=None)
+
+# Session signing key. In hosted mode it must be stable (set OAJ_SECRET_KEY) so logins survive a
+# restart; locally an ephemeral key is fine because login is unused.
+app.secret_key = config.SECRET_KEY or secrets.token_hex(32)
+app.permanent_session_lifetime = datetime.timedelta(days=30)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
+app.register_blueprint(auth.bp)
+
+# In hosted mode every personal query is scoped to the logged-in user; locally it stays the
+# implicit local user. This one line is what makes the whole app multi-tenant.
+store.set_user_provider(auth.current_user_id)
+
+# Endpoints reachable without a login (everything else requires one when AUTH is on).
+_PUBLIC_PATHS = {"/", "/api/health", "/api/me"}
+
+
+@app.before_request
+def _resolve_user():
+    if not config.AUTH_ENABLED:
+        return None
+    g.user_id = session.get("user_id")
+    p = request.path
+    if p in _PUBLIC_PATHS or p.startswith("/static/") or p.startswith("/auth/"):
+        return None
+    if not g.user_id:
+        # API calls get a clean 401 (the frontend shows the login screen); anything else
+        # bounces to the login page.
+        if p.startswith("/api/"):
+            return jsonify({"error": "login required", "login_url": "/auth/login"}), 401
+        from flask import redirect
+        return redirect("/auth/login")
+    return None
 
 
 # ----------------------------------------------------------------- static UI
