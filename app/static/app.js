@@ -9,6 +9,7 @@ const state = {
     oaTimerInterval: null,
     submittedInOa: false,
     prevLang: null,
+    oaSessionId: null,
 };
 
 const els = {
@@ -20,10 +21,8 @@ const els = {
     modeRadios: document.getElementsByName('mode'),
     oaTimer: document.getElementById('oa-timer'),
     themeToggle: document.getElementById('theme-toggle'),
-    editor: document.getElementById('editor'),
-    highlightLayer: document.getElementById('highlight-layer'),
-    highlightCode: document.getElementById('highlight-code'),
-    lineNumbers: document.getElementById('line-numbers'),
+    monacoHost: document.getElementById('monaco-host'),
+    saveStatus: document.getElementById('save-status'),
     btnRun: document.getElementById('btn-run'),
     btnSubmit: document.getElementById('btn-submit'),
     btnStress: document.getElementById('btn-stress'),
@@ -43,94 +42,74 @@ const els = {
 
 const LANG_MAP = { cpp: 'C++17', py: 'Python 3' };
 
-/* ============================ syntax highlighting ============================ */
-const KEYWORDS = {
-    cpp: new Set(['int','long','short','char','bool','float','double','void','unsigned','signed','auto',
-        'const','constexpr','static','struct','class','public','private','protected','template','typename',
-        'namespace','using','return','if','else','for','while','do','switch','case','default','break',
-        'continue','new','delete','try','catch','throw','sizeof','true','false','nullptr','this','operator',
-        'friend','virtual','override','inline','enum','union','typedef','goto','extern','volatile','mutable',
-        'explicit','and','or','not','define','include','ifdef','endif']),
-    py: new Set(['def','return','if','elif','else','for','while','break','continue','import','from','as',
-        'class','try','except','finally','raise','with','lambda','yield','global','nonlocal','pass','in',
-        'is','not','and','or','None','True','False','del','assert','async','await']),
-};
-const TYPES = {
-    cpp: new Set(['string','vector','map','set','unordered_map','unordered_set','pair','queue','stack','deque',
-        'priority_queue','size_t','int64_t','uint64_t','int32_t','ll','ull','multiset','multimap','array','list',
-        'tuple','bitset','cin','cout','cerr','endl','std','make_pair']),
-    py: new Set(['print','len','range','int','str','float','list','dict','set','tuple','map','filter','sorted',
-        'sum','min','max','abs','input','enumerate','zip','open','isinstance','type','bool','any','all','ord',
-        'chr','sys','collections','heapq','defaultdict','Counter','deque']),
-};
+/* ============================ editor bridge ============================ */
+/* Syntax highlighting, line numbers, auto-indent and caret handling all moved into Monaco
+ * (see editor.js). The hand-written tokenizer + transparent-textarea overlay that used to
+ * live here is deleted: it required two DOM layers to lay out identically to the pixel, and
+ * any disagreement drifted the caret off the text. What remains is draft persistence. */
 
-function tokenize(src, lang) {
-    const isPy = lang === 'py';
-    // Groups (cpp): 1 comment, 2 string, 3 preproc, 4 number, 5 identifier, 6 ws, 7 any
-    // Groups (py) : 1 comment, 2 string, 3 number, 4 identifier, 5 ws, 6 any
-    const re = isPy
-        ? /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|(\b\d[\w.]*)|([A-Za-z_]\w*)|(\s+)|([\s\S])/g
-        : /(\/\*[\s\S]*?\*\/|\/\/[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|(#\w+)|(\b\d[\w.]*)|([A-Za-z_]\w*)|(\s+)|([\s\S])/g;
-    const kw = KEYWORDS[isPy ? 'py' : 'cpp'];
-    const ty = TYPES[isPy ? 'py' : 'cpp'];
-    let out = '';
-    let m;
-    while ((m = re.exec(src)) !== null) {
-        const t = m[0];
-        let cls = null;
-        if (isPy) {
-            if (m[1]) cls = 'tok-comment';
-            else if (m[2]) cls = 'tok-string';
-            else if (m[3]) cls = 'tok-number';
-            else if (m[4]) cls = kw.has(t) ? 'tok-keyword' : (ty.has(t) ? 'tok-type' : (src[re.lastIndex] === '(' ? 'tok-func' : null));
-        } else {
-            if (m[1]) cls = 'tok-comment';
-            else if (m[2]) cls = 'tok-string';
-            else if (m[3]) cls = 'tok-preproc';
-            else if (m[4]) cls = 'tok-number';
-            else if (m[5]) cls = kw.has(t) ? 'tok-keyword' : (ty.has(t) ? 'tok-type' : (src[re.lastIndex] === '(' ? 'tok-func' : null));
-        }
-        const esc = escapeHTML(t);
-        out += cls ? `<span class="${cls}">${esc}</span>` : esc;
+const AUTOSAVE_MS = 1200;        // debounce after the last keystroke
+const SNAPSHOT_MS = 120000;      // periodic version for the draft scrubber
+let saveTimer = null;
+let snapshotTimer = null;
+
+function setSaveStatus(text, cls) {
+    if (!els.saveStatus) return;
+    els.saveStatus.textContent = text;
+    els.saveStatus.className = 'save-status' + (cls ? ' ' + cls : '');
+}
+
+/* Drafts live in the SQLite DB on the server. localStorage is kept only as an offline
+ * fallback: it is partitioned per origin, so the 5000 -> 5137 port move stranded everything
+ * written before it, and it holds no history. */
+function saveDraftNow() {
+    if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return;
+    const lang = els.langSelect.value;
+    const source = OAEditor.getValue();
+    localStorage.setItem(`${state.currentProblemId}:${lang}`, source);   // fallback copy
+    setSaveStatus('saving…');
+    api(`/api/draft/${state.currentProblemId}/${lang}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, cursor_pos: OAEditor.getCursorOffset() }),
+    }).then(() => setSaveStatus('saved', 'ok'))
+      .catch(() => setSaveStatus('offline — saved locally', 'warn'));
+}
+
+function scheduleSave() {
+    setSaveStatus('editing…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDraftNow, AUTOSAVE_MS);
+}
+
+/* A point-in-time copy so half-written code can be replayed later. The server drops a
+ * snapshot identical to the previous one, so idle time costs nothing. */
+function snapshotNow(reason) {
+    if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return Promise.resolve();
+    const source = OAEditor.getValue();
+    if (!source.trim()) return Promise.resolve();
+    return api('/api/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            problem_id: state.currentProblemId,
+            language: els.langSelect.value,
+            source, reason,
+        }),
+    }).catch(() => { /* snapshots are best-effort; never block the user */ });
+}
+
+/* Flush before the tab closes so the last few seconds of typing are not lost. */
+function flushOnExit() {
+    if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return;
+    const lang = els.langSelect.value;
+    const body = JSON.stringify({ source: OAEditor.getValue(),
+                                  cursor_pos: OAEditor.getCursorOffset() });
+    // fetch() is cancelled on unload; sendBeacon is not.
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/draft/${state.currentProblemId}/${lang}`,
+                             new Blob([body], { type: 'application/json' }));
     }
-    return out;
-}
-
-function refreshEditor() {
-    // Strip any stray CR so the highlight layer's line count matches the textarea exactly.
-    const src = els.editor.value.replace(/\r/g, '');
-    els.highlightCode.innerHTML = tokenize(src, els.langSelect.value || 'cpp');
-    updateLineNumbers();
-    syncScroll();
-}
-
-// Insert text at the caret (replacing any selection). Uses execCommand('insertText') so the
-// browser's native undo stack is preserved and the 'input' event fires (which refreshes the
-// highlight + saves). Falls back to a manual splice if execCommand is unavailable.
-function insertAtCursor(text) {
-    els.editor.focus();
-    let ok = false;
-    try { ok = document.execCommand && document.execCommand('insertText', false, text); } catch (e) { ok = false; }
-    if (!ok) {
-        const s = els.editor.selectionStart, en = els.editor.selectionEnd;
-        els.editor.value = els.editor.value.slice(0, s) + text + els.editor.value.slice(en);
-        els.editor.selectionStart = els.editor.selectionEnd = s + text.length;
-        refreshEditor();
-        saveSource();
-    }
-}
-
-function syncScroll() {
-    els.highlightLayer.scrollTop = els.editor.scrollTop;
-    els.highlightLayer.scrollLeft = els.editor.scrollLeft;
-    els.lineNumbers.scrollTop = els.editor.scrollTop;
-}
-
-function updateLineNumbers() {
-    const lines = els.editor.value.split('\n').length;
-    let s = '';
-    for (let i = 1; i <= lines; i++) s += i + '\n';
-    els.lineNumbers.textContent = s;
 }
 
 /* ============================ setup ============================ */
@@ -155,6 +134,7 @@ function setupTheme() {
         const next = isDark ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('theme', next);
+        if (window.OAEditor && OAEditor.isReady()) OAEditor.setTheme(next === 'dark');
     });
 }
 
@@ -166,42 +146,19 @@ function setupEventListeners() {
         document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
     }));
 
-    els.editor.addEventListener('input', () => { refreshEditor(); saveSource(); });
-    els.editor.addEventListener('scroll', syncScroll);
-    els.editor.addEventListener('keydown', (e) => {
-        // Ctrl/Cmd+Enter submits — check before the plain-Enter auto-indent.
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            if (!els.btnSubmit.disabled) els.btnSubmit.click();
-            return;
-        }
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            insertAtCursor('    ');
-            return;
-        }
-        if (e.key === 'Enter') {
-            // Auto-indent: carry the current line's leading whitespace to the new line,
-            // and add one level after an opening brace/paren or a trailing colon.
-            e.preventDefault();
-            const v = els.editor.value, s = els.editor.selectionStart;
-            const lineStart = v.lastIndexOf('\n', s - 1) + 1;
-            const prefix = v.slice(lineStart, s);
-            const indent = (prefix.match(/^[ \t]*/) || [''])[0];
-            const extra = /[{(:]\s*$/.test(prefix) ? '    ' : '';
-            insertAtCursor('\n' + indent + extra);
-            return;
-        }
+    // Monaco handles typing, indentation, paste and Tab natively — no keydown gymnastics.
+    OAEditor.init(els.monacoHost, {
+        language: 'cpp',
+        dark: !isLightTheme(),
+    }).then(() => {
+        OAEditor.onChange(scheduleSave);
+        OAEditor.addSubmitShortcut(() => { if (!els.btnSubmit.disabled) els.btnSubmit.click(); });
+        snapshotTimer = setInterval(() => snapshotNow('periodic'), SNAPSHOT_MS);
+        // The editor became usable after the problem may already have loaded.
+        if (state.currentProblemData) loadSourceForLanguage('initial');
     });
-    // Normalise pasted text: CRLF/CR -> LF and tabs -> 4 spaces, so the highlight overlay
-    // stays line-aligned with the textarea and indentation is consistent.
-    els.editor.addEventListener('paste', (e) => {
-        e.preventDefault();
-        const cd = e.clipboardData || window.clipboardData;
-        if (!cd) return;
-        const text = cd.getData('text').replace(/\r\n?/g, '\n').replace(/\t/g, '    ');
-        insertAtCursor(text);
-    });
+
+    window.addEventListener('beforeunload', flushOnExit);
 
     els.langSelect.addEventListener('change', () => loadSourceForLanguage('switch'));
     els.modeRadios.forEach(r => r.addEventListener('change', handleModeChange));
@@ -211,7 +168,9 @@ function setupEventListeners() {
     els.btnStress.addEventListener('click', handleFindFailing);
     els.btnResetOa.addEventListener('click', handleResetOa);
     els.btnResetStub.addEventListener('click', () => {
-        if (confirm('Reset the editor to the starter code? Your changes will be lost.')) loadSourceForLanguage('reset');
+        if (!confirm('Reset the editor to the starter code? Your changes will be lost.')) return;
+        // Snapshot first, so "lost" is recoverable from the draft scrubber.
+        snapshotNow('pre-reset').then(() => loadSourceForLanguage('reset'));
     });
 
     els.btnCustomInputToggle.addEventListener('click', () => {
@@ -237,9 +196,9 @@ function setupEventListeners() {
     document.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; } });
 }
 
-function saveSource() {
-    if (!state.currentProblemId) return;
-    localStorage.setItem(`${state.currentProblemId}:${els.langSelect.value}`, els.editor.value);
+function isLightTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    return cur ? cur === 'light' : !window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 /* ============================ problem list ============================ */
@@ -248,6 +207,9 @@ async function fetchProblemsAndHistory() {
         state.problems = (await api('/api/problems')).problems;
         try { state.history = await api('/api/history'); } catch (e) { state.history = { attempts: [], revisit: [] }; }
         renderSidebar();
+        // Honour a #problem-id deep link on first load.
+        const want = decodeURIComponent(location.hash.slice(1));
+        if (want && state.problems.some(p => p.id === want)) loadProblem(want);
     } catch (e) { console.error('Failed to fetch problems', e); }
 }
 
@@ -287,8 +249,13 @@ function renderSidebar() {
 
 async function loadProblem(id) {
     if (state.currentProblemId === id) return;
+    // Flush the outgoing problem's draft before switching away from it.
+    if (state.currentProblemId) saveDraftNow();
     state.currentProblemId = id;
     state.submittedInOa = false;
+    state.oaSessionId = null;
+    // Deep link, so a problem can be opened (or shared) by URL.
+    if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
     renderSidebar();
 
     try {
@@ -312,14 +279,15 @@ async function loadProblem(id) {
         });
 
         if (!data.runnable || !data.languages.length) {
-            els.editor.value = '';
-            els.editor.disabled = true;
+            if (OAEditor.isReady()) {
+                OAEditor.setValue('// This problem has a statement only — no reference solution yet.\n');
+                OAEditor.setReadOnly(true);
+            }
             [els.btnRun, els.btnSubmit, els.btnStress].forEach(b => b.disabled = true);
-            els.highlightCode.textContent = '';
-            updateLineNumbers();
+            setSaveStatus('');
             els.breadcrumb.textContent += '  (statement only)';
         } else {
-            els.editor.disabled = false;
+            if (OAEditor.isReady()) OAEditor.setReadOnly(false);
             [els.btnRun, els.btnSubmit, els.btnStress].forEach(b => b.disabled = false);
             if (data.samples && data.samples.length) els.customStdin.value = data.samples[0].input;
             loadSourceForLanguage('initial');
@@ -333,24 +301,50 @@ async function loadProblem(id) {
     }
 }
 
-function loadSourceForLanguage(reason) {
-    if (!state.currentProblemData) return;
+async function loadSourceForLanguage(reason) {
+    if (!state.currentProblemData || !OAEditor.isReady()) return;
     const lang = els.langSelect.value;
     const stub = (state.currentProblemData.stubs || {})[lang] || '';
+    const current = OAEditor.getValue();
 
-    if (reason === 'switch' && els.editor.value.trim() !== '' &&
-        els.editor.value !== (state.currentProblemData.stubs || {})[state.prevLang]) {
+    if (reason === 'switch' && current.trim() !== '' &&
+        current !== (state.currentProblemData.stubs || {})[state.prevLang]) {
+        // The old code is snapshotted either way, so a mis-click is recoverable.
+        await snapshotNow('pre-switch');
         if (!confirm('Switch language and discard the current code?')) {
             els.langSelect.value = state.prevLang;
             return;
         }
     }
     state.prevLang = lang;
+    OAEditor.setLanguage(lang);
 
-    const saved = localStorage.getItem(`${state.currentProblemId}:${lang}`);
-    els.editor.value = (reason === 'reset') ? stub : (saved != null ? saved : stub);
-    if (reason === 'reset') saveSource();
-    refreshEditor();
+    if (reason === 'reset') {
+        OAEditor.setValue(stub);
+        saveDraftNow();
+        return;
+    }
+
+    // Server draft is authoritative; localStorage is only a fallback for when the API is
+    // unreachable. Whichever has more content wins, so a stale short copy never clobbers work.
+    let draft = null;
+    try {
+        draft = await api(`/api/draft/${state.currentProblemId}/${lang}`);
+    } catch (e) {
+        draft = null;
+    }
+    const local = localStorage.getItem(`${state.currentProblemId}:${lang}`);
+    const server = draft && draft.source_code;
+    let chosen = stub;
+    if (server && local) chosen = server.length >= local.length ? server : local;
+    else if (server) chosen = server;
+    else if (local != null) chosen = local;
+
+    OAEditor.setValue(chosen);
+    if (draft && draft.cursor_pos != null && chosen === server) {
+        OAEditor.setCursorOffset(draft.cursor_pos);
+    }
+    setSaveStatus(server ? 'saved' : '', server ? 'ok' : '');
 }
 
 /* ============================ modes / timer ============================ */
@@ -384,6 +378,14 @@ function handleModeChange() {
 function startOaTimer() {
     clearInterval(state.oaTimerInterval);
     state.oaStartTime = Date.now();
+    // Open a server-side session so time-per-problem survives a reload or a crash.
+    if (state.currentProblemId) {
+        api('/api/oa-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ problem_id: state.currentProblemId }),
+        }).then(r => { state.oaSessionId = r.session_id; }).catch(() => {});
+    }
     const upd = () => {
         const e = Math.floor((Date.now() - state.oaStartTime) / 1000);
         els.oaTimer.textContent = `${String(Math.floor(e / 60)).padStart(2, '0')}:${String(e % 60).padStart(2, '0')}`;
@@ -410,7 +412,7 @@ function reqBody(extra) {
     return JSON.stringify(Object.assign({
         problem_id: state.currentProblemId,
         language: els.langSelect.value,
-        source: els.editor.value,
+        source: OAEditor.getValue(),
     }, extra));
 }
 function post(path, extra) {
@@ -447,16 +449,23 @@ async function handleSubmit() {
     els.console.innerHTML = '<div class="spinner">Judging…</div>';
     els.btnSubmit.disabled = true;
 
-    let duration = null;
+    // Time-on-problem is recorded in both modes now; v1 sent it in neither, which is why
+    // duration_s was NULL on every historical row.
+    const duration = state.oaStartTime
+        ? Math.round((Date.now() - state.oaStartTime) / 1000 * 10) / 10 : null;
     if (mode === 'oa') {
-        duration = state.oaStartTime ? Math.floor((Date.now() - state.oaStartTime) / 1000) : null;
         clearInterval(state.oaTimerInterval);
         state.submittedInOa = true;
         els.btnResetOa.style.display = 'inline-block';
     }
 
+    saveDraftNow();   // the judged code is the draft; flush before the round-trip
+
     try {
-        const r = await post('/api/submit', { mode, duration_s: duration });
+        const r = await post('/api/submit', {
+            mode, duration_s: duration, oa_session_id: state.oaSessionId || null,
+        });
+        if (mode === 'oa') state.oaSessionId = null;
         let html = `<div class="result-summary">`;
         html += `<span class="verdict-badge v-${r.verdict}">${r.verdict}</span>`;
         html += `<span class="kv">passed <b>${r.passed}/${r.total}</b></span>`;

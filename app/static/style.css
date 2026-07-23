@@ -171,45 +171,24 @@ body {
     background: var(--bg); color: var(--text); border: 1px solid var(--border); cursor: pointer;
 }
 
+/* Monaco owns everything inside .editor-wrapper: gutter, highlighting, caret, scrollbars.
+   The old .line-numbers / .code-scroll / .highlight-layer / .code-input stack is gone —
+   keeping those two layers pixel-aligned is what produced the caret-drift bugs. Token
+   colours now live in the oaj-dark / oaj-light themes defined in editor.js. */
 .editor-wrapper { flex: 1; display: flex; min-height: 0; background: var(--ed-bg); }
-.line-numbers {
-    flex-shrink: 0; text-align: right; padding: 12px 10px 12px 14px;
-    background: var(--ed-gutter); color: var(--ed-gutter-text);
-    font-family: var(--mono); font-size: 13px; line-height: 20px;
-    white-space: pre; overflow: hidden; user-select: none;
-    border-right: 1px solid rgba(255,255,255,0.05);
-}
-.code-scroll { position: relative; flex: 1; overflow: hidden; }
-.highlight-layer, .code-input {
-    position: absolute; inset: 0; margin: 0; border: 0;
-    padding: 12px 16px; box-sizing: border-box;
-    font-family: var(--mono); font-size: 13px; line-height: 20px; letter-spacing: 0;
-    tab-size: 4; -moz-tab-size: 4; white-space: pre; overflow: auto;
-    word-wrap: normal;
-}
-.highlight-layer {
-    z-index: 1; pointer-events: none; color: var(--ed-text); background: var(--ed-bg);
-    scrollbar-width: none;
-}
-.highlight-layer::-webkit-scrollbar { display: none; }
-.highlight-layer code { font: inherit; white-space: inherit; display: block; }
-.code-input {
-    z-index: 2; color: transparent; background: transparent;
-    caret-color: var(--ed-text); resize: none; outline: none;
-}
-.code-input::selection { background: var(--ed-selection); }
-.code-input::-webkit-scrollbar { width: 12px; height: 12px; }
-.code-input::-webkit-scrollbar-thumb { background: var(--ed-scrollbar); border-radius: 6px; border: 3px solid var(--ed-bg); }
-.code-input::-webkit-scrollbar-corner { background: var(--ed-bg); }
+.monaco-host { flex: 1; min-width: 0; min-height: 0; }
 
-/* token colors */
-.tok-keyword { color: var(--tok-keyword); }
-.tok-type    { color: var(--tok-type); }
-.tok-string  { color: var(--tok-string); }
-.tok-number  { color: var(--tok-number); }
-.tok-comment { color: var(--tok-comment); font-style: italic; }
-.tok-func    { color: var(--tok-func); }
-.tok-preproc { color: var(--tok-preproc); }
+/* Monaco measures itself against its container, so the container must have real height. */
+.monaco-host .monaco-editor { position: absolute; }
+.monaco-host .monaco-editor .overflow-guard { border-radius: 0; }
+
+/* Autosave indicator in the editor toolbar. */
+.save-status {
+    font-size: 11.5px; color: var(--muted, #8b90a6); margin-left: 10px;
+    letter-spacing: 0.02em; user-select: none; transition: color .2s ease;
+}
+.save-status.ok   { color: var(--ok, #2ea043); }
+.save-status.warn { color: var(--warn, #d29922); }
 
 /* ===== footer ===== */
 .editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 12px; background: var(--bg-elev); border-top: 1px solid var(--border); flex-shrink: 0; }
