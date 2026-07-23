@@ -287,3 +287,105 @@ body {
     .statement-pane { flex-basis: 50%; }
     .footer-right .btn { padding: 7px 10px; }
 }
+
+/* ============================ Phase 3: data UI ============================ */
+
+.tab-count { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+/* --- secondary tabs share the statement pane's scroll --- */
+#tab-attempts, #tab-notes { padding: 4px 2px; }
+
+/* --- attempts list --- */
+.attempts-toolbar { display: flex; justify-content: space-between; align-items: baseline;
+    margin: 2px 4px 12px; font-size: 12.5px; }
+.attempts-toolbar .hint { color: var(--text-muted); font-style: italic; }
+.muted { color: var(--text-muted); }
+
+.attempt-list { display: flex; flex-direction: column; gap: 6px; }
+.attempt-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; transition: border-color .12s, background .12s; font-size: 13px; }
+.attempt-row:hover { border-color: var(--border-strong); }
+.attempt-row.no-code { cursor: default; opacity: .78; }
+.attempt-row.picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.attempt-score { font-weight: 600; font-variant-numeric: tabular-nums; }
+.attempt-meta { color: var(--text-muted); font-size: 12px; }
+.attempt-when { margin-left: auto; color: var(--text-muted); font-size: 11.5px;
+    white-space: nowrap; }
+.attempt-row .mini-note { color: var(--text-muted); font-size: 11px; font-style: italic; }
+.mini-btn { background: var(--bg-sunken); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+.attempt-row .view-code { margin-left: 4px; }
+
+/* --- modal shell --- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+.modal { background: var(--bg); border: 1px solid var(--border-strong);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    width: min(880px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }
+.modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border); }
+.modal-title { font-weight: 650; font-size: 15px; }
+.modal-actions { margin-left: auto; display: flex; gap: 8px; }
+.modal-body { padding: 16px 18px; overflow: auto; }
+
+/* --- stored-code view + diff --- */
+.code-view { background: var(--ed-bg); color: var(--ed-text); font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.55; padding: 14px 16px; border-radius: var(--radius-sm);
+    overflow: auto; white-space: pre; margin: 0; max-height: 62vh; }
+.code-view-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 13px; }
+
+.diff-legend { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+.diff-legend .arrow { color: var(--text-muted); }
+.diff-view { background: var(--ed-bg); border-radius: var(--radius-sm); overflow: auto;
+    max-height: 64vh; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; padding: 6px 0; }
+.diff-line { display: flex; padding: 0 12px; white-space: pre; color: var(--ed-text); }
+.diff-sign { display: inline-block; width: 16px; color: var(--ed-gutter-text); flex-shrink: 0; }
+.diff-line.add { background: rgba(46,160,67,.16); }
+.diff-line.del { background: rgba(207,34,46,.16); }
+.diff-line.add .diff-sign { color: #3fb950; }
+.diff-line.del .diff-sign { color: #f85149; }
+.diff-line.same { color: #b7bec9; }
+
+/* --- notes --- */
+.notes-flags { display: flex; align-items: center; gap: 18px; margin: 4px 4px 12px;
+    flex-wrap: wrap; font-size: 13px; }
+.notes-flags .chk, .notes-flags .conf { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.notes-flags select { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 2px 6px; }
+.note-body { width: 100%; min-height: 340px; resize: vertical; background: var(--bg-elev);
+    color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px 14px; font-family: var(--mono); font-size: 13px; line-height: 1.6;
+    box-sizing: border-box; }
+.note-body:focus { outline: none; border-color: var(--accent); }
+
+/* --- draft scrubber --- */
+.scrub-controls { margin-bottom: 12px; }
+#scrub { width: 100%; }
+.scrub-label { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+
+/* --- stats --- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px; margin-bottom: 8px; }
+.stat-tile { background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+.stat-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-den { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+.stat-cap { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+.stat-h { font-size: 13px; margin: 18px 0 8px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+.vbars { display: flex; flex-direction: column; gap: 6px; }
+.vbar-row { display: flex; align-items: center; gap: 10px; }
+.vbar-label { min-width: 42px; text-align: center; }
+.vbar-track { flex: 1; height: 10px; background: var(--bg-sunken); border-radius: 5px; overflow: hidden; }
+.vbar-fill { height: 100%; border-radius: 5px; }
+.vbar-fill.ok { background: var(--success); }
+.vbar-fill.err { background: var(--error); }
+.vbar-fill.warn { background: var(--warn); }
+.vbar-fill.muted { background: var(--text-muted); }
+.vbar-n { min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+.stat-foot { margin-top: 16px; font-size: 12px; }
+
+.save-status.ok { color: var(--success); }
+.save-status.warn { color: var(--warn); }
