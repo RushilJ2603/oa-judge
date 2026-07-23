@@ -145,12 +145,19 @@ def _run_docker(argv, stdin_data: str, *, time_ms: int, memory_mb: int,
     timeout as a backstop. Memory pressure surfaces as an OOM kill (exit 137)."""
     wall = time_ms / 1000.0 + 0.5
     workdir = cwd or "."
+    _open_perms(workdir)   # the container's 'nobody' must be able to read/exec the built program
 
-    # Re-root each argv path that points inside the workdir to its /work equivalent.
+    # Re-root argv for the container:
+    #   - a path inside the workdir -> its /work equivalent (the compiled binary / script)
+    #   - a host-absolute interpreter (e.g. /usr/bin/python3 from sys.executable) -> its basename,
+    #     so the container resolves its own python3 from PATH rather than a host path that isn't
+    #     present in the image.
     mapped = []
-    for a in argv:
+    for i, a in enumerate(argv):
         if a.startswith(workdir):
             mapped.append("/work" + a[len(workdir):])
+        elif i == 0 and os.path.isabs(a):
+            mapped.append(os.path.basename(a))
         else:
             mapped.append(a)
     inner = "timeout -s KILL %d %s" % (int(wall) + 1, " ".join(shlex.quote(x) for x in mapped))
@@ -212,6 +219,23 @@ def _run_docker(argv, stdin_data: str, *, time_ms: int, memory_mb: int,
                      sig_name, elapsed_ms, 0, timed_out, oom)
 
 
+def _open_perms(path: str) -> None:
+    """Make a throwaway workspace reachable by the container's unprivileged user (uid 65534).
+    mkdtemp creates 0700 dirs owned by the host user, which 'nobody' inside the container cannot
+    traverse/read/write. These dirs hold only the submission's own ephemeral files, so opening
+    them up for the duration of one run is safe."""
+    try:
+        os.chmod(path, 0o777)
+        for name in os.listdir(path):
+            full = os.path.join(path, name)
+            try:
+                os.chmod(full, 0o777)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
 def compile_argv(argv, *, cwd: str, timeout: int = 30):
     """Run a compiler command, on the host (local backend) or inside a network-less container
     with a writable /work (docker backend). Untrusted source must not be compiled on the host
@@ -225,6 +249,7 @@ def compile_argv(argv, *, cwd: str, timeout: int = 30):
         except subprocess.TimeoutExpired:
             return 124, "compilation timed out"
 
+    _open_perms(cwd)   # the compiler (uid 65534) must be able to write the binary here
     mapped = ["/work" + a[len(cwd):] if a.startswith(cwd) else a for a in argv]
     docker_cmd = [
         "docker", "run", "--rm",
