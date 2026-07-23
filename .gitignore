@@ -28,3 +28,6 @@ desktop.ini
 # ── Local overrides ────────────────────────────────────────────
 config.local.json
 .env
+
+# Problems are a separate repo (oa-problems) cloned into problems/
+/problems/
