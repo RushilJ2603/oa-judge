@@ -1,0 +1,33 @@
+# Fly.io config for OA Judge (multi-user, GitHub login).
+# Rename `app` to something unique, then follow DEPLOY-FLY.md.
+
+app = "oa-judge"                 # <-- change to your unique app name
+primary_region = "iad"           # pick a region near you: fly platform regions
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  OAJ_HOST = "0.0.0.0"
+  OAJ_PORT = "5137"
+  OAJ_PROBLEMS_DIR = "/problems"
+  OAJ_DB = "/data/judge.db"
+  OAJ_EXEC_BACKEND = "local"     # Fly runs each app in its own Firecracker VM (the isolation boundary)
+  # OAJ_BASE_URL is set from the app name in DEPLOY-FLY.md via `fly secrets` or here once known,
+  # e.g. OAJ_BASE_URL = "https://oa-judge.fly.dev"
+
+# Personal data (the SQLite DB) lives on a persistent volume so it survives deploys/restarts.
+[mounts]
+  source = "oaj_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 5137
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0       # scale to zero when idle (free-tier friendly)
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

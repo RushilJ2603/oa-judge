@@ -62,6 +62,11 @@ SECRET_KEY = get("secret_key", "")
 
 AUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
 
+# Optional allow-list: comma-separated GitHub logins permitted to sign in. Empty = anyone with a
+# GitHub account (fine for an unlisted URL; set this to lock it to your group and stop strangers
+# from running code on your machine).
+GITHUB_ALLOWED = {s.strip().lower() for s in (get("github_allowed", "") or "").split(",") if s.strip()}
+
 
 # --- execution backend (Phase 6: hosting) --------------------------------------
 # "local"  — run submissions as a subprocess under rlimits on this machine. Correct for

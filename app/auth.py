@@ -91,8 +91,12 @@ def callback():
     except Exception as e:  # noqa: BLE001 - surface a clean message rather than a 500
         return f"sign-in failed: {e}", 502
 
+    login = gh.get("login") or f"user{gh['id']}"
+    if config.GITHUB_ALLOWED and login.lower() not in config.GITHUB_ALLOWED:
+        return (f"Sorry, @{login} isn't on this judge's allow-list. "
+                "Ask the owner to add you."), 403
     uid = store.upsert_github_user(
-        github_id=gh["id"], login=gh.get("login") or f"user{gh['id']}",
+        github_id=gh["id"], login=login,
         name=gh.get("name"), avatar_url=gh.get("avatar_url"))
     session.permanent = True
     session["user_id"] = uid
