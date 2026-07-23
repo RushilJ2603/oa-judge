@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
     <header class="app-header">
@@ -45,17 +45,15 @@
         <section class="editor-pane" id="right-pane">
             <div class="editor-toolbar">
                 <select id="lang-select" class="lang-select" title="Language"></select>
+                <span class="save-status" id="save-status" title="Drafts autosave to the local database"></span>
                 <div class="toolbar-spacer"></div>
                 <button class="icon-btn" id="btn-reset-stub" title="Reset editor to the starter code">↺ Reset</button>
             </div>
 
+            <!-- Monaco mounts here. The old textarea + highlight-overlay pair is gone: keeping
+                 two layers pixel-aligned is what caused the caret-drift bugs. -->
             <div class="editor-wrapper">
-                <div class="line-numbers" id="line-numbers">1</div>
-                <div class="code-scroll" id="code-scroll">
-                    <pre class="highlight-layer" id="highlight-layer" aria-hidden="true"><code id="highlight-code"></code></pre>
-                    <textarea id="editor" class="code-input" spellcheck="false" wrap="off"
-                              autocomplete="off" autocapitalize="off" autocorrect="off"></textarea>
-                </div>
+                <div id="monaco-host" class="monaco-host"></div>
             </div>
 
             <!-- Custom input drawer -->
@@ -97,6 +95,7 @@
             </div>
         </section>
     </div>
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/editor.js?v=3"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>
