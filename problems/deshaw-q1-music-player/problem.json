@@ -1,0 +1,23 @@
+{
+  "id": "deshaw-q1-music-player",
+  "title": "Music Player",
+  "company": "DE Shaw",
+  "difficulty": "Hard",
+  "tags": [
+    "data-structures",
+    "sqrt-decomposition",
+    "order-statistic-tree"
+  ],
+  "languages": [
+    "cpp"
+  ],
+  "runnable": true,
+  "io_mode": "stdin_stdout",
+  "compare": "tokens",
+  "limits": {
+    "time_ms": 2000,
+    "memory_mb": 256
+  },
+  "origin": "DE Shaw OA",
+  "links": []
+}

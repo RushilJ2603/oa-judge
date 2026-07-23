@@ -1,0 +1,10 @@
+1. given a binary string s, 
+the following operation will be performed on it
+there will be an empty string b
+for i= 0 to n-1, 
+the ith element of s will be appended to b at the end, and b will be reversed
+
+mutate the string s such that the final b would be maximum
+
+
+2. there is a bidirectional graph, there is a start node, end node, and a finite task nodes, all edges carry 1 weight , you are supposed to find the shortest path from start to end node by traversing all task nodes, you can visit a node more than once

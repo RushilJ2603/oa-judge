@@ -1,0 +1,29 @@
+{
+  "id": "flipkart-q2-marathon-checkpoints",
+  "title": "Marathon Checkpoints",
+  "company": "Flipkart",
+  "difficulty": "Medium",
+  "tags": [
+    "tree",
+    "graph",
+    "implementation"
+  ],
+  "languages": [
+    "cpp"
+  ],
+  "runnable": true,
+  "io_mode": "stdin_stdout",
+  "compare": "tokens",
+  "limits": {
+    "time_ms": 2000,
+    "memory_mb": 256
+  },
+  "origin": "Flipkart HirePro OA (transcribed from OA screen photos)",
+  "links": [
+    {
+      "site": "LeetCode",
+      "url": "https://leetcode.com/problems/construct-binary-tree-from-string/",
+      "note": "similar structure (build a tree from a path/string encoding)"
+    }
+  ]
+}

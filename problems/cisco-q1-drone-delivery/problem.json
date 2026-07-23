@@ -1,0 +1,22 @@
+{
+  "id": "cisco-q1-drone-delivery",
+  "title": "Drone Delivery with Battery Swap Stations",
+  "company": "Cisco",
+  "difficulty": "Hard",
+  "tags": [
+    "0-1-bfs",
+    "dijkstra",
+    "state-search",
+    "grid"
+  ],
+  "languages": [],
+  "runnable": false,
+  "io_mode": "stdin_stdout",
+  "compare": "tokens",
+  "limits": {
+    "time_ms": 2000,
+    "memory_mb": 256
+  },
+  "origin": "Cisco OA (transcribed)",
+  "links": []
+}
