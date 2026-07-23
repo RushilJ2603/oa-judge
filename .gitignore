@@ -32,3 +32,6 @@ config.local.json
 # Problems are a separate repo (oa-problems) cloned into problems/
 /problems/
 _push_to_github.sh
+
+# Offline wheel cache (regenerate with pip download)
+.wheels/
