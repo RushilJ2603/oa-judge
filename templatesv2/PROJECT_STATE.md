@@ -1,9 +1,29 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-23 (v2 build session) | By: Claude (Opus 4.8)
+# Last Updated: 2026-07-23 (v2 build session 2) | By: Claude (Opus 4.8)
 
 ## Current Phase
-v2 rework — Phases 0–4 done and verified; Phases 5 (sharing) and 6 (hosting) deferred to the next session by the user. See PLAN_V2.md for the full approved plan.
+v2 rework — **all six phases (0–6) complete.** Both repos are public on GitHub and CI passes.
+See PLAN_V2.md for the plan; the only deliberately-deferred item is a multi-user OAuth layer
+(not needed while everyone runs their own copy and shares only the bank — see DEPLOY.md).
+
+## Shipped this session (session 2)
+- **Phase 5 (sharing):** `oa-problems` split into its own repo (app reads `PROBLEMS_DIR` via
+  `app/config.py`); in-app **Sync** and **Add-Problem → verify → Publish**; `app/sharing.py`;
+  GitHub Action re-verifying every PR; `setup.sh`. Both **CISCO problems now runnable**
+  (cross-checked vs independent brute forces: q1 3000 cases, q2 5000 cases) — 12/13 runnable.
+- **Phase 6 (deploy):** hardened `docker` execution backend (container-per-run, `--network none`,
+  read-only, non-root, pids/mem/cpu caps), untrusted-source compilation also containerised;
+  `Dockerfile`, `docker-compose.yml`, `DEPLOY.md`. **Validated live against real Docker**: a
+  Python problem judged 17/17 AC and network/TLE/read-only/fork-bomb isolation all confirmed.
+- **Published:** `https://github.com/RushilJ2603/oa-judge` + `.../oa-problems`, both **public**,
+  branches `main`, CI green. Onboarding: `git clone … && ./setup.sh && ./start.sh`.
+
+## Environment caveat (not a code issue)
+Building the g++ *runner image* on this WSL host fails: its Docker gives containers no network
+egress (apt/DNS fail from inside any container). The sandbox itself is proven working; build the
+image on a host with healthy Docker networking (any VPS/cloud, or fix Docker Desktop networking).
+The default `local` backend needs none of this and is correct for personal use.
 
 ## Current Status
 Fully-usable local product. On top of the v1 judge (Flask + execution engine, LC/OA modes,
