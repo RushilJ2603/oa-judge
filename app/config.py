@@ -47,3 +47,15 @@ PORT = int(get("port", 5137))
 
 # Identity stamped onto problems you author + publish (Phase 5). Falls back to the OS user.
 AUTHOR = get("author", os.environ.get("USER") or os.environ.get("USERNAME") or "anon")
+
+# --- execution backend (Phase 6: hosting) --------------------------------------
+# "local"  — run submissions as a subprocess under rlimits on this machine. Correct for
+#            single-user local use, where the code is your own.
+# "docker" — run each submission inside an ephemeral, network-less container. Use this when
+#            hosting, so a friend's (or an attacker's) code cannot touch the host or the network.
+EXEC_BACKEND = get("exec_backend", "local")
+DOCKER_IMAGE = get("docker_image", "oa-judge-runner:latest")
+# Hard caps applied to every per-run container (belt-and-suspenders with the in-container rlimits).
+DOCKER_PIDS = int(get("docker_pids", 128))
+DOCKER_CPUS = get("docker_cpus", "1.0")
+

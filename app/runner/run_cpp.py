@@ -23,15 +23,13 @@ def compile_source(source: str, *, compile_timeout: int = 20) -> Compiled:
     binp = os.path.join(wd, "sol")
     with open(src, "w") as f:
         f.write(source)
-    try:
-        proc = subprocess.run(
-            [GXX, STD, "-O2", "-pipe", "-w", "-o", binp, src],
-            capture_output=True, text=True, timeout=compile_timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return Compiled(False, None, wd, "compilation timed out")
-    if proc.returncode != 0:
-        return Compiled(False, None, wd, proc.stderr or proc.stdout or "compilation failed")
+    # Dispatches to the host or a container per the execution backend, so untrusted source is
+    # compiled in the same isolation as it is run.
+    rc, output = sandbox.compile_argv(
+        [GXX, STD, "-O2", "-pipe", "-w", "-o", binp, src],
+        cwd=wd, timeout=compile_timeout)
+    if rc != 0:
+        return Compiled(False, None, wd, output or "compilation failed")
     return Compiled(True, binp, wd, "")
 
 

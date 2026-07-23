@@ -1,0 +1,17 @@
+# Keep the image small and never bake personal data or the problem bank into it.
+.git
+problems/
+app/data/
+__pycache__/
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+_migrated_raw/
+_research/
+templatesv2/
+*.png
+oa-judge-backup-*/
+node_modules/
+.vscode/
+.idea/

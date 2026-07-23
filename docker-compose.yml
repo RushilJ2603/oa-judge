@@ -1,0 +1,45 @@
+# OA Judge — containerised deployment.
+#
+# Two models (pick with the OAJ_EXEC_BACKEND value below):
+#
+#   local  — submissions run as a subprocess *inside this container*. Simple, no Docker socket.
+#            The container is the blast-radius boundary, but untrusted code shares the container's
+#            network. Fine for a TRUSTED friend group. This is the default here.
+#
+#   docker — submissions run in ephemeral, network-less sibling containers spawned via the host
+#            Docker socket. Use for UNTRUSTED code. Requires the socket mount below and the
+#            runner image built (same image). See DEPLOY.md for the trade-offs of exposing the
+#            Docker socket.
+#
+# Bring up:  docker compose up -d --build
+# Problems:  clone oa-problems into ./problems first (setup.sh does this), it is mounted read-only.
+
+services:
+  judge:
+    build: .
+    image: oa-judge:latest
+    ports:
+      - "5137:5137"
+    environment:
+      OAJ_HOST: "0.0.0.0"
+      OAJ_PORT: "5137"
+      OAJ_PROBLEMS_DIR: "/problems"
+      OAJ_DB: "/data/judge.db"
+      OAJ_EXEC_BACKEND: "local"          # set to "docker" for untrusted-code isolation
+      OAJ_DOCKER_IMAGE: "oa-judge:latest"
+    volumes:
+      - ./problems:/problems:ro          # the shared bank (a separate clone)
+      - judge-data:/data                 # personal DB persists across restarts
+      # For OAJ_EXEC_BACKEND=docker only — lets the app spawn per-run sandbox containers.
+      # Commented out by default because it grants the app control of the host Docker daemon.
+      # - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    # Container-level hardening (applies in both models).
+    read_only: false                     # app needs to compile into a temp dir
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: 1g
+
+volumes:
+  judge-data:

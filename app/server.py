@@ -5,6 +5,7 @@ import sys
 from flask import Flask, jsonify, request, send_from_directory
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import config  # noqa: E402
 import db  # noqa: E402
 import sharing  # noqa: E402  (Phase 5: git sync + problem authoring/publish)
 import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
@@ -401,22 +402,22 @@ def _already_running(port: int) -> bool:
         return False
 
 
-def _serve(port: int) -> None:
+def _serve(host: str, port: int) -> None:
     """Prefer waitress (a real WSGI server) when it is installed; otherwise fall back to the
     Flask dev server. Both are fine for single-user local use — waitress just handles
     concurrent requests more gracefully (e.g. a long stress run while you browse)."""
     try:
         from waitress import serve as waitress_serve
         print("  (serving via waitress)")
-        waitress_serve(app, host="127.0.0.1", port=port, threads=8, _quiet=True)
+        waitress_serve(app, host=host, port=port, threads=8, _quiet=True)
     except ImportError:
         # Not installed, and we deliberately do not force it into an externally-managed
         # Python. `pip install waitress` upgrades this automatically next launch.
-        app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+        app.run(host=host, port=port, debug=False, threaded=True)
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("OAJ_PORT", "5137"))
+    host, port = config.HOST, config.PORT
     if _already_running(port):
         print(f"\n  OA Judge is already running →  http://127.0.0.1:{port}")
         print("  (Opening a second copy is unnecessary; using the existing one.)\n")
@@ -424,5 +425,6 @@ if __name__ == "__main__":
     # Warm the DB / apply migrations before accepting requests, so the first click is instant
     # and any migration error surfaces here rather than mid-request.
     db.connect()
-    print(f"\n  OA Judge running →  http://127.0.0.1:{port}\n")
-    _serve(port)
+    shown = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    print(f"\n  OA Judge running →  http://{shown}:{port}\n")
+    _serve(host, port)
