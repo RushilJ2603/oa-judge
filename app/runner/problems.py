@@ -1,10 +1,16 @@
-"""Load problem packages from problems/<id>/."""
+"""Load problem packages from the problems bank (a separate oa-problems checkout)."""
 import json
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))          # oa-judge/
-PROBLEMS_DIR = os.path.join(ROOT, "problems")
+sys.path.insert(0, os.path.dirname(HERE))              # app/ on the path for config
+import config  # noqa: E402
+
+# The question bank lives in its own repo (oa-problems) cloned into oa-judge/problems/.
+# Resolved via app/config.py so hosting can point elsewhere without editing this file.
+PROBLEMS_DIR = config.PROBLEMS_DIR
 
 STUB_FILE = {"cpp": "stub.cpp", "py": "stub.py"}
 REFERENCE_FILE = {"cpp": "reference.cpp", "py": "reference.py"}

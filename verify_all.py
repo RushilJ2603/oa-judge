@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PROBLEMS = os.path.join(ROOT, "problems")
+PROBLEMS = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or os.path.join(ROOT, "problems"))
 PY = sys.executable or "python3"
 
 
