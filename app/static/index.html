@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
     <header class="app-header">
@@ -14,6 +14,7 @@
             <span class="breadcrumb" id="breadcrumb">Select a problem</span>
         </div>
         <div class="header-right">
+            <button class="icon-btn" id="btn-stats" title="Your solving statistics">📊 Stats</button>
             <button class="icon-btn" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
         </div>
     </header>
@@ -30,12 +31,16 @@
             <div class="tabs" id="tabs">
                 <button class="tab-btn active" data-tab="statement">Problem</button>
                 <button class="tab-btn" data-tab="editorial">Editorial</button>
+                <button class="tab-btn" data-tab="attempts">Attempts <span class="tab-count" id="attempts-count"></span></button>
+                <button class="tab-btn" data-tab="notes">Notes</button>
             </div>
             <div class="pane-scroll">
                 <div class="tab-content active" id="tab-statement">
                     <p class="placeholder">Select a problem from the list to begin.</p>
                 </div>
                 <div class="tab-content" id="tab-editorial"></div>
+                <div class="tab-content" id="tab-attempts"></div>
+                <div class="tab-content" id="tab-notes"></div>
             </div>
         </section>
 
@@ -47,6 +52,7 @@
                 <select id="lang-select" class="lang-select" title="Language"></select>
                 <span class="save-status" id="save-status" title="Drafts autosave to the local database"></span>
                 <div class="toolbar-spacer"></div>
+                <button class="icon-btn" id="btn-history" title="Replay your saved drafts for this problem">🕑 History</button>
                 <button class="icon-btn" id="btn-reset-stub" title="Reset editor to the starter code">↺ Reset</button>
             </div>
 
@@ -95,7 +101,20 @@
             </div>
         </section>
     </div>
-    <script src="/static/editor.js?v=3"></script>
-    <script src="/static/app.js?v=3"></script>
+
+    <!-- Modal shell: reused for Stats, the attempt diff, and the draft scrubber. -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none">
+        <div class="modal" id="modal">
+            <div class="modal-head">
+                <span class="modal-title" id="modal-title"></span>
+                <div class="modal-actions" id="modal-actions"></div>
+                <button class="drawer-close" id="modal-close" title="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/editor.js?v=4"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>

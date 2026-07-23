@@ -301,6 +301,41 @@ def api_stats():
     return jsonify(store.stats())
 
 
+@app.route("/api/export")
+def api_export():
+    """Everything you've produced as a downloadable zip: the raw DB plus a readable tree of
+    your submitted code and notes as plain files. Your data is never locked inside this app."""
+    import io
+    import zipfile
+    from datetime import datetime
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # The database itself, so an export is a complete backup.
+        if os.path.exists(db.DB_PATH):
+            z.write(db.DB_PATH, "judge.db")
+        # Human-readable copies: latest attempt code + notes per problem.
+        ext = {"cpp": "cpp", "py": "py"}
+        for a in store.attempts(limit=100000):
+            if not a.get("has_code"):
+                continue
+            full = store.attempt(a["id"])
+            if not full or not full.get("source_code"):
+                continue
+            e = ext.get(full["language"], "txt")
+            path = f"code/{a['problem_id']}/attempt-{a['id']}-{full['verdict']}.{e}"
+            z.writestr(path, full["source_code"])
+        for pid in problems.list_ids():
+            note = store.get_note(pid)
+            if note.strip():
+                z.writestr(f"notes/{pid}.md", note)
+    buf.seek(0)
+    from flask import send_file
+    stamp = datetime.now().strftime("%Y%m%d")
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name=f"oa-judge-export-{stamp}.zip")
+
+
 @app.route("/api/health")
 def api_health():
     """Used by the launcher to detect an already-running instance instead of colliding."""

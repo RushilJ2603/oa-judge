@@ -38,6 +38,16 @@ const els = {
     divider: document.getElementById('divider'),
     leftPane: document.getElementById('left-pane'),
     drawerTitle: document.getElementById('drawer-title'),
+    btnStats: document.getElementById('btn-stats'),
+    btnHistory: document.getElementById('btn-history'),
+    attemptsCount: document.getElementById('attempts-count'),
+    tabAttempts: document.getElementById('tab-attempts'),
+    tabNotes: document.getElementById('tab-notes'),
+    modalOverlay: document.getElementById('modal-overlay'),
+    modalTitle: document.getElementById('modal-title'),
+    modalActions: document.getElementById('modal-actions'),
+    modalBody: document.getElementById('modal-body'),
+    modalClose: document.getElementById('modal-close'),
 };
 
 const LANG_MAP = { cpp: 'C++17', py: 'Python 3' };
@@ -144,7 +154,15 @@ function setupEventListeners() {
         els.tabContents.forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        if (btn.dataset.tab === 'attempts') renderAttemptsTab();
+        if (btn.dataset.tab === 'notes') renderNotesTab();
     }));
+
+    els.btnStats.addEventListener('click', openStats);
+    els.btnHistory.addEventListener('click', openDraftScrubber);
+    els.modalClose.addEventListener('click', closeModal);
+    els.modalOverlay.addEventListener('click', (e) => { if (e.target === els.modalOverlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
     // Monaco handles typing, indentation, paste and Tab natively — no keydown gymnastics.
     OAEditor.init(els.monacoHost, {
@@ -296,6 +314,10 @@ async function loadProblem(id) {
         handleModeChange();
         els.resultDrawer.classList.remove('open');
         els.customInputDrawer.classList.remove('open');
+        updateAttemptsCount();
+        // Refresh whichever secondary tab is open for the new problem.
+        if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
+        if (els.tabNotes.classList.contains('active')) renderNotesTab();
     } catch (e) {
         console.error('Failed to load problem', e);
     }
@@ -478,6 +500,9 @@ async function handleSubmit() {
         els.console.innerHTML = html;
         if (mode === 'lc') els.btnSubmit.disabled = false;
         fetchProblemsAndHistory();
+        updateAttemptsCount();
+        // If the Attempts tab is open, refresh it so the new submission appears immediately.
+        if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
     } catch (e) {
         els.console.innerHTML = `<div class="note" style="color:var(--error)">Error: ${escapeHTML(e.message)}</div>`;
         if (mode === 'lc') els.btnSubmit.disabled = false;
@@ -572,5 +597,317 @@ function escapeHTML(str) {
     if (typeof str !== 'string') return '';
     return str.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t]));
 }
+
+/* ============================ Phase 3: the data becomes useful ============================ */
+
+function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit' });
+}
+function fmtDuration(s) {
+    if (s == null) return '';
+    s = Math.round(s);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    return m + 'm ' + (s % 60) + 's';
+}
+
+/* ---- modal shell ---- */
+function openModal(title, bodyHTML, actionsHTML) {
+    els.modalTitle.textContent = title;
+    els.modalActions.innerHTML = actionsHTML || '';
+    els.modalBody.innerHTML = bodyHTML;
+    els.modalOverlay.style.display = 'flex';
+}
+function closeModal() {
+    els.modalOverlay.style.display = 'none';
+    els.modalBody.innerHTML = '';
+    els.modalActions.innerHTML = '';
+    diffState.a = diffState.b = null;   // reset any in-progress attempt comparison
+}
+
+/* ---- Attempts tab: every submit for this problem, newest first ---- */
+async function renderAttemptsTab() {
+    if (!state.currentProblemId) {
+        els.tabAttempts.innerHTML = '<p class="placeholder">Select a problem to see your attempts.</p>';
+        return;
+    }
+    els.tabAttempts.innerHTML = '<p class="placeholder">Loading…</p>';
+    let attempts = [];
+    try { attempts = (await api(`/api/history/${state.currentProblemId}`)).attempts || []; }
+    catch (e) { els.tabAttempts.innerHTML = '<p class="placeholder">Could not load attempts.</p>'; return; }
+
+    if (!attempts.length) {
+        els.tabAttempts.innerHTML = '<p class="placeholder">No submissions yet. Solve it and they show up here.</p>';
+        return;
+    }
+
+    // Attempts carrying stored code are selectable for the diff. Pre-v2 rows (imported from
+    // history.json) have no code, so they render but cannot be opened or compared.
+    const rows = attempts.map(a => {
+        const codeable = a.has_code ? '' : ' no-code';
+        const detail = a.first_fail_idx ? `test #${a.first_fail_idx}` : '';
+        return `<div class="attempt-row${codeable}" data-id="${a.id}" data-code="${a.has_code ? 1 : 0}">
+            <span class="verdict-badge v-${a.verdict}">${a.verdict}</span>
+            <span class="attempt-score">${a.passed}/${a.total}</span>
+            <span class="attempt-meta">${escapeHTML((a.language || '').toUpperCase())}
+                · ${a.mode === 'oa' ? 'OA' : 'LC'}${detail ? ' · ' + detail : ''}</span>
+            <span class="attempt-when">${fmtTime(a.created_at)}${a.duration_s != null
+                ? ' · ' + fmtDuration(a.duration_s) : ''}</span>
+            ${a.has_code ? '<button class="mini-btn view-code">view</button>' : '<span class="mini-note">no code</span>'}
+        </div>`;
+    }).join('');
+
+    const withCode = attempts.filter(a => a.has_code).length;
+    els.tabAttempts.innerHTML = `
+        <div class="attempts-toolbar">
+            <span class="muted">${attempts.length} submission${attempts.length === 1 ? '' : 's'}</span>
+            ${withCode >= 2 ? '<span class="hint">Tick two to diff them.</span>' : ''}
+        </div>
+        <div class="attempt-list">${rows}</div>`;
+
+    els.tabAttempts.querySelectorAll('.view-code').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            viewAttemptCode(+btn.closest('.attempt-row').dataset.id);
+        });
+    });
+    // Click anywhere else on a code-bearing row toggles it into the diff selection.
+    els.tabAttempts.querySelectorAll('.attempt-row').forEach(row => {
+        if (row.dataset.code !== '1') return;
+        row.addEventListener('click', () => toggleDiffPick(+row.dataset.id, row));
+    });
+}
+
+async function viewAttemptCode(id) {
+    let a;
+    try { a = await api(`/api/attempt/${id}`); } catch (e) { return; }
+    const body = `
+        <div class="code-view-meta">
+            <span class="verdict-badge v-${a.verdict}">${a.verdict}</span>
+            <span>${a.passed}/${a.total}</span>
+            <span class="muted">${escapeHTML((a.language || '').toUpperCase())}
+                · ${a.mode === 'oa' ? 'OA' : 'LC'} · ${fmtTime(a.created_at)}</span>
+        </div>
+        ${a.compile_output ? compilePanel(a.compile_output) : ''}
+        <pre class="code-view">${escapeHTML(a.source_code || '(no code stored)')}</pre>`;
+    const actions = a.source_code
+        ? '<button class="mini-btn" id="load-into-editor">Load into editor</button>' : '';
+    openModal(`Attempt #${a.id}`, body, actions);
+    const load = document.getElementById('load-into-editor');
+    if (load) load.addEventListener('click', () => {
+        snapshotNow('pre-load').then(() => {
+            OAEditor.setValue(a.source_code);
+            if ((a.language === 'py') !== (els.langSelect.value === 'py')) {
+                els.langSelect.value = a.language; OAEditor.setLanguage(a.language);
+            }
+            saveDraftNow();
+            closeModal();
+        });
+    });
+}
+
+/* ---- diff two attempts ---- */
+const diffState = { a: null, b: null };
+function toggleDiffPick(id, row) {
+    if (diffState.a === id) { diffState.a = null; row.classList.remove('picked'); }
+    else if (diffState.b === id) { diffState.b = null; row.classList.remove('picked'); }
+    else if (diffState.a == null) { diffState.a = id; row.classList.add('picked'); }
+    else if (diffState.b == null) { diffState.b = id; row.classList.add('picked'); }
+    else { return; }   // already two picked; ignore until one is cleared
+    if (diffState.a != null && diffState.b != null) showAttemptDiff(diffState.a, diffState.b);
+}
+
+async function showAttemptDiff(idA, idB) {
+    let a, b;
+    try { [a, b] = await Promise.all([api(`/api/attempt/${idA}`), api(`/api/attempt/${idB}`)]); }
+    catch (e) { return; }
+    // Order oldest -> newest so the diff reads as "what I changed".
+    if (new Date(a.created_at) > new Date(b.created_at)) { const t = a; a = b; b = t; }
+    const rows = lineDiff(a.source_code || '', b.source_code || '');
+    const body = `
+        <div class="diff-legend">
+            <span class="muted">left: #${a.id} (${a.verdict}, ${fmtTime(a.created_at)})</span>
+            <span class="arrow">→</span>
+            <span class="muted">right: #${b.id} (${b.verdict}, ${fmtTime(b.created_at)})</span>
+        </div>
+        <div class="diff-view">${rows}</div>`;
+    openModal('What changed between two attempts', body);
+    // Clear the picks so the next selection starts fresh once the modal closes.
+    diffState.a = diffState.b = null;
+    els.tabAttempts.querySelectorAll('.attempt-row.picked').forEach(r => r.classList.remove('picked'));
+}
+
+/* A compact LCS line diff — enough to see what changed between two attempts, without a library. */
+function lineDiff(oldStr, newStr) {
+    const o = oldStr.split('\n'), n = newStr.split('\n');
+    const m = o.length, k = n.length;
+    const dp = Array.from({ length: m + 1 }, () => new Int32Array(k + 1));
+    for (let i = m - 1; i >= 0; i--)
+        for (let j = k - 1; j >= 0; j--)
+            dp[i][j] = o[i] === n[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const out = [];
+    let i = 0, j = 0;
+    const push = (cls, sign, text) =>
+        out.push(`<div class="diff-line ${cls}"><span class="diff-sign">${sign}</span>${escapeHTML(text) || '&nbsp;'}</div>`);
+    while (i < m && j < k) {
+        if (o[i] === n[j]) { push('same', ' ', o[i]); i++; j++; }
+        else if (dp[i + 1][j] >= dp[i][j + 1]) { push('del', '−', o[i]); i++; }
+        else { push('add', '+', n[j]); j++; }
+    }
+    while (i < m) push('del', '−', o[i++]);
+    while (j < k) push('add', '+', n[j++]);
+    return out.join('');
+}
+
+/* ---- Notes tab: markdown-ish free text, autosaved ---- */
+let noteTimer = null;
+async function renderNotesTab() {
+    if (!state.currentProblemId) {
+        els.tabNotes.innerHTML = '<p class="placeholder">Select a problem to take notes.</p>';
+        return;
+    }
+    let note = { body: '' }, flags = {};
+    try { note = await api(`/api/note/${state.currentProblemId}`); } catch (e) {}
+    try { flags = await api(`/api/flags/${state.currentProblemId}`); } catch (e) {}
+    els.tabNotes.innerHTML = `
+        <div class="notes-flags">
+            <label class="chk"><input type="checkbox" id="flag-star" ${flags.starred ? 'checked' : ''}> ⭐ Starred</label>
+            <label class="chk"><input type="checkbox" id="flag-revisit" ${flags.revisit ? 'checked' : ''}> 🔁 Revisit</label>
+            <label class="conf">Confidence
+                <select id="flag-conf">
+                    <option value="">–</option>
+                    ${[1,2,3,4,5].map(v => `<option value="${v}" ${flags.confidence == v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+            </label>
+            <span class="save-status" id="note-status"></span>
+        </div>
+        <textarea id="note-body" class="note-body" spellcheck="true"
+            placeholder="Approach, edge cases, why the WA happened, the trick you missed…">${escapeHTML(note.body || '')}</textarea>`;
+
+    const status = document.getElementById('note-status');
+    document.getElementById('note-body').addEventListener('input', (e) => {
+        status.textContent = 'saving…'; status.className = 'save-status';
+        clearTimeout(noteTimer);
+        const body = e.target.value;
+        noteTimer = setTimeout(() => {
+            api(`/api/note/${state.currentProblemId}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ body }),
+            }).then(() => { status.textContent = 'saved'; status.className = 'save-status ok'; })
+              .catch(() => { status.textContent = 'save failed'; status.className = 'save-status warn'; });
+        }, 800);
+    });
+    const saveFlags = () => api(`/api/flags/${state.currentProblemId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            starred: document.getElementById('flag-star').checked,
+            revisit: document.getElementById('flag-revisit').checked,
+            confidence: document.getElementById('flag-conf').value || null,
+        }),
+    }).then(() => fetchProblemsAndHistory());
+    ['flag-star', 'flag-revisit', 'flag-conf'].forEach(id =>
+        document.getElementById(id).addEventListener('change', saveFlags));
+}
+
+/* ---- draft scrubber: replay half-written code over time ---- */
+async function openDraftScrubber() {
+    if (!state.currentProblemId) return;
+    const lang = els.langSelect.value;
+    let snaps = [];
+    try { snaps = (await api(`/api/snapshots/${state.currentProblemId}?lang=${lang}`)).snapshots || []; }
+    catch (e) {}
+    if (!snaps.length) {
+        openModal('Draft history', '<p class="placeholder">No saved drafts yet for this language. ' +
+            'They accumulate as you type (every couple of minutes, and before each submit or reset).</p>');
+        return;
+    }
+    const body = `
+        <div class="scrub-controls">
+            <input type="range" id="scrub" min="0" max="${snaps.length - 1}" value="${snaps.length - 1}" step="1">
+            <div class="scrub-label" id="scrub-label"></div>
+        </div>
+        <pre class="code-view" id="scrub-code">loading…</pre>`;
+    openModal('Draft history — ' + LANG_MAP[lang], body,
+        '<button class="mini-btn" id="restore-draft">Restore this version</button>');
+
+    const slider = document.getElementById('scrub');
+    const label = document.getElementById('scrub-label');
+    const codeEl = document.getElementById('scrub-code');
+    const cache = {};
+    async function show(i) {
+        const s = snaps[i];
+        label.innerHTML = `<b>${i + 1}/${snaps.length}</b> · ${escapeHTML(s.reason)}
+            · ${fmtTime(s.created_at)} · ${s.chars} chars`;
+        if (!cache[s.id]) {
+            try { cache[s.id] = (await api(`/api/snapshot/${s.id}`)).source_code || ''; }
+            catch (e) { cache[s.id] = '(could not load)'; }
+        }
+        codeEl.textContent = cache[s.id];
+    }
+    slider.addEventListener('input', () => show(+slider.value));
+    document.getElementById('restore-draft').addEventListener('click', async () => {
+        const s = snaps[+slider.value];
+        const code = cache[s.id] != null ? cache[s.id] : (await api(`/api/snapshot/${s.id}`)).source_code;
+        await snapshotNow('pre-restore');
+        OAEditor.setValue(code || '');
+        saveDraftNow();
+        closeModal();
+    });
+    show(snaps.length - 1);
+}
+
+/* ---- stats dashboard ---- */
+async function openStats() {
+    openModal('Your statistics', '<p class="placeholder">Loading…</p>',
+        '<button class="mini-btn" id="export-all" title="Download everything as a zip">⬇ Export all</button>');
+    const exp = document.getElementById('export-all');
+    if (exp) exp.addEventListener('click', exportAll);
+    let s;
+    try { s = await api('/api/stats'); } catch (e) {
+        els.modalBody.innerHTML = '<p class="placeholder">Could not load stats.</p>'; return;
+    }
+    const totalProblems = state.problems.length || 0;
+    const acRate = s.total_attempts ? Math.round(100 * s.ac_attempts / s.total_attempts) : 0;
+    const avgToAc = s.attempts_to_ac && s.attempts_to_ac.length
+        ? (s.attempts_to_ac.reduce((a, r) => a + r.attempts_to_ac, 0) / s.attempts_to_ac.length).toFixed(1)
+        : '–';
+    const firstTry = s.attempts_to_ac ? s.attempts_to_ac.filter(r => r.attempts_to_ac === 1).length : 0;
+
+    const vColors = { AC: 'ok', WA: 'err', TLE: 'warn', MLE: 'warn', RE: 'err', CE: 'muted' };
+    const vTotal = Object.values(s.verdicts || {}).reduce((a, b) => a + b, 0) || 1;
+    const verdictBars = Object.entries(s.verdicts || {}).map(([v, n]) =>
+        `<div class="vbar-row"><span class="vbar-label verdict-badge v-${v}">${v}</span>
+            <div class="vbar-track"><div class="vbar-fill ${vColors[v] || 'muted'}"
+                style="width:${Math.round(100 * n / vTotal)}%"></div></div>
+            <span class="vbar-n">${n}</span></div>`).join('');
+
+    els.modalBody.innerHTML = `
+        <div class="stat-grid">
+            <div class="stat-tile"><div class="stat-num">${s.problems_solved}<span class="stat-den">/${totalProblems}</span></div><div class="stat-cap">problems solved</div></div>
+            <div class="stat-tile"><div class="stat-num">${acRate}%</div><div class="stat-cap">AC rate</div></div>
+            <div class="stat-tile"><div class="stat-num">${firstTry}</div><div class="stat-cap">first-try solves</div></div>
+            <div class="stat-tile"><div class="stat-num">${avgToAc}</div><div class="stat-cap">avg attempts to AC</div></div>
+            <div class="stat-tile"><div class="stat-num">${s.total_attempts}</div><div class="stat-cap">total submissions</div></div>
+            <div class="stat-tile"><div class="stat-num">${s.runs}</div><div class="stat-cap">custom runs</div></div>
+        </div>
+        <h3 class="stat-h">Verdict distribution</h3>
+        <div class="vbars">${verdictBars || '<span class="muted">No attempts yet.</span>'}</div>
+        <div class="stat-foot muted">${s.drafts} saved drafts · ${s.snapshots} snapshots kept</div>`;
+}
+
+async function updateAttemptsCount() {
+    if (!state.currentProblemId) { els.attemptsCount.textContent = ''; return; }
+    try {
+        const n = ((await api(`/api/history/${state.currentProblemId}`)).attempts || []).length;
+        els.attemptsCount.textContent = n ? `(${n})` : '';
+    } catch (e) { els.attemptsCount.textContent = ''; }
+}
+
+/* ---- export everything ---- */
+function exportAll() { window.location.href = '/api/export'; }
 
 document.addEventListener('DOMContentLoaded', init);
