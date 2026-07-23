@@ -1,6 +1,44 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-23 session 2] — Phases 5–6: sharing + deployment; published public repos | By: Claude (Opus 4.8)
+
+### Done This Session
+- **Phase 5 — sharing.** Split the question bank into a standalone `oa-problems` git repo; the app
+  reads it via `app/config.py` (`PROBLEMS_DIR`), so app and bank version independently. Added
+  `app/sharing.py` (ff-only git sync; scaffold → generate hidden tests → verify → publish-on-branch)
+  and the endpoints `/api/bank/{status,sync,author,publish}`. Frontend: header **Sync** + **Add**,
+  an authoring modal with live Verify-&-preview that only enables Publish on a green package, and a
+  toast. A GitHub Action (`verify.yml`) re-runs `verify_all.py` on every PR. `setup.sh` onboards a
+  friend in one command. Verified end-to-end: authored a throwaway problem via the API → it
+  scaffolded, generated hidden tests, verified, and was judgeable (AC 16/16).
+- **Both CISCO problems runnable.** cisco-q1 (0-1 BFS over (r,c,battery,vouchers)) cross-checked vs
+  an independent Dijkstra on 3000 random grids; cisco-q2 (sliding window + hash-map + ordered set)
+  vs an O(N²) brute on 5000 cases; all provided samples reproduced. 12 of 13 problems now runnable.
+- **Phase 6 — deployment.** New `docker` execution backend: every compile and run happens in an
+  ephemeral container with `--network none --read-only --cap-drop ALL --user 65534 --pids-limit
+  --memory --cpus --rm`. Untrusted source is compiled in the same isolation. `Dockerfile`,
+  `docker-compose.yml` (trusted-friends vs untrusted models), `DEPLOY.md` (threat model, Fly/Railway/
+  VPS, Postgres port, OAuth as an additive step). `server.py` binds `config.HOST/PORT`.
+  **Validated against real Docker:** a Python problem judged 17/17 AC through containers, and
+  adversarial submissions confirmed network egress blocked, infinite loop → TLE, read-only FS, and
+  fork-bomb containment. Two live-surfaced bugs fixed (host interpreter path → basename; workspace
+  perms for uid 65534).
+- **Published.** Pushed `RushilJ2603/oa-judge` + `RushilJ2603/oa-problems`, both **public**, branch
+  `main`; the bank's CI ran and passed on GitHub.
+
+### Errors Hit
+- Snippet autocomplete (session 1 carryover) and, this session, two docker-backend bugs — both found
+  by running the code, not by inspection; fixed and re-verified.
+- Docker image build blocked on this WSL host: its containers have no network egress (apt/DNS fail
+  inside any container). Environment issue, not the Dockerfile — the sandbox is proven via the cached
+  slim image; build the g++ image on a host with working Docker networking.
+
+### Next Session Could
+- Multi-user OAuth (only if hosting one instance for several people; additive migration — see DEPLOY.md).
+- Build + push the g++ runner image from a healthy-network host; wire a friend's fork of oa-problems.
+
+
 ## [2026-07-23] — v2 rework: durable database, Monaco editor, data UI, stability (Phases 0–4) | By: Claude (Opus 4.8)
 
 Approved plan in PLAN_V2.md (scope 0–6, Monaco, two repos, public). This session delivered a
