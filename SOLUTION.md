@@ -183,6 +183,13 @@ Flow when a friend adds a problem: they push to **oa-problems** → anyone click
 its `source ▸ company` group. Costs stay $0 because the machine only wakes to serve a request and
 sleeps again after; keeping a tab open or editing code never wakes it.
 
+**Presence ("who's online") is best-effort by design, for the same $0 reason.** Each user's
+`last_seen` is bumped from their *real* API traffic (throttled to once per 45s) — there is **no
+background heartbeat**, because a recurring heartbeat would keep the scale-to-zero machine awake and
+cost money. "Online" = made a request in the last 5 minutes; the roster refreshes on genuine moments
+(load, tab focus, submit, sync), never on a timer. The honest tradeoff: someone with an idle tab open
+and no activity ages out of the roster — detecting them would require the very heartbeat we avoid.
+
 ## 8. Current state (self-audit)
 
 - **24 packages**: 22 runnable (21 C++, 1 Python), 2 statement-only.

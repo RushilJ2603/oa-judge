@@ -486,3 +486,25 @@ def get_user(user_id: int) -> dict | None:
         "SELECT id, github_id, login, name, avatar_url FROM \"user\" WHERE id = ?",
         (user_id,)).fetchone()
     return dict(row) if row else None
+
+
+# ------------------------------------------------------------------ presence (best-effort, $0)
+def touch_user(user_id: int) -> None:
+    """Record that this user just made a request. Called from real API traffic (no heartbeat), so
+    presence costs nothing and never keeps the scale-to-zero machine awake on its own."""
+    conn = db.connect()
+    conn.execute("UPDATE \"user\" SET last_seen = ? WHERE id = ?", (_now(), user_id))
+    conn.commit()
+
+
+def online_users(within_seconds: int = 300) -> list[dict]:
+    """Users seen within the window, most-recent first. 'Online' = made a request recently; someone
+    with an idle tab open (no requests) will age out — detecting them would need a heartbeat, which
+    isn't free. Timestamps are ISO-8601 UTC, so a string compare is a correct time compare."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=within_seconds)).isoformat(timespec="seconds")
+    rows = db.connect().execute(
+        "SELECT id, login, name, avatar_url, last_seen FROM \"user\""
+        " WHERE last_seen IS NOT NULL AND last_seen >= ? ORDER BY last_seen DESC",
+        (cutoff,)).fetchall()
+    return [dict(r) for r in rows]

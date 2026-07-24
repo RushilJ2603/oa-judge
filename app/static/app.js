@@ -50,6 +50,7 @@ const els = {
     modalActions: document.getElementById('modal-actions'),
     modalBody: document.getElementById('modal-body'),
     modalClose: document.getElementById('modal-close'),
+    presence: document.getElementById('presence'),
 };
 
 const LANG_MAP = { cpp: 'C++17', py: 'Python 3' };
@@ -174,9 +175,69 @@ async function init() {
                 window.location.href = '/auth/logout';
             });
         }
+        setupPresence();
     }
     setupEventListeners();
     fetchProblemsAndHistory();
+}
+
+/* ---- Presence: best-effort "who's online", $0. We never poll on a timer (that would keep the
+   scale-to-zero machine awake); we refresh only on real moments — load, tab focus, submit, sync. ---- */
+function setupPresence() {
+    if (!els.presence) return;
+    els.presence.style.display = 'inline-flex';
+    els.presence.addEventListener('click', showPresenceList);
+    // Refresh when the user returns to the tab — a genuine action, so it never wakes the machine
+    // on its own (unlike a background heartbeat).
+    window.addEventListener('focus', refreshPresence);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshPresence(); });
+    refreshPresence();
+}
+
+let _presence = { enabled: false, users: [] };
+async function refreshPresence() {
+    if (!els.presence) return;
+    try { _presence = await api('/api/presence'); } catch (e) { return; }
+    if (!_presence.enabled) { els.presence.style.display = 'none'; return; }
+    const users = _presence.users || [];
+    const others = users.filter(u => !u.is_me).length;
+    // Stack up to 3 avatars + a count. Green dot = at least one other person is around.
+    const avatars = users.slice(0, 3).map(u =>
+        u.avatar_url
+            ? `<img class="pa" src="${escapeHTML(u.avatar_url)}" alt="" title="${escapeHTML(u.login)}">`
+            : `<span class="pa pa-fallback" title="${escapeHTML(u.login)}">${escapeHTML((u.login || '?')[0].toUpperCase())}</span>`
+    ).join('');
+    els.presence.innerHTML =
+        `<span class="p-dot${others > 0 ? ' live' : ''}"></span>${avatars}` +
+        `<span class="p-count">${users.length}</span>`;
+    els.presence.title = others > 0
+        ? `${others} other${others === 1 ? '' : 's'} online now`
+        : "You're the only one online";
+}
+
+function showPresenceList() {
+    const users = _presence.users || [];
+    if (!users.length) { toast('No one is online right now', 'ok'); return; }
+    const rows = users.map(u => {
+        const av = u.avatar_url
+            ? `<img class="pl-av" src="${escapeHTML(u.avatar_url)}" alt="">`
+            : `<span class="pl-av pl-fallback">${escapeHTML((u.login || '?')[0].toUpperCase())}</span>`;
+        const when = timeAgo(u.last_seen);
+        return `<div class="pl-row">${av}<span class="pl-name">${escapeHTML(u.name || u.login)}` +
+            `${u.is_me ? ' <span class="pl-you">you</span>' : ''}</span>` +
+            `<span class="pl-seen">${when}</span></div>`;
+    }).join('');
+    openModal('Online now', `<div class="presence-list">${rows}</div>` +
+        `<p class="pl-note">“Online” means active in the last 5 minutes. An idle tab with no activity ` +
+        `drops off — we don't run a background heartbeat, so this stays free.</p>`, '');
+}
+
+function timeAgo(iso) {
+    if (!iso) return '';
+    const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    const m = Math.floor(s / 60);
+    return `${m} min ago`;
 }
 
 function setupTheme() {
@@ -686,6 +747,7 @@ async function handleSubmit() {
         els.console.innerHTML = html;
         if (mode === 'lc') els.btnSubmit.disabled = false;
         fetchProblemsAndHistory();
+        refreshPresence();
         updateAttemptsCount();
         // If the Attempts tab is open, refresh it so the new submission appears immediately.
         if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
@@ -1111,6 +1173,7 @@ async function syncBank() {
             toast(`Synced — ${n} problem${n === 1 ? '' : 's'} new or updated`, 'ok');
             fetchProblemsAndHistory();   // the sidebar picks up new problems
         }
+        refreshPresence();
     } catch (e) {
         toast('Sync failed: ' + e.message, 'warn');
     } finally {

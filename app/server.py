@@ -32,12 +32,32 @@ store.set_user_provider(auth.current_user_id)
 _PUBLIC_PATHS = {"/", "/api/health", "/api/me"}
 
 
+# Presence: throttle last_seen writes to at most once per user per this many seconds, so a burst of
+# requests (autosave, facets, problems) is a single cheap UPDATE, not one per call.
+_TOUCH_EVERY_S = 45
+_last_touch: dict[int, float] = {}
+
+
+def _touch_presence(user_id):
+    import time
+    now = time.time()
+    if now - _last_touch.get(user_id, 0) < _TOUCH_EVERY_S:
+        return
+    _last_touch[user_id] = now
+    try:
+        store.touch_user(user_id)
+    except Exception:
+        pass
+
+
 @app.before_request
 def _resolve_user():
     if not config.AUTH_ENABLED:
         return None
     g.user_id = session.get("user_id")
     p = request.path
+    if g.user_id and p.startswith("/api/"):
+        _touch_presence(g.user_id)   # piggyback presence on real traffic; no heartbeat
     if p in _PUBLIC_PATHS or p.startswith("/static/") or p.startswith("/auth/"):
         return None
     if not g.user_id:
@@ -411,6 +431,20 @@ def api_health():
                     "db": db.DB_PATH,
                     "gpp": bool(shutil.which("g++")),
                     "problems": len(problems.list_ids())})
+
+
+@app.route("/api/presence")
+def api_presence():
+    """Best-effort "who's online": users who made a request in the last few minutes. Free — it reads
+    last_seen (bumped by real traffic) and never triggers a heartbeat, so it can't keep the machine
+    awake. In single-user local mode there's no roster to show."""
+    if not config.AUTH_ENABLED:
+        return jsonify({"enabled": False, "users": []})
+    me = getattr(g, "user_id", None)
+    users = store.online_users(within_seconds=300)
+    for u in users:
+        u["is_me"] = (u["id"] == me)
+    return jsonify({"enabled": True, "users": users, "me": me})
 
 
 # ----------------------------------------------------------------- sharing (Phase 5)
