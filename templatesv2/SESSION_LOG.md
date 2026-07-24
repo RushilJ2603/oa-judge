@@ -19,6 +19,50 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 3 — 2026-07-24 (went live on Fly + OAuth, built a scraper via Grok, ingested verified problem batches)
+
+**AI:** Claude (Opus 4.8) via Claude Code. Orchestrated **Grok 4.5** through the Cursor CLI (`cursor-agent`) for the scraper only; the app + all problem authoring were done by Claude directly.
+**Start → End:** 2026-07-24 (start time approximate — this was a long continued session spanning the deploy work) → 2026-07-24 ~20:45 IST.
+**Goal at start (evolved across the session):** deploy the judge so friends can use it with logins; make the UI scale to thousands of questions grouped by *source ▸ company*; build a scraper for TUF+ and OA-Helper (the user has paid logins); then ingest specific problem batches (Microsoft, Goldman) with OA-quality, verified test cases; and finally fill this context-manager (templatesv2) with the latest state.
+
+### What we set out to do (and did)
+1. **Deploy + multi-user.** Live on Fly.io (`oa123.fly.dev`), GitHub OAuth, scale-to-zero (~$0/mo), DB + bank on a persistent volume.
+2. **Scale the UI.** A `problem_index` search table + a two-level **source ▸ company** dropdown; relabel `gyan` → "Iris — Personal"; add a **$0 presence** chip ("who's online", no heartbeat).
+3. **Fix the Sync bug.** New problems didn't stick on the hosted site → the bank was in the ephemeral image fs under scale-to-zero → moved it to the persistent volume, seeded from the image.
+4. **Harden authoring.** Fixed a stub regression (solve-in-main → separate function); wrote `SOLUTION.md` + a new `audit.py` gate; made **test quality mandatory** (≥5 edges incl. max-scale + brute-force cross-check every reference).
+5. **Build the scraper** (`../oa-scraper`) by driving Grok, scoped strictly to that repo; TUF 397 + OA-Helper ~1500 with premium content.
+6. **Ingest verified batches:** Microsoft ×15 (13 TUF textbook + 2 OA-Helper story) and Goldman ×3 (Iris-Personal).
+
+### Files touched (exact paths)
+**App (`/mnt/c/Users/jishu/Desktop/oa-judge/`):**
+- `app/store.py` — `SOURCE_LABELS`/`SOURCE_ORDER` (gyan → "Iris — Personal"), `companies_by_source` in `problem_facets()`, `touch_user()`/`online_users()` presence helpers
+- `app/server.py` — `_touch_presence()` in `before_request`, `/api/presence`, `sharing.ensure_seeded()` on boot
+- `app/config.py` — `PROBLEMS_SEED`; `app/sharing.py` — `ensure_seeded()` (copytree seed→volume)
+- `app/migrations/004_presence.sql` — `user.last_seen` + index
+- `app/static/app.js` — source▸company dropdown tree (`renderSourceTabs`/`sourceRow`/`companyRow`), presence widget (`setupPresence`/`refreshPresence`/`showPresenceList`)
+- `app/static/index.html` (presence chip, `?v=9`), `app/static/style.css` (dropdown tree + presence styles)
+- `fly.toml` — `OAJ_PROBLEMS_DIR=/data/problems`, `OAJ_PROBLEMS_SEED=/problems`
+- `audit.py` (NEW), `SOLUTION.md` (NEW)
+- `problems/*/stub.cpp` — 9 stubs refactored to a separate solution function (goldman-2048, goldman-book-cricket, goldman-dora-preferred-route, goldman-non-repeating-digit-product, oa-q1/q2/q3, rippling-q1/q2)
+- `problems/FORMAT.md` — gate pointers + mandatory test standard
+- **18 new problem packages** under `problems/`: `tuf-assign-cookies`, `tuf-best-time-to-buy-and-sell-stock`, `tuf-climbing-stairs`, `tuf-best-time-to-buy-and-sell-stock-ii`, `tuf-count-inversions`, `tuf-aggressive-cows`, `tuf-book-allocation-problem`, `tuf-binary-subarrays-with-sum`, `tuf-count-subarrays-with-given-xor-k`, `tuf-count-number-of-nice-subarrays`, `tuf-candy`, `tuf-0-and-1-knapsack`, `tuf-burst-balloons`, `oahelper-calculate-amount`, `oahelper-final-price`, `goldman-missed-courses`, `goldman-unstable-tasks`, `goldman-largest-container` (each: problem.json, statement.md, stub.cpp, reference.cpp, generator.py, tests/{sample,edge,hidden})
+**Scraper (`/mnt/c/Users/jishu/Desktop/oa-scraper/`):** `git init`; Grok edited `oa_scraper/oa_helper.py`, `oa_scraper/tuf.py`, `oa_scraper/html_md.py`; `config.local.json` holds (gitignored) the TUF Bearer token + OA-Helper `oa_session` cookie + device id/signature.
+**Context manager (this close-out):** `templatesv2/PROJECT_STATE.md`, `templatesv2/CHANGELOG.md`, `templatesv2/.context/dead_ends.md` (4 new entries), `templatesv2/.context/session.json` (+ archived prior to `templatesv2/.context/sessions/2026-07-23T19-00-00+05-30.json`), and this file.
+
+### What went right
+- Every one of the 18 new references passed an **independent brute-force cross-check** (1500–4000 trials), not just `verify_all`. The Largest Container reading was validated against full **BFS reachability** — that turned an ambiguous OA into a defensible judge.
+- Catching **OA #8**'s self-contradicting official solution before shipping — exactly what the verification discipline is for.
+- The Grok delegation stayed perfectly in its lane: after every run I confirmed `oa-judge`'s git HEAD was unchanged and both gates still green. The app was never touched by the scraper.
+
+### What went wrong / redone
+- The **Sync-persistence** bug was subtle: it only manifested after a scale-to-zero cold start, and the first debugging assumption (multi-machine index split) was wrong — there's only one machine; the real cause was the ephemeral-fs bank. Redirected once I checked the volume mounts.
+- Spent effort chasing TUF+ premium via the SSR page + Bearer header before realising the data lives on the `backend-go` API. Two Grok rounds (wire → then fetch-from-API) instead of one.
+- Mis-identified the OA-Helper credential twice (thought device_id was the cookie; then thought a Supabase JWT was needed) before the user's `Copy as cURL` revealed the real `oa_session` cookie + `/api/proxy/question` flow.
+
+### Uncertain / judgement calls
+- Problems (b) Unstable Tasks and (c) Largest Container were **ambiguous in the user's description**; I committed each statement to one reading (stated as THE rule) and brute-verified that reading. If the real OA meant something else, they'll need a tweak.
+- OA-Helper has 55 Microsoft questions but many premium ones **lack stored samples** and some have broken official solutions — only the verifiable ones were ingested; the rest are deliberately skipped for now.
+
 ## Session 1 — 2026-07-23 (built the OA Judge from nothing to a working, polished app)
 
 **AI:** Claude (Opus 4.8) via Claude Code, using 6 Gemini/agy (Gemini 3.1 Pro) subagents for parallel grunt work

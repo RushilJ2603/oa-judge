@@ -14,6 +14,26 @@
 
 ---
 
+## [2026-07-24] — Baking the problem bank only into the Docker image on a scale-to-zero host
+**What was tried:** Hosting `oa-problems` at `/problems` (image filesystem) with `OAJ_PROBLEMS_DIR=/problems`, expecting the in-app **Sync** (`git pull`) to keep it current.
+**Why rejected:** Fly `auto_stop_machines` stops the machine on idle; the next request cold-starts from the **baked image**, discarding pulled commits — while the search index on the persistent volume stayed newer. Symptom: "have to click Sync several times / new problems don't stick." Fix: put the LIVE bank on the persistent volume (`OAJ_PROBLEMS_DIR=/data/problems`), seeded once from the baked `/problems` by `sharing.ensure_seeded()`.
+**If user brings it up again:** On a scale-to-zero host, anything that must survive restarts (DB *and* the bank) goes on the volume; the image is a read-only seed only.
+
+## [2026-07-24] — Sending the TUF+ Bearer token to the SSR HTML page to unlock premium fields
+**What was tried:** Scraper fetched `takeuforward.org/.../problems/<slug>` with `Authorization: Bearer <token>` and parsed the Next.js RSC flight payload, expecting ungated difficulty/tags/editorial.
+**Why rejected:** The SSR page stays gated even when authenticated; TUF+ serves ungated premium data from a **separate authenticated API** (`https://backend-go.takeuforward.org`, verified via `/api/v1/auth/me` → `logged_in:true`). Fix: call `GET /api/v2/plus/problem/{slug}?subjectSlug=dsa` with the Bearer token; keep the HTML parse as anonymous fallback.
+**If user brings it up again:** For TUF+ premium, hit the backend-go API with the Bearer token; the HTML page alone never carries the ungated content.
+
+## [2026-07-24] — Trusting a scraped site's "official" solution as the reference without checking its samples
+**What was tried:** Considered using OA-Helper's provided `solution_cpp` directly as the judged reference.
+**Why rejected:** Some are wrong — #8 Square Tile Arrangement's official solution returns 18 for input `0 18` whose expected output is 8 (its own solution disagrees with its own sample). Blindly trusting it ships a broken judge. Fix: always write/verify an independent reference, cross-check it against the site's provided samples AND an independent brute force; skip problems whose semantics can't be pinned down.
+**If user brings it up again:** A scraped solution is a hint, never the source of truth; the reference must pass provided samples + a brute-force cross-check.
+
+## [2026-07-24] — Assuming OA-Helper uses a Supabase user JWT for premium auth
+**What was tried:** Told the user to grab a Supabase `sb-…-auth-token` from localStorage to unlock premium OA-Helper content.
+**Why rejected:** OA-Helper uses **cookie-based session auth** (`oahelper_user.session_cookie_auth:true`, empty token) — no Supabase JWT exists in localStorage. Premium content is served by `oahelper.in`'s own backend, authenticated by the HTTP-only **`oa_session`** cookie, via `GET /api/proxy/question?action=get_question&question_ref=base64("{id}|0")`. Anon Supabase reads statements but nulls premium solutions/editorials/tests.
+**If user brings it up again:** OA-Helper auth = the `oa_session` cookie (+ device id/signature), not a Supabase token; premium content comes from the site's `/api/proxy/question` proxy.
+
 ## [2026-07-23] — CodeMirror / any CDN-loaded editor for syntax highlighting
 **What was tried:** Considered a real editor library (CodeMirror) for the code editor.
 **Why rejected:** Hard offline constraint — no CDN, no external network, no new pip/npm deps, and no Node build step in this project. Instead: an enhanced `<textarea>` with a transparent-overlay `<pre>` highlighted by a hand-written tokenizer (`app/static/app.js`), verified lossless so the colored layer stays caret-aligned.

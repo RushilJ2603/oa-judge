@@ -1,6 +1,48 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-24 20:45 IST] — session 3: deployed live (Fly + OAuth), scraping pipeline, verified batches | By: Claude (Opus 4.8, Claude Code)
+
+### Done This Session
+- **Deployed to Fly.io** (`oa123.fly.dev`) with **GitHub OAuth multi-user**, scale-to-zero (~$0/mo),
+  DB + bank on a persistent volume. Hosted is in sync at 42 problems.
+- **Scalable, source-grouped UI.** `problem_index` search table → paginated sidebar; **two-level
+  `source ▸ company` dropdown** (TUF+ / OA-Helper / Iris — Personal), company filter + search.
+  Relabelled `gyan` → "Iris — Personal" (disk key unchanged). Added **presence** ("who's online",
+  best-effort, $0, no heartbeat; migration `004_presence.sql`, `/api/presence`).
+- **Fixed the Sync-doesn't-stick bug.** Moved the live bank onto the Fly **persistent volume**
+  (`OAJ_PROBLEMS_DIR=/data/problems`, seeded once from the image via `sharing.ensure_seeded()`);
+  scale-to-zero was discarding every `git pull`. One Sync now persists.
+- **Stub-rule regression fixed + gated.** All stubs now expose a **separate solution function**
+  (never solve in `main()`). New `audit.py` structural gate (stub rule + metadata + reference +
+  **≥5-edge test-quality** warning). `SOLUTION.md` authored as the authoritative build+authoring
+  reference; `FORMAT.md` points to both gates.
+- **Built the scraper** (`../oa-scraper`) by orchestrating **Grok 4.5 via `cursor-agent`**, scoped to
+  that repo only. TUF+: **397** scraped with premium fields (authenticated `backend-go` API).
+  OA-Helper: **~1500/3586** with premium content (`oahelper.in /api/proxy/question` + `oa_session`
+  cookie). Raw JSON local + gitignored; ingested only in reviewed batches.
+- **Ingested + verified 18 new problems** (each: stub-with-separate-function, verified reference,
+  ≥5 edges incl. max-scale/overflow, `verify_all`+`audit` green, **independent brute-force check**):
+  Microsoft TUF+ textbook ×13, Microsoft OA-Helper story ×2 (Calculate Amount, Final Price),
+  Goldman Iris-Personal ×3 (Missed Courses, Unstable Tasks, Largest Container).
+
+### Errors Hit
+- **Sync required multiple clicks** on the hosted site — root cause: bank in ephemeral fs under
+  scale-to-zero; fixed by relocating to the persistent volume.
+- **Bearer-on-HTML didn't unlock TUF premium** — the data comes from the authenticated `backend-go`
+  API, not the SSR page; rewired the scraper to call it.
+- **OA-Helper premium is cookie-authed, not JWT** — the site uses an `oa_session` cookie + a
+  `get_question` proxy, not a Supabase user token; mapped the real endpoint (`base64("{id}|0")` refs).
+- **OA #8 Square Tile Arrangement**: its own official solution contradicts its samples → skipped, not
+  shipped.
+
+### Next Session Must
+- Take the user's direction on **content batches**: more Microsoft (243 TUF left + OA-Helper story),
+  finish the OA-Helper scrape (~2000 left; re-capture the `oa_session` cookie if it 401s), or backfill
+  the **14 older problems** flagged by `audit.py` for <5 edge cases.
+- Keep every batch on the gate: verified reference + brute-force cross-check + ≥5 edges + `verify_all`
+  + `audit`, then push to `oa-problems` and Sync.
+
 ## [2026-07-23 session 2] — Phases 5–6: sharing + deployment; published public repos | By: Claude (Opus 4.8)
 
 ### Done This Session

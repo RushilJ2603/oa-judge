@@ -1,94 +1,104 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-23 (v2 build session 2) | By: Claude (Opus 4.8)
+# Last Updated: 2026-07-24 20:45 IST (session 3 — deploy + scraping pipeline + verified batches) | By: Claude (Opus 4.8, via Claude Code)
 
 ## Current Phase
-v2 rework — **all six phases (0–6) complete.** Both repos are public on GitHub and CI passes.
-See PLAN_V2.md for the plan; the only deliberately-deferred item is a multi-user OAuth layer
-(not needed while everyone runs their own copy and shares only the bank — see DEPLOY.md).
+**Live, multi-user, and being filled with content.** All v2 phases (0–6) are done *and deployed*:
+the judge runs hosted on Fly.io with GitHub-OAuth multi-user, and there is now a separate scraping
+pipeline feeding a growing, verified problem bank. Focus has shifted from *building the judge* to
+*populating it with verified OA problems in reviewed batches*.
 
-## Shipped this session (session 2)
-- **Phase 5 (sharing):** `oa-problems` split into its own repo (app reads `PROBLEMS_DIR` via
-  `app/config.py`); in-app **Sync** and **Add-Problem → verify → Publish**; `app/sharing.py`;
-  GitHub Action re-verifying every PR; `setup.sh`. Both **CISCO problems now runnable**
-  (cross-checked vs independent brute forces: q1 3000 cases, q2 5000 cases) — 12/13 runnable.
-- **Phase 6 (deploy):** hardened `docker` execution backend (container-per-run, `--network none`,
-  read-only, non-root, pids/mem/cpu caps), untrusted-source compilation also containerised;
-  `Dockerfile`, `docker-compose.yml`, `DEPLOY.md`. **Validated live against real Docker**: a
-  Python problem judged 17/17 AC and network/TLE/read-only/fork-bomb isolation all confirmed.
-- **Published:** `https://github.com/RushilJ2603/oa-judge` + `.../oa-problems`, both **public**,
-  branches `main`, CI green. Onboarding: `git clone … && ./setup.sh && ./start.sh`.
+## What is live right now
+- **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x` machine, **scale-to-zero**
+  → ~$0/month). GitHub OAuth: everyone signs in and sees only their own attempts/drafts/stats. The
+  DB and the problem bank both live on the persistent volume at `/data`. Health: `version:2`,
+  **42 problems** (hosted is currently in sync with the bank).
+- **Two public repos:** `RushilJ2603/oa-judge` (app) + `RushilJ2603/oa-problems` (bank, cloned into
+  `problems/`). Push a problem → anyone clicks **Sync** → it appears for everyone.
+- **Bank: 42 packages** — by source: **Iris — Personal (`gyan`) 22**, **TUF+ (`tuf`) 13**,
+  **OA-Helper (`oa-helper`) 7**. 40 runnable, 2 statement-only. Sidebar groups by **source ▸ company**.
+- **Scraper (sibling project `/mnt/c/Users/jishu/Desktop/oa-scraper`, git-init'd this session):**
+  built by orchestrating Grok 4.5 via `cursor-agent`. **TUF+: 397 scraped** (premium fields via the
+  authenticated `backend-go.takeuforward.org` API). **OA-Helper: ~1500/3586 scraped** and climbing
+  (premium content via the `oahelper.in /api/proxy/question` proxy + `oa_session` cookie). Raw JSON
+  is **local + gitignored**; it does NOT go to the app automatically — it is ingested in reviewed
+  batches. Resumable (skips existing).
 
-## Environment caveat (not a code issue)
-Building the g++ *runner image* on this WSL host fails: its Docker gives containers no network
-egress (apt/DNS fail from inside any container). The sandbox itself is proven working; build the
-image on a host with healthy Docker networking (any VPS/cloud, or fix Docker Desktop networking).
-The default `local` backend needs none of this and is correct for personal use.
-
-## Current Status
-Fully-usable local product. On top of the v1 judge (Flask + execution engine, LC/OA modes,
-Find-Failing-Test, 11/13 runnable problems, Desktop launcher — all still green via verify_all.py):
-
-- **Phase 0 — safety net:** full backup at `../oa-judge-backup-2026-07-23`; git initialised
-  (`.gitignore` excludes `app/data/` + the DB); one-shot `rescue_drafts.py` recovers browser
-  localStorage stranded by the 5000→5137 port move (**still pending the user running it in-browser**).
-- **Phase 1 — persistence:** SQLite at `app/data/judge.db` (WAL, migration runner in `app/db.py`,
-  data access in `app/store.py`). **Every submit stores its full source** + compile output +
-  first-failing-test index + runtime; every custom Run is logged; drafts autosave server-side;
-  draft snapshots enable time-travel; OA sessions record real time-on-problem. The 20 v1
-  `history.json` attempts were imported. Schema is Postgres-portable (for Phase 6).
-- **Phase 2 — editor:** the hand-written textarea+overlay editor is **replaced by Monaco**
-  (vendored offline at `app/static/vendor/monaco/`, ~4.3 MB). Removes the entire caret-drift /
-  paste-misalignment bug class. Autocomplete works: STL/builtin dictionaries + competitive-
-  programming snippets. `app/static/editor.js` is the wrapper (window.OAEditor).
-- **Phase 3 — data UI:** Attempts tab (timeline + view stored code), two-attempt LCS **diff**,
-  **draft scrubber** (History button), **Stats** dashboard, per-problem **Notes** + star/revisit/
-  confidence flags, and **Export all** (`/api/export` → zip of the DB + readable code/notes).
-- **Phase 4 essentials:** verified a forking TLE leaves **zero orphan processes**; server now
-  **prefers waitress** when installed, else Flask dev server; **single-instance guard** — launching
-  twice detects the running instance via `/api/health` and exits cleanly.
+## Shipped this session (session 3, 2026-07-24)
+- **Deployed to Fly.io with GitHub OAuth** (multi-user, scale-to-zero, persistent volume). Docker
+  per-run sandbox validated live earlier; hosted runs the `local` backend inside the Firecracker VM.
+- **Scalable UI:** a `problem_index` search table (rebuilt on startup + after Sync) powers a paginated,
+  filtered sidebar; **two-level `source ▸ company` dropdown** (TUF+ / OA-Helper / Iris — Personal),
+  company filter + search. Relabelled the legacy `gyan` source to **"Iris — Personal"** (key unchanged
+  on disk). Presence chip: **best-effort "who's online", $0** (last_seen bumped by real traffic, no
+  heartbeat; migration `004_presence.sql`, `/api/presence`).
+- **Sync-persistence fix:** the live bank now lives on the **persistent volume** (`OAJ_PROBLEMS_DIR=
+  /data/problems`), seeded once from the image-baked `/problems` via `sharing.ensure_seeded()`.
+  Previously the bank sat in the container's ephemeral fs, so scale-to-zero discarded every `git pull`
+  on cold start — the "have to click Sync several times" bug. Now one Sync sticks.
+- **Stub-rule regression fixed + gated:** all stubs now expose a **separate solution function** (never
+  solve inside `main()`). New `audit.py` structural gate hard-fails that (plus missing metadata /
+  reference / sample), and **enforces test quality** (warns below 5 edge cases). `SOLUTION.md` is the
+  new authoritative "what we built + how we author" reference. **`FORMAT.md` in the bank** now points
+  to both gates and states the mandatory test standard.
+- **Verified problem batches ingested** (each: stub-with-separate-function, verified reference,
+  ≥5 edges incl. max-scale/overflow, `verify_all` + `audit` green, **independent brute-force
+  cross-check**):
+  - **Microsoft — TUF+ textbook (13):** 3 Easy (assign-cookies, best-time-to-buy-and-sell-stock,
+    climbing-stairs) + 10 Med/Hard (best-time-ii, count-inversions, aggressive-cows, book-allocation,
+    binary-subarrays-with-sum, xor-k, nice-subarrays, candy, 0/1-knapsack, burst-balloons).
+  - **Microsoft — OA-Helper story (2):** Calculate Amount (prefix-min), Final Price (monotonic stack).
+  - **Goldman — Iris-Personal (3):** Missed Courses, Unstable Tasks, Largest Container (union-find;
+    reading validated against full BFS reachability).
 
 ## Blocking Issues
-- NONE for local use.
+- **NONE** for the app or the deployment.
 
 ## Next Session Must Start With
-> **Phase 5 (sharing) then Phase 6 (deployment)** — decisions locked in PLAN_V2.md: scope 0–6,
-> Monaco, two repos, **public** visibility. Phase 5: split a public `oa-problems` GitHub repo
-> (app reads `PROBLEMS_DIR`); in-app Sync + Add-Problem→verify→Publish; a GitHub Action running
-> `verify_all.py` on every PR; a one-command `setup.sh`. Phase 6: Docker per-run sandbox (the big
-> security piece), Postgres, GitHub OAuth, deploy.
-> **Fold into Phase 5:** make **cisco-q1-drone-delivery** and **cisco-q2-sniper-detector** runnable
-> (specs in `_migrated_raw/cisco/coding.md`).
-> **Also:** import the user's rescued browser drafts once they run `rescue_drafts.py` in-browser
-> (`python3 import_v1_data.py` picks up `app/data/rescued_drafts.json`).
+> **User's direction on content** — the judge and pipeline are done; remaining work is populating the
+> bank in reviewed batches. Options, all "just say which":
+> 1. **More Microsoft** (243 TUF textbook remain; more OA-Helper story problems — verify each, skip
+>    the sample-less / self-contradicting ones like #8 Square Tile Arrangement).
+> 2. **Finish the OA-Helper scrape** (~2000 left of 3586; the `oa_session` cookie expires — re-capture
+>    from oahelper.in DevTools → Cookies if 401s appear).
+> 3. **Backfill the 14 older problems** flagged by `audit.py` for having <5 edge cases.
+> Every batch goes through the same gate: verified reference + brute-force cross-check + ≥5 edges +
+> `verify_all` + `audit`, then push to `oa-problems`; the user Syncs.
 
 ## Environment Notes
-- OS: Windows 11 + WSL2 (project lives at `C:\Users\jishu\Desktop\oa-judge`, i.e. `/mnt/c/Users/jishu/Desktop/oa-judge` in WSL)
-- Python: 3.12 (Flask 3.1.3 installed)
-- Node: not in WSL; Windows `node.exe` v24 is available (used only for JS syntax-checks, not at runtime)
-- Compiler: `g++` 13.3 (C++17)
-- DB: none — history is `app/data/history.json`
-- Server binds `127.0.0.1:5137` (moved from 5000 to dodge a stuck browser cache; a fresh port URL can't serve cached assets); reachable from the Windows browser via WSL2 localhost forwarding (verified). Assets are also version-stamped (`?v=2`) and served with no-cache headers.
-- The `/mnt/c` Windows mount makes subprocess/file I/O ~10× slower under WSL — noticeable in stress runs (a few seconds) but not blocking
+- OS: Windows 11 + WSL2; app at `C:\Users\jishu\Desktop\oa-judge` (= `/mnt/c/Users/jishu/Desktop/oa-judge`).
+- Scraper: `/mnt/c/Users/jishu/Desktop/oa-scraper` (own `.venv`; httpx/bs4/markdownify; `config.local.json`
+  holds the TUF Bearer token + OA-Helper `oa_session` cookie — **gitignored, never commit secrets**).
+- `cursor-agent` (Cursor CLI) installed at `~/.local/bin`, logged in; used to drive Grok 4.5 scoped to
+  the scraper repo only (never the app). Verify its output; never trust its self-report.
+- Python 3.12, `g++` 13.3 (C++17). Server binds `127.0.0.1:5137` locally; hosted binds `0.0.0.0:5137`.
+- Fly CLI (`flyctl`) at `~/.fly/bin`, authenticated.
 
-## Recent Decisions (this phase)
+## Recent Decisions (this session)
 | Decision | Rationale | Date |
 |---|---|---|
-| References are the source of truth; hidden `.out` generated by running them, never hand-written | Hand-derived expected values kept being wrong; generation is trustworthy | 2026-07-23 |
-| Ambiguous OA statements commit to ONE reading; alternatives go in the editorial | A judge needs a single correct answer; can't present two readings to the solver | 2026-07-23 |
-| Hand-written syntax highlighter over a transparent textarea (no CodeMirror) | Keeps the app fully offline + dependency-free; overlay verified lossless | 2026-07-23 |
-| Generators take an INTEGER size hint (`argv[2]`), small default | String-category hints ("small"/"large") produced megabyte inputs when tooling passed ints | 2026-07-23 |
-| Desktop launcher = `.lnk` → `launch.bat` → `wsl.exe bash _serve.sh` | Matches the user's existing Kernel.lnk pattern; single clean path avoids quote-nesting | 2026-07-23 |
-| Curated edge cases (`tests/edge/`) required per problem, on top of random | Random-only coverage misses bounds/degenerate/adversarial cases real OAs ship | 2026-07-23 |
-| Editor uses fixed integer px line-height (13px/20px), paste normalization, and Enter auto-indent | Fractional line-height drifted the highlight overlay off the caret after big pastes | 2026-07-23 |
+| Live problem bank lives on the Fly **persistent volume** (`/data/problems`), seeded from the image | Scale-to-zero wipes the ephemeral fs; a baked-only bank reverts each cold start and Syncs don't stick | 2026-07-24 |
+| Stub `main()` only does I/O and calls a **named solution function**; enforced by `audit.py` | A batch regressed to solving inside `main()`; mirrors real OA/LC harness; now a hard gate | 2026-07-24 |
+| **Test quality mandatory**: ≥5 curated edges incl. a max-scale case; brute-force cross-check every reference | Weak suites let a wrong/slow solution pass; audit warns below 5 | 2026-07-24 |
+| Presence is **best-effort, no heartbeat** (last_seen on real traffic only) | A background heartbeat would keep the scale-to-zero machine awake and cost money | 2026-07-24 |
+| Delegate the **scraper only** to Grok (`cursor-agent`), scoped to `oa-scraper`; author judged packages myself | Bulk scraping fits delegation; authoring/verification stays with Claude; app never touched | 2026-07-24 |
+| Skip OA problems whose provided solution contradicts their own samples (e.g. #8 Square Tile) | Can't ship a guessed judge; verification discipline over coverage | 2026-07-24 |
 
 ## Known Issues / Tech Debt
-- **cisco-q1, cisco-q2 are statement-only** — no editor/run until references are written (this is the planned next task).
-- **LC/GfG links are unverified** — LeetCode returns HTTP 403 to both curl and WebFetch, so URLs were curated by hand-confidence, not machine-checked; 4 problems have no links.
-- **flipkart-q4 generator** only ever emits small instances (it treats the size hint categorically) — valid but doesn't scale; low priority since samples + edge cases cover it.
-- **No git repository initialized** — the Session Protocol's final `git commit` step cannot run yet; `git init` needed if version history is wanted.
-- Templates currently live in `oa-judge/templatesv2/`; for the Session Protocol to auto-trigger on future onboarding, they'd need to move to the `oa-judge/` root.
+- **OA-Helper scrape is partial** (~1500/3586) and the `oa_session` cookie expires — resume with a
+  fresh cookie when needed. Raw only; not yet ingested.
+- **14 older problems have <5 edge cases** (audit warnings) — deshaw-q1, flipkart-q4, goldman-2048,
+  goldman-book-cricket, goldman-dora, goldman-non-repeating, millennium-q2, oa-q1/q2/q3,
+  rippling-q1/q2, uber-q3, tuf-climbing-stairs — backfill to the new standard when convenient.
+- **Two problems deferred (correctly)**: Array Burst (removal order not confluent), Optimal
+  Reconstruction (unreadable sample tree edges) — need clarification before a judge can be written.
+- Many premium OA-Helper questions have **no stored sample tests** in the API → only author the ones
+  with clear semantics + samples that can be verified.
+- The templates' own `CLAUDE.md`/dead_ends still carry some **v1 history** (the pre-Monaco overlay
+  editor) — kept as history; the live editor is Monaco.
 
 ## Reference Links
-- Internal only: `PLAN.md` (overview), `API.md` (HTTP contract), `FORMAT.md` (problem format + test standard), `PACKAGING_BRIEF.md` (per-problem I/O)
-- No external services or APIs — the app is fully self-contained and offline.
+- `SOLUTION.md` (authoritative: architecture + authoring rules), `problems/FORMAT.md` (package format +
+  test standard), `API.md`, `PLAN_V2.md`/`DEPLOY.md`. Gates: `verify_all.py` (correctness), `audit.py`
+  (structure + test-quality).
+- Hosted: `https://oa123.fly.dev`. Repos: `github.com/RushilJ2603/oa-judge`, `.../oa-problems`.

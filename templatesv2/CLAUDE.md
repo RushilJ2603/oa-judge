@@ -2,13 +2,13 @@
 # ── Project Rules & AI Onboarding ──────────────────────────────
 
 ## What This Project Does
-A local, HackerRank/LeetCode-style code judge for practising real online-assessment (OA) problems on your own machine. It compiles and runs your C++/Python solution against real test cases in two modes — **LC** (all tests visible) and **OA** (tests hidden, timer, no post-submit reruns) — plus a "Find Failing Test" feature that races your code against a verified reference on random inputs and shrinks the first disagreement to the smallest readable failing input. Single user (the project owner), run from the Windows Desktop.
+A local, HackerRank/LeetCode-style code judge for practising real online-assessment (OA) problems on your own machine. It compiles and runs your C++/Python solution against real test cases in two modes — **LC** (all tests visible) and **OA** (tests hidden, timer, no post-submit reruns) — plus a "Find Failing Test" feature that races your code against a verified reference on random inputs and shrinks the first disagreement to the smallest readable failing input. Runs two ways: **local single-user** (no login) on the owner's machine, and **hosted multi-user** at `https://oa123.fly.dev` (Fly.io, GitHub OAuth — each person sees only their own attempts/drafts/stats). A shared problem bank (`oa-problems`) is synced in-app: push a problem, everyone clicks Sync, everyone gets it.
 
 ## Tech Stack
 - **Language:** Python 3.12 (backend), vanilla JavaScript (frontend, no framework), C++17 + Python 3 as the *judged* languages
 - **Framework:** Flask 3.1.3 (dev server, `app/server.py`); frontend is hand-rolled HTML/CSS/JS (no build step, no Node)
-- **Database:** None — attempt history is a JSON file (`app/data/history.json`); problems are folders on disk
-- **Key Libraries:** Flask only. Standard library elsewhere (subprocess, resource, http). C++ compiled with `g++ -std=c++17`. A hand-written Markdown renderer (`app/runner/md.py`) and a hand-written JS syntax highlighter avoid third-party deps. **Hard rule: fully offline — no CDN, no external network, no new pip/npm packages.**
+- **Database:** SQLite — `app/data/judge.db` locally, `/data/judge.db` on the Fly volume when hosted (`app/db.py` migration runner, `app/store.py` data access, **all queries scoped per user**). Every submit/run/draft/snapshot/OA-session is stored. Problems are folders on disk, indexed into a `problem_index` search table for the scalable sidebar. (v1's `history.json` was migrated in.)
+- **Key Libraries:** Flask + waitress (backend). **Editor is Monaco, vendored offline** at `app/static/vendor/monaco/` (~4.3 MB, no CDN, no build step) — it replaced the old hand-written textarea+overlay highlighter. Hosted mode additionally uses **GitHub OAuth** and `git` (to sync the shared `oa-problems` bank) and an optional **Docker** per-run sandbox. **Frontend stays fully offline (no CDN); no new pip/npm packages without asking.**
 
 ## Directory Map
 ```
@@ -90,6 +90,8 @@ python3 smoke_test.py
 Requires `python3` with Flask, and `g++` on PATH (both present in WSL). No tests/ dir — `verify_all.py` and `smoke_test.py` ARE the test harness.
 
 ## Key Reference Files
+- **Authoritative build + authoring reference: `SOLUTION.md`** (architecture, the stub rule, test standard, deploy/Sync model) — read this first for anything about adding problems.
+- **Gates:** `verify_all.py` (references AC their suites) **and** `audit.py` (structure: stub-has-separate-function, required metadata, reference present, ≥5-edge test-quality). Both must pass before publishing.
 - What it is + build phases: `PLAN.md`
 - HTTP/JSON contract (frontend↔server): `API.md`
 - Problem package format + LC/OA test-design standard: `FORMAT.md`
