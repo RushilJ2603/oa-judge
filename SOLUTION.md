@@ -116,6 +116,15 @@ the one allowed audit *warning*.)
 
 ## 4. Test-case standard
 
+> **Mandatory (enforced):** every runnable problem ships **at least 5 curated edge cases** and they
+> must include a **max-scale** case. `audit.py` hard-fails a runnable problem with no sample or fewer
+> than 2 edges, and **warns** below 5. Weak test suites are how a wrong or slow solution sneaks a
+> green — this bar is not optional for new problems.
+
+Every reference is also cross-checked against an **independent brute force** on small random inputs
+before shipping (see §Verification discipline). A passing `verify_all` alone is not enough — it only
+proves the reference agrees with its *own* generated outputs.
+
 `make_hidden.py` builds `tests/hidden/` with **outputs computed by running the verified reference**,
 never hand-written. Two layers:
 

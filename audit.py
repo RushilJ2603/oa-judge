@@ -86,6 +86,22 @@ def audit() -> tuple[list[str], list[str]]:
         if not any(os.path.isfile(os.path.join(pdir, f"reference.{ext}")) for ext in ("cpp", "py")):
             hard.append(f"{pid}: runnable but has no reference.cpp/reference.py")
 
+        # Test coverage. Hard floor: at least one sample + a couple of edges. The STANDARD (warned
+        # below) is >= 5 curated edges covering bounds, a MAX-SCALE case, an overflow trigger
+        # (force 64-bit), an adversarial case, and a degenerate/no-answer case — see SOLUTION.md §4.
+        n_sample = len([f for f in os.listdir(os.path.join(pdir, "tests", "sample"))
+                        if f.endswith(".in")]) if os.path.isdir(os.path.join(pdir, "tests", "sample")) else 0
+        n_edge = len([f for f in os.listdir(os.path.join(pdir, "tests", "edge"))
+                      if f.endswith(".in")]) if os.path.isdir(os.path.join(pdir, "tests", "edge")) else 0
+        if n_sample < 1:
+            hard.append(f"{pid}: runnable but has no sample tests (mirror the statement's examples)")
+        if n_edge < 2:
+            hard.append(f"{pid}: runnable but has < 2 edge cases (tests/edge/*.in)")
+        elif n_edge < 5:
+            warn.append(f"{pid}: only {n_edge} edge cases — the standard is >=5 covering bounds, a "
+                        f"MAX-SCALE case, an overflow trigger (64-bit), an adversarial case, and a "
+                        f"degenerate/no-answer case (SOLUTION.md §4)")
+
     return hard, warn
 
 
