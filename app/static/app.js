@@ -202,6 +202,28 @@ function setupEventListeners() {
         if (btn.dataset.tab === 'notes') renderNotesTab();
     }));
 
+    // Sidebar search + filters (debounced search; the rest reload immediately).
+    const searchEl = document.getElementById('prob-search');
+    if (searchEl) {
+        let t = null;
+        searchEl.addEventListener('input', () => {
+            clearTimeout(t);
+            t = setTimeout(() => { sb.q = searchEl.value.trim(); loadProblems(true); }, 250);
+        });
+    }
+    const diffEl = document.getElementById('filter-diff');
+    if (diffEl) diffEl.addEventListener('change', () => { sb.difficulty = diffEl.value; loadProblems(true); });
+    const unsolvedEl = document.getElementById('filter-unsolved');
+    if (unsolvedEl) unsolvedEl.addEventListener('change', () => { sb.unsolved = unsolvedEl.checked; loadProblems(true); });
+    const sortEl = document.getElementById('sort-toggle');
+    if (sortEl) sortEl.addEventListener('click', () => {
+        sb.sort = sb.sort === 'title' ? 'recent' : 'title';
+        sortEl.textContent = sb.sort === 'title' ? 'A–Z' : 'Recent';
+        loadProblems(true);
+    });
+    const moreEl = document.getElementById('load-more');
+    if (moreEl) moreEl.addEventListener('click', () => { sb.page += 1; loadProblems(false); });
+
     els.btnStats.addEventListener('click', openStats);
     els.btnSync.addEventListener('click', syncBank);
     els.btnAddProblem.addEventListener('click', openAuthoring);
@@ -267,49 +289,120 @@ function isLightTheme() {
 }
 
 /* ============================ problem list ============================ */
+/* Sidebar filter/pagination state — designed to scale to thousands of problems by loading a page
+   at a time from the search API rather than rendering everything at once. */
+const sb = {
+    source: '',        // '' = all sources; else 'oa-helper' | 'tuf' | 'gyan'
+    difficulty: '',
+    q: '',
+    unsolved: false,
+    sort: 'title',     // 'title' | 'recent'
+    page: 1,
+    pageSize: 60,
+    total: 0,
+    loaded: 0,
+};
+
 async function fetchProblemsAndHistory() {
     try {
-        state.problems = (await api('/api/problems')).problems;
         try { state.history = await api('/api/history'); } catch (e) { state.history = { attempts: [], revisit: [] }; }
-        renderSidebar();
-        // Honour a #problem-id deep link on first load.
+        await renderSourceTabs();
+        await loadProblems(true);
+        // Honour a #problem-id deep link on first load (the problem endpoint 404s if unknown).
         const want = decodeURIComponent(location.hash.slice(1));
-        if (want && state.problems.some(p => p.id === want)) loadProblem(want);
+        if (want) loadProblem(want);
     } catch (e) { console.error('Failed to fetch problems', e); }
 }
 
-function renderSidebar() {
-    const grouped = {};
-    for (const p of state.problems) (grouped[p.company] = grouped[p.company] || []).push(p);
+async function renderSourceTabs() {
+    let facets = { sources: [], total: 0 };
+    try { facets = await api('/api/facets'); } catch (e) {}
+    const tabs = document.getElementById('source-tabs');
+    if (!tabs) return;
+    const mk = (key, label, count, solved) => {
+        const b = document.createElement('button');
+        b.className = 'source-tab' + (sb.source === key ? ' active' : '');
+        b.innerHTML = `<span class="st-label">${escapeHTML(label)}</span>` +
+            `<span class="st-count">${solved != null && count ? solved + '/' : ''}${count}</span>`;
+        b.addEventListener('click', () => { sb.source = key; renderSourceTabs(); loadProblems(true); });
+        return b;
+    };
+    tabs.innerHTML = '';
+    const totalSolved = facets.sources.reduce((a, s) => a + (s.solved || 0), 0);
+    tabs.appendChild(mk('', 'All', facets.total || 0, totalSolved));
+    for (const s of facets.sources) tabs.appendChild(mk(s.key, s.label, s.count, s.solved));
+}
+
+function buildQuery() {
+    const p = new URLSearchParams();
+    if (sb.source) p.set('source', sb.source);
+    if (sb.difficulty) p.set('difficulty', sb.difficulty);
+    if (sb.q) p.set('q', sb.q);
+    if (sb.unsolved) p.set('solved', 'unsolved');
+    p.set('sort', sb.sort);
+    p.set('page', sb.page);
+    p.set('page_size', sb.pageSize);
+    return p.toString();
+}
+
+async function loadProblems(reset) {
+    if (reset) { sb.page = 1; sb.loaded = 0; els.problemList.innerHTML = ''; }
+    let data = { problems: [], total: 0 };
+    try { data = await api('/api/problems?' + buildQuery()); } catch (e) { return; }
+    sb.total = data.total;
+    sb.loaded += data.problems.length;
+    renderProblemItems(data.problems);
+
+    const more = document.getElementById('load-more');
+    if (more) more.style.display = (sb.loaded < sb.total) ? 'block' : 'none';
+    const cnt = document.getElementById('sidebar-count');
+    if (cnt) cnt.textContent = sb.total ? `${sb.loaded} of ${sb.total}` : 'No problems match';
+}
+
+function renderProblemItems(items) {
     const revisit = new Set(state.history.revisit || []);
-    els.problemList.innerHTML = '';
+    for (const p of items) {
+        const item = document.createElement('div');
+        item.className = 'problem-item' + (p.id === state.currentProblemId ? ' active' : '');
+        item.dataset.pid = p.id;
+        item.onclick = () => loadProblem(p.id);
 
-    for (const [company, probs] of Object.entries(grouped).sort()) {
-        const g = document.createElement('div');
-        g.className = 'company-group';
-        g.textContent = company || 'Other';
-        els.problemList.appendChild(g);
+        const row = document.createElement('div');
+        row.className = 'problem-title-row';
+        const title = document.createElement('span');
+        title.className = 'problem-title';
+        title.textContent = p.title;
+        const badges = document.createElement('div');
+        badges.className = 'problem-badges';
+        if (p.difficulty) badges.innerHTML += `<span class="pill pill-${p.difficulty}">${p.difficulty}</span>`;
+        if (!p.runnable) badges.innerHTML += `<span class="pill pill-stmt" title="Statement only — no auto-judge">stmt</span>`;
+        if (p.solved) badges.innerHTML += `<span class="pill pill-solved" title="Solved">✓</span>`;
+        else if (revisit.has(p.id)) badges.innerHTML += `<span class="pill pill-revisit" title="Not solved yet">•</span>`;
+        row.appendChild(title); row.appendChild(badges);
+        item.appendChild(row);
 
-        for (const p of probs) {
-            const item = document.createElement('div');
-            item.className = 'problem-item' + (p.id === state.currentProblemId ? ' active' : '');
-            item.onclick = () => loadProblem(p.id);
-
-            const row = document.createElement('div');
-            row.className = 'problem-title-row';
-            const title = document.createElement('span');
-            title.className = 'problem-title';
-            title.textContent = p.title;
-            const badges = document.createElement('div');
-            badges.className = 'problem-badges';
-            if (p.difficulty) badges.innerHTML += `<span class="pill pill-${p.difficulty}">${p.difficulty}</span>`;
-            if (p.solved) badges.innerHTML += `<span class="pill pill-solved" title="Solved">✓</span>`;
-            else if (revisit.has(p.id)) badges.innerHTML += `<span class="pill pill-revisit" title="Not solved yet">•</span>`;
-            row.appendChild(title); row.appendChild(badges);
-            item.appendChild(row);
-            els.problemList.appendChild(item);
+        // Secondary line: company · topic — helps when the top-level grouping is by source.
+        const sub = (p.company || p.topic) ? `${p.company || ''}${p.company && p.topic ? ' · ' : ''}${p.topic || ''}` : '';
+        if (sub) {
+            const s = document.createElement('div');
+            s.className = 'problem-sub';
+            s.textContent = sub;
+            item.appendChild(s);
         }
+        els.problemList.appendChild(item);
     }
+}
+
+/* Toggle the .active class on the currently-open problem without re-fetching the list. */
+function highlightActiveProblem() {
+    els.problemList.querySelectorAll('.problem-item').forEach(el =>
+        el.classList.toggle('active', el.dataset.pid === state.currentProblemId));
+}
+
+/* Refresh solved badges + source counts after a submit/flag change. */
+function refreshSidebarSolved() {
+    renderSourceTabs();
+    loadProblems(true);
 }
 
 async function loadProblem(id) {
@@ -321,7 +414,7 @@ async function loadProblem(id) {
     state.oaSessionId = null;
     // Deep link, so a problem can be opened (or shared) by URL.
     if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
-    renderSidebar();
+    highlightActiveProblem();
 
     try {
         const data = await api(`/api/problem/${id}`);
@@ -918,7 +1011,7 @@ async function openStats() {
     try { s = await api('/api/stats'); } catch (e) {
         els.modalBody.innerHTML = '<p class="placeholder">Could not load stats.</p>'; return;
     }
-    const totalProblems = state.problems.length || 0;
+    const totalProblems = sb.total || 0;
     const acRate = s.total_attempts ? Math.round(100 * s.ac_attempts / s.total_attempts) : 0;
     const avgToAc = s.attempts_to_ac && s.attempts_to_ac.length
         ? (s.attempts_to_ac.reduce((a, r) => a + r.attempts_to_ac, 0) / s.attempts_to_ac.length).toFixed(1)

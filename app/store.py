@@ -336,6 +336,122 @@ def stats() -> dict:
     }
 
 
+# ------------------------------------------------------------------ problem index (search at scale)
+# The sidebar can't load thousands of problems at once, so we cache their metadata in problem_index
+# (rebuilt from disk on startup + after each Sync) and serve a paginated, filtered search from it.
+SOURCE_LABELS = {"oa-helper": "OA-Helper", "tuf": "TUF+", "gyan": "Gyan / Manual"}
+
+
+def reindex_problems(metas: list[dict]) -> int:
+    """Replace the whole problem_index with the current on-disk metadata. Idempotent; cheap."""
+    conn = db.connect()
+    now = _now()
+    conn.execute("DELETE FROM problem_index")
+    conn.executemany(
+        "INSERT INTO problem_index"
+        " (id, title, title_lc, difficulty, company, source, topic, tags_json, runnable,"
+        "  languages_json, indexed_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        [(m["id"], m["title"], (m["title"] or "").lower(), m.get("difficulty", ""),
+          m.get("company", ""), m.get("source", "gyan"), m.get("topic", ""),
+          json.dumps(m.get("tags", [])), 1 if m.get("runnable", True) else 0,
+          json.dumps(m.get("languages", [])), now)
+         for m in metas])
+    conn.commit()
+    return len(metas)
+
+
+def index_count() -> int:
+    return db.connect().execute("SELECT COUNT(*) AS n FROM problem_index").fetchone()["n"]
+
+
+def _search_where(source, company, difficulty, topic, q):
+    clauses, args = [], []
+    if source:
+        clauses.append("source = ?"); args.append(source)
+    if company:
+        clauses.append("company = ?"); args.append(company)
+    if difficulty:
+        clauses.append("difficulty = ?"); args.append(difficulty)
+    if topic:
+        clauses.append("topic = ?"); args.append(topic)
+    if q:
+        # match title, tags, company or id — case-insensitive substring
+        like = f"%{q.lower()}%"
+        clauses.append("(title_lc LIKE ? OR lower(tags_json) LIKE ? OR lower(company) LIKE ? OR lower(id) LIKE ?)")
+        args += [like, like, like, like]
+    return (" WHERE " + " AND ".join(clauses)) if clauses else "", args
+
+
+def _hydrate(rows, solved_set):
+    out = []
+    for r in rows:
+        r = dict(r)
+        r["tags"] = json.loads(r.pop("tags_json") or "[]")
+        r["languages"] = json.loads(r.pop("languages_json") or "[]")
+        r["runnable"] = bool(r["runnable"])
+        r["solved"] = r["id"] in solved_set
+        out.append(r)
+    return out
+
+
+_SEL = ("SELECT id, title, difficulty, company, source, topic, tags_json, runnable, languages_json"
+        " FROM problem_index")
+
+
+def search_problems(source=None, company=None, difficulty=None, topic=None, q=None,
+                    solved=None, page=1, page_size=50, sort="title") -> dict:
+    """Paginated, filtered problem list from the index, annotated with the user's solved set.
+    `solved` filter: 'solved' | 'unsolved' | None."""
+    conn = db.connect()
+    where, args = _search_where(source, company, difficulty, topic, q)
+    order = "title_lc ASC" if sort == "title" else "indexed_at DESC, id DESC"
+    solved_set = solved_ids()
+
+    if solved in ("solved", "unsolved"):
+        # solved status is per-user (not in SQL): fetch matches, filter, then paginate in Python.
+        rows = _hydrate(conn.execute(f"{_SEL}{where} ORDER BY {order}", args).fetchall(), solved_set)
+        want = (solved == "solved")
+        rows = [r for r in rows if r["solved"] == want]
+        total = len(rows)
+        start = (page - 1) * page_size
+        return {"problems": rows[start:start + page_size], "total": total,
+                "page": page, "page_size": page_size}
+
+    total = conn.execute(f"SELECT COUNT(*) AS n FROM problem_index{where}", args).fetchone()["n"]
+    start = (page - 1) * page_size
+    rows = conn.execute(f"{_SEL}{where} ORDER BY {order} LIMIT ? OFFSET ?",
+                        args + [page_size, start]).fetchall()
+    return {"problems": _hydrate(rows, solved_set), "total": total,
+            "page": page, "page_size": page_size}
+
+
+def problem_facets() -> dict:
+    """Counts for the sidebar's grouping/filters: per source, per company, per difficulty, plus how
+    many the current user has solved in each source."""
+    conn = db.connect()
+    solved_set = solved_ids()
+    sources = [dict(r) for r in conn.execute(
+        "SELECT source, COUNT(*) AS n FROM problem_index GROUP BY source ORDER BY source")]
+    companies = [dict(r) for r in conn.execute(
+        "SELECT company, COUNT(*) AS n FROM problem_index WHERE company != ''"
+        " GROUP BY company ORDER BY n DESC, company")]
+    difficulties = {r["difficulty"]: r["n"] for r in conn.execute(
+        "SELECT difficulty, COUNT(*) AS n FROM problem_index GROUP BY difficulty")}
+    # solved-per-source needs the user's solved set (kept out of SQL for portability)
+    solved_by_source = {}
+    for r in conn.execute("SELECT id, source FROM problem_index"):
+        if r["id"] in solved_set:
+            solved_by_source[r["source"]] = solved_by_source.get(r["source"], 0) + 1
+    return {
+        "sources": [{"key": s["source"], "label": SOURCE_LABELS.get(s["source"], s["source"]),
+                     "count": s["n"], "solved": solved_by_source.get(s["source"], 0)} for s in sources],
+        "companies": companies,
+        "difficulties": difficulties,
+        "total": index_count(),
+    }
+
+
 # ------------------------------------------------------------------ users (hosted mode)
 def upsert_github_user(github_id: int, login: str, name: str = None, avatar_url: str = None) -> int:
     """Create or update a user from a GitHub profile; returns the local user id."""

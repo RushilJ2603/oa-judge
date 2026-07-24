@@ -456,3 +456,39 @@ body {
     padding-left: 8px; border-left: 1px solid var(--border); }
 .user-chip img { border-radius: 50%; display: block; }
 #user-login { font-size: 12.5px; color: var(--text-muted); }
+
+/* ============================ scalable sidebar (search + source tabs + filters) ============ */
+
+.sidebar-search { padding: 10px 12px 6px; }
+.sidebar-search input { width: 100%; box-sizing: border-box; background: var(--bg-elev);
+    color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    font-size: 13px; }
+.sidebar-search input:focus { outline: none; border-color: var(--accent); }
+
+.source-tabs { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 12px 8px; }
+.source-tab { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-elev);
+    color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 10px; font-size: 11.5px; cursor: pointer; transition: all .12s; }
+.source-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.source-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.source-tab .st-count { font-variant-numeric: tabular-nums; opacity: .75; font-size: 10.5px; }
+.source-tab.active .st-count { opacity: .9; }
+
+.filter-row { display: flex; align-items: center; gap: 8px; padding: 0 12px 8px; font-size: 12px; }
+.filter-select { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 6px; font-size: 12px; flex: 1; min-width: 0; }
+.filter-chk { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted);
+    cursor: pointer; white-space: nowrap; }
+.filter-sort { background: var(--bg-elev); color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+.filter-sort:hover { border-color: var(--accent); color: var(--accent); }
+
+.problem-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; padding-left: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-stmt { background: var(--bg-sunken); color: var(--text-muted); border: 1px solid var(--border); }
+
+.load-more { display: block; width: calc(100% - 24px); margin: 6px 12px 4px; padding: 7px;
+    background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; font-size: 12.5px; cursor: pointer; }
+.load-more:hover { border-color: var(--accent); color: var(--accent); }
+.sidebar-count { padding: 4px 12px 12px; font-size: 11px; color: var(--text-muted); text-align: center; }

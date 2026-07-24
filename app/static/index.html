@@ -29,8 +29,24 @@
     <div class="workspace">
         <!-- Problem list -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-heading">Problems</div>
+            <div class="sidebar-search">
+                <input id="prob-search" type="text" placeholder="Search problems, tags, company…"
+                       autocomplete="off" spellcheck="false">
+            </div>
+            <div class="source-tabs" id="source-tabs"></div>
+            <div class="filter-row">
+                <select id="filter-diff" class="filter-select" title="Difficulty">
+                    <option value="">All levels</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                </select>
+                <label class="filter-chk"><input type="checkbox" id="filter-unsolved"> Unsolved</label>
+                <button class="filter-sort" id="sort-toggle" title="Sort order">A–Z</button>
+            </div>
             <div id="problem-list" class="problem-list"></div>
+            <button class="load-more" id="load-more" style="display:none">Load more</button>
+            <div class="sidebar-count" id="sidebar-count"></div>
         </aside>
 
         <!-- Statement / editorial -->
