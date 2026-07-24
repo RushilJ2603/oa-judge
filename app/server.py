@@ -72,17 +72,47 @@ def static_files(path):
 
 
 # ----------------------------------------------------------------- problem list / detail
+def _ensure_index():
+    """Build the search index if it's empty (first run / fresh DB). Cheap no-op once populated."""
+    try:
+        if store.index_count() == 0:
+            store.reindex_problems(problems.all_meta())
+    except Exception:
+        pass
+
+
 @app.route("/api/problems")
 def api_problems():
-    solved = store.solved_ids()
-    items = []
-    for pid in problems.list_ids():
-        s = problems.summary(pid)
-        if s is None:
-            continue
-        s["solved"] = pid in solved
-        items.append(s)
-    return jsonify({"problems": items})
+    """Paginated, filtered search over the problem index — scales to thousands. Query params:
+    source, company, difficulty, topic, q, solved (solved|unsolved), sort (title|recent),
+    page, page_size."""
+    _ensure_index()
+    a = request.args
+    def _int(name, default):
+        try:
+            return max(1, int(a.get(name, default)))
+        except (TypeError, ValueError):
+            return default
+    return jsonify(store.search_problems(
+        source=a.get("source") or None, company=a.get("company") or None,
+        difficulty=a.get("difficulty") or None, topic=a.get("topic") or None,
+        q=a.get("q") or None, solved=a.get("solved") or None,
+        sort=a.get("sort") or "title",
+        page=_int("page", 1), page_size=min(_int("page_size", 50), 200)))
+
+
+@app.route("/api/facets")
+def api_facets():
+    """Sidebar grouping + filter counts (per source / company / difficulty)."""
+    _ensure_index()
+    return jsonify(store.problem_facets())
+
+
+@app.route("/api/reindex", methods=["POST"])
+def api_reindex():
+    """Force a rebuild of the search index from disk (used after authoring a problem locally)."""
+    n = store.reindex_problems(problems.all_meta())
+    return jsonify({"ok": True, "indexed": n})
 
 
 @app.route("/api/problem/<pid>")
@@ -391,9 +421,15 @@ def api_bank_status():
 
 @app.route("/api/bank/sync", methods=["POST"])
 def api_bank_sync():
-    """git pull the problems bank. The listing is read fresh from disk on each request, so any
-    newly pulled problems appear on the next /api/problems without a restart."""
-    return jsonify(sharing.sync())
+    """git pull the problems bank, then rebuild the search index so new problems show up in the
+    grouped sidebar immediately."""
+    result = sharing.sync()
+    if result.get("ok"):
+        try:
+            store.reindex_problems(problems.all_meta())
+        except Exception:
+            pass
+    return jsonify(result)
 
 
 @app.route("/api/bank/author", methods=["POST"])
@@ -460,6 +496,12 @@ if __name__ == "__main__":
     # Warm the DB / apply migrations before accepting requests, so the first click is instant
     # and any migration error surfaces here rather than mid-request.
     db.connect()
+    # Build the search index from disk at startup (rebuilds on every launch so a freshly deployed
+    # image or a git-pulled bank is always reflected).
+    try:
+        store.reindex_problems(problems.all_meta())
+    except Exception as e:  # noqa: BLE001
+        print(f"  (warning: could not build problem index: {e})")
     shown = "127.0.0.1" if host in ("0.0.0.0", "::") else host
     print(f"\n  OA Judge running →  http://{shown}:{port}\n")
     _serve(host, port)

@@ -86,6 +86,39 @@ def load(pid: str) -> dict | None:
     }
 
 
+def meta_only(pid: str) -> dict | None:
+    """Parse just problem.json — no test files. Cheap enough to run over thousands of problems
+    for indexing. Returns the normalized metadata the index/search layer needs."""
+    meta_raw = _read(os.path.join(PROBLEMS_DIR, pid, "problem.json"))
+    if meta_raw is None:
+        return None
+    try:
+        m = json.loads(meta_raw)
+    except json.JSONDecodeError:
+        return None
+    return {
+        "id": m.get("id", pid),
+        "title": m.get("title", pid),
+        "source": (m.get("source") or "gyan"),
+        "topic": (m.get("topic") or ""),
+        "company": (m.get("company") or ""),
+        "difficulty": (m.get("difficulty") or ""),
+        "tags": m.get("tags", []),
+        "languages": m.get("languages", []),
+        "runnable": bool(m.get("runnable", True)),
+    }
+
+
+def all_meta() -> list[dict]:
+    """Light metadata for every problem on disk — the input to (re)building the search index."""
+    out = []
+    for pid in list_ids():
+        m = meta_only(pid)
+        if m:
+            out.append(m)
+    return out
+
+
 def summary(pid: str) -> dict | None:
     p = load(pid)
     if p is None:
