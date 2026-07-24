@@ -292,7 +292,8 @@ function isLightTheme() {
 /* Sidebar filter/pagination state — designed to scale to thousands of problems by loading a page
    at a time from the search API rather than rendering everything at once. */
 const sb = {
-    source: '',        // '' = all sources; else 'oa-helper' | 'tuf' | 'gyan'
+    source: '',        // '' = all sources; else 'tuf' | 'oa-helper' | 'gyan'
+    company: '',       // '' = all companies within the active source
     difficulty: '',
     q: '',
     unsolved: false,
@@ -301,6 +302,8 @@ const sb = {
     pageSize: 60,
     total: 0,
     loaded: 0,
+    expanded: {},      // which source groups are expanded in the sidebar tree
+    facets: null,      // last /api/facets payload (cached between renders)
 };
 
 async function fetchProblemsAndHistory() {
@@ -314,28 +317,70 @@ async function fetchProblemsAndHistory() {
     } catch (e) { console.error('Failed to fetch problems', e); }
 }
 
-async function renderSourceTabs() {
-    let facets = { sources: [], total: 0 };
-    try { facets = await api('/api/facets'); } catch (e) {}
-    const tabs = document.getElementById('source-tabs');
-    if (!tabs) return;
-    const mk = (key, label, count, solved) => {
-        const b = document.createElement('button');
-        b.className = 'source-tab' + (sb.source === key ? ' active' : '');
-        b.innerHTML = `<span class="st-label">${escapeHTML(label)}</span>` +
-            `<span class="st-count">${solved != null && count ? solved + '/' : ''}${count}</span>`;
-        b.addEventListener('click', () => { sb.source = key; renderSourceTabs(); loadProblems(true); });
-        return b;
-    };
-    tabs.innerHTML = '';
+async function renderSourceTabs(refetch = true) {
+    if (refetch || !sb.facets) {
+        try { sb.facets = await api('/api/facets'); }
+        catch (e) { sb.facets = sb.facets || { sources: [], total: 0 }; }
+    }
+    const facets = sb.facets;
+    const tree = document.getElementById('source-tabs');
+    if (!tree) return;
+    tree.innerHTML = '';
+
+    // "All sources" row — clears both the source and company filters.
     const totalSolved = facets.sources.reduce((a, s) => a + (s.solved || 0), 0);
-    tabs.appendChild(mk('', 'All', facets.total || 0, totalSolved));
-    for (const s of facets.sources) tabs.appendChild(mk(s.key, s.label, s.count, s.solved));
+    tree.appendChild(sourceRow('', 'All sources', facets.total || 0, totalSolved, null));
+
+    // One expandable group per source; its companies are the second-level dropdown.
+    for (const s of facets.sources) {
+        tree.appendChild(sourceRow(s.key, s.label, s.count, s.solved, s.companies || []));
+        if (sb.expanded[s.key] && (s.companies || []).length) {
+            for (const c of s.companies) tree.appendChild(companyRow(s.key, c.company, c.n));
+        }
+    }
+}
+
+// A top-level source row: a caret toggles its company list; the label filters by source.
+function sourceRow(key, label, count, solved, companies) {
+    const row = document.createElement('div');
+    const active = sb.source === key && !sb.company;
+    row.className = 'src-row' + (active ? ' active' : '');
+    const hasKids = companies && companies.length;
+    const open = !!sb.expanded[key];
+    row.innerHTML =
+        `<button class="src-caret${hasKids ? '' : ' empty'}" title="Show companies" aria-label="Expand">${hasKids ? (open ? '▾' : '▸') : ''}</button>` +
+        `<button class="src-main"><span class="src-label">${escapeHTML(label)}</span>` +
+        `<span class="src-count">${solved != null && count ? solved + '/' : ''}${count}</span></button>`;
+    row.querySelector('.src-caret').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (hasKids) { sb.expanded[key] = !open; renderSourceTabs(false); }
+    });
+    row.querySelector('.src-main').addEventListener('click', () => {
+        sb.source = key; sb.company = '';
+        if (hasKids && key) sb.expanded[key] = true;
+        renderSourceTabs(false); loadProblems(true);
+    });
+    return row;
+}
+
+// A second-level company row nested under its source.
+function companyRow(sourceKey, company, n) {
+    const row = document.createElement('div');
+    const active = sb.source === sourceKey && sb.company === company;
+    row.className = 'company-row' + (active ? ' active' : '');
+    row.innerHTML = `<span class="company-label">${escapeHTML(company)}</span>` +
+        `<span class="company-count">${n}</span>`;
+    row.addEventListener('click', () => {
+        sb.source = sourceKey; sb.company = company;
+        renderSourceTabs(false); loadProblems(true);
+    });
+    return row;
 }
 
 function buildQuery() {
     const p = new URLSearchParams();
     if (sb.source) p.set('source', sb.source);
+    if (sb.company) p.set('company', sb.company);
     if (sb.difficulty) p.set('difficulty', sb.difficulty);
     if (sb.q) p.set('q', sb.q);
     if (sb.unsolved) p.set('solved', 'unsolved');

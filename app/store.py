@@ -339,7 +339,10 @@ def stats() -> dict:
 # ------------------------------------------------------------------ problem index (search at scale)
 # The sidebar can't load thousands of problems at once, so we cache their metadata in problem_index
 # (rebuilt from disk on startup + after each Sync) and serve a paginated, filtered search from it.
-SOURCE_LABELS = {"oa-helper": "OA-Helper", "tuf": "TUF+", "gyan": "Gyan / Manual"}
+# Top-level groups shown in the sidebar, in display order. `gyan` is the legacy key for the
+# personally-curated collection — kept as-is on disk (19 problems), shown as "Iris — Personal".
+SOURCE_LABELS = {"tuf": "TUF+", "oa-helper": "OA-Helper", "gyan": "Iris — Personal"}
+SOURCE_ORDER = ["tuf", "oa-helper", "gyan"]
 
 
 def reindex_problems(metas: list[dict]) -> int:
@@ -436,6 +439,13 @@ def problem_facets() -> dict:
     companies = [dict(r) for r in conn.execute(
         "SELECT company, COUNT(*) AS n FROM problem_index WHERE company != ''"
         " GROUP BY company ORDER BY n DESC, company")]
+    # Companies grouped under their source — the nested source ▸ company dropdown in the sidebar.
+    companies_by_source: dict[str, list] = {}
+    for r in conn.execute(
+            "SELECT source, company, COUNT(*) AS n FROM problem_index WHERE company != ''"
+            " GROUP BY source, company ORDER BY n DESC, company"):
+        companies_by_source.setdefault(r["source"], []).append(
+            {"company": r["company"], "n": r["n"]})
     difficulties = {r["difficulty"]: r["n"] for r in conn.execute(
         "SELECT difficulty, COUNT(*) AS n FROM problem_index GROUP BY difficulty")}
     # solved-per-source needs the user's solved set (kept out of SQL for portability)
@@ -443,9 +453,13 @@ def problem_facets() -> dict:
     for r in conn.execute("SELECT id, source FROM problem_index"):
         if r["id"] in solved_set:
             solved_by_source[r["source"]] = solved_by_source.get(r["source"], 0) + 1
+    # Order the top-level groups by SOURCE_ORDER (known sources first), then any unknown source.
+    src_rank = {k: i for i, k in enumerate(SOURCE_ORDER)}
+    sources.sort(key=lambda s: (src_rank.get(s["source"], len(SOURCE_ORDER)), s["source"]))
     return {
         "sources": [{"key": s["source"], "label": SOURCE_LABELS.get(s["source"], s["source"]),
-                     "count": s["n"], "solved": solved_by_source.get(s["source"], 0)} for s in sources],
+                     "count": s["n"], "solved": solved_by_source.get(s["source"], 0),
+                     "companies": companies_by_source.get(s["source"], [])} for s in sources],
         "companies": companies,
         "difficulties": difficulties,
         "total": index_count(),

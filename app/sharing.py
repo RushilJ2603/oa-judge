@@ -10,6 +10,7 @@ non-repo directory returns a clean error instead of freezing a request.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -19,6 +20,33 @@ import config  # noqa: E402
 
 BANK = config.PROBLEMS_DIR
 ROOT = os.path.dirname(HERE)                     # oa-judge/
+
+
+# ------------------------------------------------------------------ volume seeding (hosted)
+def ensure_seeded() -> dict:
+    """Hosted only: if PROBLEMS_SEED is set and the live bank (PROBLEMS_DIR, on the persistent
+    volume) is empty, copy the baked seed there once — *with* its .git — so a later Sync's git pull
+    persists across scale-to-zero restarts. A no-op when PROBLEMS_SEED is unset (local dev) or when
+    the volume bank already exists. Idempotent and safe to call on every boot."""
+    seed = config.PROBLEMS_SEED
+    if not seed:
+        return {"seeded": False, "reason": "no seed configured"}
+    if os.path.abspath(seed) == os.path.abspath(BANK):
+        return {"seeded": False, "reason": "seed == bank"}
+    if not os.path.isdir(seed):
+        return {"seeded": False, "reason": f"seed dir missing: {seed}"}
+    # "Empty" = no problem packages yet. A stray .git or lockfile shouldn't block seeding.
+    already = os.path.isdir(BANK) and any(
+        os.path.isfile(os.path.join(BANK, n, "problem.json")) for n in os.listdir(BANK)
+    ) if os.path.isdir(BANK) else False
+    if already:
+        return {"seeded": False, "reason": "bank already populated"}
+    os.makedirs(os.path.dirname(BANK) or ".", exist_ok=True)
+    if os.path.isdir(BANK):
+        shutil.rmtree(BANK, ignore_errors=True)
+    # copytree preserves the seed's .git, so the volume copy is a full clone that can `git pull`.
+    shutil.copytree(seed, BANK, symlinks=True)
+    return {"seeded": True, "from": seed, "to": BANK}
 
 
 # ------------------------------------------------------------------ git plumbing

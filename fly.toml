@@ -14,7 +14,10 @@ primary_region = 'iad'
   OAJ_EXEC_BACKEND = 'local'
   OAJ_HOST = '0.0.0.0'
   OAJ_PORT = '5137'
-  OAJ_PROBLEMS_DIR = '/problems'
+  # The LIVE bank lives on the persistent volume so a Sync's `git pull` survives scale-to-zero.
+  OAJ_PROBLEMS_DIR = '/data/problems'
+  # Read-only seed baked into the image; copied to the volume once on first boot (sharing.ensure_seeded).
+  OAJ_PROBLEMS_SEED = '/problems'
 
 [[mounts]]
   source = 'oaj_data'

@@ -493,6 +493,14 @@ if __name__ == "__main__":
         print(f"\n  OA Judge is already running →  http://127.0.0.1:{port}")
         print("  (Opening a second copy is unnecessary; using the existing one.)\n")
         sys.exit(0)
+    # Hosted: seed the live bank onto the persistent volume once, so Sync's pulls survive a
+    # scale-to-zero restart instead of reverting to the baked image. No-op locally.
+    try:
+        seeded = sharing.ensure_seeded()
+        if seeded.get("seeded"):
+            print(f"  (seeded problem bank onto the volume: {seeded['to']})")
+    except Exception as e:  # noqa: BLE001
+        print(f"  (warning: could not seed problem bank: {e})")
     # Warm the DB / apply migrations before accepting requests, so the first click is instant
     # and any migration error surfaces here rather than mid-request.
     db.connect()

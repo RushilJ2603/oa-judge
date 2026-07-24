@@ -38,6 +38,14 @@ def get(key: str, default=None):
 # OAJ_PROBLEMS_DIR or {"problems_dir": "..."} in config.local.json.
 PROBLEMS_DIR = os.path.abspath(get("problems_dir", os.path.join(ROOT, "problems")))
 
+# Hosted-only: a read-only "seed" copy of the bank baked into the image (e.g. /problems). On a
+# scale-to-zero host the container filesystem is ephemeral, so the live bank must live on the
+# persistent volume (PROBLEMS_DIR=/data/problems). On first boot, if PROBLEMS_DIR is empty we copy
+# the seed there once — including its .git — so a Sync's `git pull` then persists across sleeps.
+# Empty (the default) disables seeding entirely, so local dev is unaffected.
+PROBLEMS_SEED = (get("problems_seed", "") or "").strip()
+PROBLEMS_SEED = os.path.abspath(PROBLEMS_SEED) if PROBLEMS_SEED else ""
+
 # SQLite database (personal data; gitignored). db.py also honours OAJ_DB directly.
 DB_PATH = os.path.abspath(get("db", os.path.join(HERE, "data", "judge.db")))
 
