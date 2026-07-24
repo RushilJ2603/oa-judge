@@ -543,3 +543,57 @@ body {
     border-radius: 7px; font-size: 12.5px; cursor: pointer; }
 .load-more:hover { border-color: var(--accent); color: var(--accent); }
 .sidebar-count { padding: 4px 12px 12px; font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* ===== polish pass (v10) ===== */
+/* Smoother micro-interactions on interactive chrome */
+.icon-btn { transition: background .12s ease, color .12s ease, border-color .12s ease, transform .06s ease; }
+.icon-btn:active { transform: translateY(0.5px); }
+.problem-item { position: relative; transition: background .12s ease, border-color .12s ease; }
+.tab-btn { transition: color .12s ease, border-color .12s ease; }
+
+/* Stronger active-problem affordance: a soft accent bar + bolder title */
+.problem-item.active::before {
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--accent);
+}
+.problem-item.active .problem-title { font-weight: 600; color: var(--text); }
+
+/* Keyboard focus rings (accessibility) — shown for keyboard nav, not mouse clicks */
+.icon-btn:focus-visible, .btn:focus-visible, .filter-sort:focus-visible, .filter-select:focus-visible,
+.src-main:focus-visible, .company-row:focus-visible, .presence:focus-visible, .tab-btn:focus-visible,
+.load-more:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent); outline-offset: 1px;
+}
+
+/* Thin, unobtrusive scrollbars for the app panes (Monaco keeps its own) */
+.sidebar, .pane-scroll, .problem-list, .drawer-body, .modal-body {
+    scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+}
+.sidebar::-webkit-scrollbar, .pane-scroll::-webkit-scrollbar, .problem-list::-webkit-scrollbar,
+.drawer-body::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 10px; height: 10px; }
+.sidebar::-webkit-scrollbar-thumb, .pane-scroll::-webkit-scrollbar-thumb, .problem-list::-webkit-scrollbar-thumb,
+.drawer-body::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-strong); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box;
+}
+.sidebar::-webkit-scrollbar-thumb:hover, .pane-scroll::-webkit-scrollbar-thumb:hover,
+.problem-list::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: padding-box; }
+
+/* Primary button: subtle depth + press feedback */
+.btn-primary { box-shadow: 0 1px 2px rgba(31,35,40,.14); }
+.btn-primary:active:not(:disabled) { transform: translateY(0.5px); }
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary { box-shadow: 0 1px 2px rgba(1,4,9,.5); }
+
+/* Difficulty pills read as chips, not flat blocks */
+.pill { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); letter-spacing: .2px; }
+
+/* Small brand mark before the app name */
+.app-name { display: inline-flex; align-items: center; }
+.app-name::before {
+    content: ''; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+}
+
+/* Sidebar search: refined focus glow */
+.sidebar-search input { transition: border-color .12s ease, box-shadow .12s ease; }
+.sidebar-search input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
