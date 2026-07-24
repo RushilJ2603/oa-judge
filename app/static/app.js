@@ -60,10 +60,16 @@ const LANG_MAP = { cpp: 'C++17', py: 'Python 3' };
  * live here is deleted: it required two DOM layers to lay out identically to the pixel, and
  * any disagreement drifted the caret off the text. What remains is draft persistence. */
 
-const AUTOSAVE_MS = 1200;        // debounce after the last keystroke
-const SNAPSHOT_MS = 120000;      // periodic version for the draft scrubber
-let saveTimer = null;
-let snapshotTimer = null;
+/* Save strategy — deliberately network-quiet so a hosted machine can sleep while a tab sits open.
+ *
+ * While you TYPE, we save only to the browser (localStorage) — zero server requests, so an idle
+ * open tab never keeps the machine awake and never costs anything. We sync the draft to the SERVER
+ * only on meaningful moments: Submit, Run, switching language, and closing the tab. Every Submit
+ * also stores the full source as an attempt, so your solved code is always on the server anyway.
+ *
+ * Safety net: localStorage survives reloads/crashes on the same browser; the tab-close beacon and
+ * each Submit/Run push the latest to the server for other devices. */
+let localSaveTimer = null;
 
 function setSaveStatus(text, cls) {
     if (!els.saveStatus) return;
@@ -71,31 +77,38 @@ function setSaveStatus(text, cls) {
     els.saveStatus.className = 'save-status' + (cls ? ' ' + cls : '');
 }
 
-/* Drafts live in the SQLite DB on the server. localStorage is kept only as an offline
- * fallback: it is partitioned per origin, so the 5000 -> 5137 port move stranded everything
- * written before it, and it holds no history. */
+function _localKey() { return `${state.currentProblemId}:${els.langSelect.value}`; }
+
+/* Free, instant, offline: browser only. Called on every edit (debounced lightly). */
+function saveLocal() {
+    if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return;
+    localStorage.setItem(_localKey(), OAEditor.getValue());
+    setSaveStatus('saved on this device', '');
+}
+
+function scheduleSave() {
+    clearTimeout(localSaveTimer);
+    localSaveTimer = setTimeout(saveLocal, 400);   // localStorage write; no network
+}
+
+/* Push the draft to the server. Called only at meaningful moments (submit / run / lang switch),
+ * so editing with a tab open makes no server requests. */
 function saveDraftNow() {
     if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return;
     const lang = els.langSelect.value;
     const source = OAEditor.getValue();
-    localStorage.setItem(`${state.currentProblemId}:${lang}`, source);   // fallback copy
-    setSaveStatus('saving…');
+    localStorage.setItem(`${state.currentProblemId}:${lang}`, source);
     api(`/api/draft/${state.currentProblemId}/${lang}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, cursor_pos: OAEditor.getCursorOffset() }),
     }).then(() => setSaveStatus('saved', 'ok'))
-      .catch(() => setSaveStatus('offline — saved locally', 'warn'));
+      .catch(() => setSaveStatus('saved on this device', ''));
 }
 
-function scheduleSave() {
-    setSaveStatus('editing…');
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveDraftNow, AUTOSAVE_MS);
-}
-
-/* A point-in-time copy so half-written code can be replayed later. The server drops a
- * snapshot identical to the previous one, so idle time costs nothing. */
+/* A point-in-time copy so half-written code can be replayed later, taken only at meaningful
+ * moments (pre-submit / pre-reset / pre-switch / pre-restore) — never on a blind timer, so an
+ * idle tab makes no requests. The server drops a snapshot identical to the previous one. */
 function snapshotNow(reason) {
     if (!state.currentProblemId || !window.OAEditor || !OAEditor.isReady()) return Promise.resolve();
     const source = OAEditor.getValue();
@@ -202,9 +215,10 @@ function setupEventListeners() {
         language: 'cpp',
         dark: !isLightTheme(),
     }).then(() => {
-        OAEditor.onChange(scheduleSave);
+        OAEditor.onChange(scheduleSave);   // saves to the browser only; server sync is on submit/run/switch
         OAEditor.addSubmitShortcut(() => { if (!els.btnSubmit.disabled) els.btnSubmit.click(); });
-        snapshotTimer = setInterval(() => snapshotNow('periodic'), SNAPSHOT_MS);
+        // No periodic snapshot timer: an idle open tab must make zero requests so the hosted
+        // machine can sleep. Snapshots happen at meaningful moments (pre-submit/reset/switch).
         // The editor became usable after the problem may already have loaded.
         if (state.currentProblemData) loadSourceForLanguage('initial');
     });
@@ -478,6 +492,7 @@ async function handleRun() {
     if (!state.currentProblemId) return;
     openResultDrawer('Run — custom input');
     els.console.innerHTML = '<div class="spinner">Compiling and running…</div>';
+    saveDraftNow();   // a Run is a meaningful moment — sync the draft to the server too
     try {
         const r = await post('/api/run', { stdin: els.customStdin.value });
         let html = `<div class="result-summary">`;
