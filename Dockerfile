@@ -18,6 +18,11 @@ COPY verify_all.py make_hidden.py /app/
 # Sync button still `git pull`s newer problems at runtime.
 ARG OA_PROBLEMS_REPO=https://github.com/RushilJ2603/oa-problems.git
 ARG OA_PROBLEMS_REF=main
+# Cache-bust the clone whenever the bank has a new commit: ADD of this URL re-fetches on each build
+# and its content (the latest commit sha) changes exactly when there are new problems, so Docker
+# re-runs the clone below only then. Without this, the clone layer would cache and a redeploy would
+# ship a stale bank. (The in-app Sync button still pulls newer problems at runtime regardless.)
+ADD https://api.github.com/repos/RushilJ2603/oa-problems/commits/${OA_PROBLEMS_REF} /tmp/bank-version.json
 RUN git clone --depth 1 --branch "${OA_PROBLEMS_REF}" "${OA_PROBLEMS_REPO}" /problems || \
     (echo "WARNING: could not clone the problem bank; starting empty" && mkdir -p /problems)
 
