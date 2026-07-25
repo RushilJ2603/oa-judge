@@ -313,7 +313,7 @@
                         padding: { top: 10, bottom: 10 },
                         suggestOnTriggerCharacters: true,
                         quickSuggestions: { other: true, comments: false, strings: false },
-                        acceptSuggestionOnEnter: 'off',   // Enter = newline; Tab accepts.
+                        acceptSuggestionOnEnter: 'on',    // Enter accepts the highlighted suggestion (Tab too).
                         tabCompletion: 'on',
                         wordBasedSuggestions: 'currentDocument',
                         suggestSelection: 'first',

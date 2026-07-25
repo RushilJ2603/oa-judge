@@ -1,4 +1,12 @@
 /* ===== OA Judge — design system ===== */
+/* Vendored locally (offline; no CDN). Inter = clean, HackerRank-like UI type across all weights. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/static/vendor/fonts/inter.woff2') format('woff2');
+}
 :root {
     --bg: #ffffff;
     --bg-elev: #f6f8fa;
@@ -17,7 +25,7 @@
     --radius: 9px;
     --radius-sm: 6px;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
-    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
     /* editor is always dark (Dracula) regardless of app theme */
     --ed-bg: #1e1f29;
@@ -35,29 +43,29 @@
     --tok-preproc: #ffb86c;
 }
 :root[data-theme="dark"] {
-    --bg: #0d1117;
-    --bg-elev: #161b22;
-    --bg-sunken: #0b0f14;
-    --border: #2a313c;
-    --border-strong: #3d4650;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --accent: #2ea043;
-    --accent-hover: #3fb950;
-    --success: #3fb950;
-    --error: #f85149;
-    --warn: #d29922;
-    --purple: #a371f7;
-    --shadow: 0 10px 30px rgba(1, 4, 9, 0.6);
+    --bg: #0a0a0c;
+    --bg-elev: #121317;
+    --bg-sunken: #050506;
+    --border: #23242b;
+    --border-strong: #34363f;
+    --text: #f1f2f4;
+    --text-muted: #9aa1ac;
+    --accent: #2ec866;
+    --accent-hover: #39d873;
+    --success: #2ec866;
+    --error: #ff5f56;
+    --warn: #e0a92e;
+    --purple: #b083f0;
+    --shadow: 0 12px 34px rgba(0, 0, 0, 0.72);
 }
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg: #0d1117; --bg-elev: #161b22; --bg-sunken: #0b0f14;
-        --border: #2a313c; --border-strong: #3d4650;
-        --text: #e6edf3; --text-muted: #8b949e;
-        --accent: #2ea043; --accent-hover: #3fb950;
-        --success: #3fb950; --error: #f85149; --warn: #d29922; --purple: #a371f7;
-        --shadow: 0 10px 30px rgba(1, 4, 9, 0.6);
+        --bg: #0a0a0c; --bg-elev: #121317; --bg-sunken: #050506;
+        --border: #23242b; --border-strong: #34363f;
+        --text: #f1f2f4; --text-muted: #9aa1ac;
+        --accent: #2ec866; --accent-hover: #39d873;
+        --success: #2ec866; --error: #ff5f56; --warn: #e0a92e; --purple: #b083f0;
+        --shadow: 0 12px 34px rgba(0, 0, 0, 0.72);
     }
 }
 
@@ -69,6 +77,10 @@ body {
     background: var(--bg);
     font-size: 14px;
     line-height: 1.5;
+    letter-spacing: -0.006em;                 /* Inter reads a touch tighter — cleaner, more premium */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -219,17 +231,25 @@ body {
 .drawer {
     position: absolute; left: 0; right: 0; bottom: 52px; z-index: 20;
     max-height: 0; overflow: hidden;
+    display: flex; flex-direction: column;
     background: var(--bg); border-top: 1px solid var(--border);
     box-shadow: var(--shadow);
     transition: max-height .2s ease;
 }
-.drawer.open { max-height: 60%; }
-.result-drawer.open { max-height: 70%; }
-.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--bg-elev); }
+.drawer.open { max-height: var(--drawer-h, 60%); }
+.result-drawer.open { max-height: var(--drawer-h, 70%); }
+.drawer.resizing { transition: none; }             /* no animation while dragging the grip */
+.drawer-grip {
+    flex: 0 0 auto; height: 9px; cursor: ns-resize; background: var(--bg-elev);
+    display: flex; align-items: center; justify-content: center; user-select: none;
+}
+.drawer-grip::before { content: ''; width: 36px; height: 3px; border-radius: 3px; background: var(--border-strong); transition: background .12s; }
+.drawer-grip:hover::before { background: var(--accent); }
+.drawer-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--bg-elev); }
 .drawer-title { font-size: 13px; font-weight: 700; }
 .drawer-close { background: transparent; border: 0; font-size: 20px; line-height: 1; color: var(--text-muted); cursor: pointer; }
 .drawer-close:hover { color: var(--text); }
-.drawer-body { padding: 14px; overflow-y: auto; max-height: calc(70vh - 40px); }
+.drawer-body { flex: 1 1 auto; min-height: 0; padding: 14px; overflow-y: auto; }
 .custom-stdin {
     width: 100%; font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
     padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -597,3 +617,47 @@ body {
 /* Sidebar search: refined focus glow */
 .sidebar-search input { transition: border-color .12s ease, box-shadow .12s ease; }
 .sidebar-search input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* ===== premium pass (v11): custom selects, depth/layering, HackerRank feel ===== */
+
+/* Premium dropdowns — kill the native chrome, add a soft caret + hover/focus states. */
+select.lang-select, select.filter-select, #filter-diff {
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-color: var(--bg-elev); color: var(--text);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1ac' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat; background-position: right 9px center;
+    padding: 6px 28px 6px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-weight: 600; cursor: pointer; transition: border-color .12s, box-shadow .12s, background-color .12s;
+}
+select.lang-select:hover, select.filter-select:hover, #filter-diff:hover { border-color: var(--border-strong); }
+select.lang-select:focus, select.filter-select:focus, #filter-diff:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+select option { background: var(--bg-elev); color: var(--text); }
+
+/* Depth: the Run/Submit + Custom-Input panels should feel like they float ON TOP of the editor.
+   Strong shadow + a hairline top highlight + a dim scrim over the editor behind an open drawer. */
+.editor-pane { position: relative; }
+.drawer {
+    box-shadow: 0 -18px 40px -12px rgba(0,0,0,.55), 0 -2px 0 0 color-mix(in srgb, var(--accent) 22%, transparent);
+    border-top: 1px solid var(--border-strong);
+    border-radius: 12px 12px 0 0;
+}
+:root[data-theme="dark"] .drawer,
+:root:not([data-theme="light"]) .drawer { box-shadow: 0 -20px 46px -10px rgba(0,0,0,.8), 0 -2px 0 0 color-mix(in srgb, var(--accent) 26%, transparent); }
+.editor-pane::after {                       /* scrim shown while a drawer is open */
+    content: ''; position: absolute; inset: 0 0 52px 0; background: rgba(0,0,0,.28);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 15;
+}
+.editor-pane.drawer-open::after { opacity: 1; }
+
+/* Modals (Stats / History / diff) float with real elevation + a blurred backdrop. */
+.modal-overlay { background: rgba(0,0,0,.62); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.modal { box-shadow: 0 24px 70px -12px rgba(0,0,0,.7); border-radius: 14px; }
+
+/* Toasts + login card ride the same elevation language. */
+.toast { box-shadow: 0 14px 40px -8px rgba(0,0,0,.6); }
+
+/* Slightly tighter, cleaner headings (Inter looks best a touch tighter). */
+.app-name, .drawer-title, .modal-title, .tab-btn { letter-spacing: -0.01em; }

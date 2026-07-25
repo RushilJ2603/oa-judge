@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
-    <link rel="stylesheet" href="/static/style.css?v=10">
+    <link rel="stylesheet" href="/static/style.css?v=11">
 </head>
 <body>
     <header class="app-header">
@@ -16,7 +16,7 @@
         <div class="header-right">
             <button class="icon-btn" id="btn-sync" title="Pull the latest shared problems">⟳ Sync</button>
             <button class="icon-btn" id="btn-add-problem" title="Add a new problem to the shared bank">＋ Add</button>
-            <button class="icon-btn" id="btn-stats" title="Your solving statistics">📊 Stats</button>
+            <button class="icon-btn" id="btn-stats" title="Your solving statistics">Stats</button>
             <button class="icon-btn" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
             <button class="presence" id="presence" title="Who's online" style="display:none" aria-label="Who's online"></button>
             <span class="user-chip" id="user-chip" style="display:none">
@@ -76,7 +76,7 @@
                 <select id="lang-select" class="lang-select" title="Language"></select>
                 <span class="save-status" id="save-status" title="Drafts autosave to the local database"></span>
                 <div class="toolbar-spacer"></div>
-                <button class="icon-btn" id="btn-history" title="Replay your saved drafts for this problem">🕑 History</button>
+                <button class="icon-btn" id="btn-history" title="Replay your saved drafts for this problem">History</button>
                 <button class="icon-btn" id="btn-reset-stub" title="Reset editor to the starter code">↺ Reset</button>
             </div>
 
@@ -88,6 +88,7 @@
 
             <!-- Custom input drawer -->
             <div class="drawer" id="custom-input-drawer">
+                <div class="drawer-grip" title="Drag to resize"></div>
                 <div class="drawer-head">
                     <span class="drawer-title">Custom Input</span>
                     <button class="drawer-close" id="drawer-close-custom" title="Close">×</button>
@@ -100,6 +101,7 @@
 
             <!-- Results drawer -->
             <div class="drawer result-drawer" id="result-drawer">
+                <div class="drawer-grip" title="Drag to resize"></div>
                 <div class="drawer-head">
                     <span class="drawer-title" id="drawer-title">Results</span>
                     <button class="drawer-close" id="drawer-close-result" title="Close">×</button>
@@ -149,7 +151,7 @@
         </div>
     </div>
 
-    <script src="/static/editor.js?v=10"></script>
-    <script src="/static/app.js?v=10"></script>
+    <script src="/static/editor.js?v=11"></script>
+    <script src="/static/app.js?v=11"></script>
 </body>
 </html>

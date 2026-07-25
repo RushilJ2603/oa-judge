@@ -178,6 +178,7 @@ async function init() {
         setupPresence();
     }
     setupEventListeners();
+    setupDrawerResize();
     fetchProblemsAndHistory();
 }
 
@@ -240,9 +241,44 @@ function timeAgo(iso) {
     return `${m} min ago`;
 }
 
+function setupDrawerResize() {
+    // Drag a drawer's top grip to resize it; the height persists via a CSS var so open/close works.
+    document.querySelectorAll('.drawer-grip').forEach(grip => {
+        grip.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const drawer = grip.closest('.drawer');
+            const bottomY = drawer.getBoundingClientRect().bottom;
+            const pane = drawer.closest('.editor-pane') || document.documentElement;
+            const maxH = pane.getBoundingClientRect().height - 64;
+            drawer.classList.add('resizing');
+            const onMove = ev => {
+                const h = Math.max(90, Math.min(bottomY - ev.clientY, maxH));
+                drawer.style.setProperty('--drawer-h', h + 'px');
+            };
+            const onUp = () => {
+                drawer.classList.remove('resizing');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    });
+    // Depth scrim: dim the editor whenever a drawer (Run/Submit results or Custom Input) is open.
+    const pane = document.getElementById('right-pane');
+    if (pane) {
+        const sync = () => pane.classList.toggle('drawer-open',
+            els.resultDrawer.classList.contains('open') || els.customInputDrawer.classList.contains('open'));
+        const obs = new MutationObserver(sync);
+        [els.resultDrawer, els.customInputDrawer].forEach(d => obs.observe(d, { attributes: true, attributeFilter: ['class'] }));
+        sync();
+    }
+}
+
 function setupTheme() {
     const saved = localStorage.getItem('theme');
-    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    // Default to the deep-dark (HackerRank-style) theme unless the user explicitly chose light.
+    document.documentElement.setAttribute('data-theme', saved || 'dark');
     els.themeToggle.addEventListener('click', () => {
         const cur = document.documentElement.getAttribute('data-theme');
         const isDark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
