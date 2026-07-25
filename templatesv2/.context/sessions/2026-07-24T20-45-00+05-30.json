@@ -1,0 +1,53 @@
+{
+  "_schema": "ai-context-bridge/session-v1",
+  "_note": "Auto-generated at session end. Do not edit manually. Before regenerating, the AI must archive the previous version of this file to .context/sessions/<generated_at-ISO>.json so machine-readable history is preserved. Commit with CHANGELOG.md, PROJECT_STATE.md, and SESSION_LOG.md.",
+  "generated_at": "2026-07-24T20:45:00+05:30",
+  "session_by": "Claude (Opus 4.8, via Claude Code)",
+  "session_summary": "Session 3: deployed the judge live to Fly.io (oa123.fly.dev) with GitHub OAuth multi-user and scale-to-zero; fixed the Sync-doesn't-stick bug by moving the bank onto the persistent volume; shipped a scalable source-and-company grouped UI + a $0 best-effort presence chip; fixed a stub regression and added audit.py + SOLUTION.md with an enforced test-quality standard; built a scraper (../oa-scraper) by orchestrating Grok 4.5 via cursor-agent (TUF 397 + OA-Helper ~1500 with premium content, raw+local); and ingested 18 verified problems (Microsoft x15, Goldman x3) each with an independent brute-force cross-check.",
+  "current_phase": "Live & multi-user; populating the bank in reviewed, verified batches",
+  "build_state": "Hosted at https://oa123.fly.dev (Fly app oa123, scale-to-zero, GitHub OAuth, DB + bank on a persistent volume). Two public repos: RushilJ2603/oa-judge (app) + oa-problems (bank, cloned into problems/). Bank = 42 packages (gyan/Iris-Personal 22, tuf/TUF+ 13, oa-helper 7; 40 runnable, 2 statement-only); hosted in sync at 42. Sidebar groups by source then company. Gates: verify_all.py (correctness) + audit.py (structure + >=5-edge test-quality). Scraper (../oa-scraper): TUF 397 + OA-Helper ~1500/3586 scraped with premium fields, raw+gitignored+resumable.",
+  "blocking_issue": null,
+  "files_modified_this_session": [
+    "app/config.py (PROBLEMS_SEED)",
+    "app/sharing.py (ensure_seeded)",
+    "app/server.py (presence touch + /api/presence + seed-on-boot)",
+    "app/store.py (SOURCE_LABELS Iris-Personal, companies_by_source, touch_user/online_users)",
+    "app/static/app.js (source-company dropdown tree, presence widget)",
+    "app/static/index.html (presence chip, ?v=9)",
+    "app/static/style.css (dropdown tree + presence styles)",
+    "app/migrations/004_presence.sql (user.last_seen)",
+    "fly.toml (OAJ_PROBLEMS_DIR=/data/problems, OAJ_PROBLEMS_SEED=/problems)",
+    "audit.py (NEW: structural + test-quality gate)",
+    "SOLUTION.md (NEW: authoritative build + authoring reference)",
+    "problems/FORMAT.md (gate pointers + mandatory test standard)",
+    "problems/*/stub.cpp (9 stubs refactored to a separate solution function)",
+    "problems/ (18 new judged packages: tuf-* Microsoft x13, oahelper-* Microsoft story x2, goldman-* Iris-Personal x3)",
+    "../oa-scraper/ (git-init'd; Grok-authored oa_helper.py, tuf.py, html_md.py; config.local.json holds gitignored TUF Bearer token + OA-Helper oa_session cookie)"
+  ],
+  "commands_run": [
+    "flyctl deploy --no-cache (deploy to oa123; verified /api/health, seeded volume bank, git-as-judge)",
+    "python3 verify_all.py <ids> (correctness gate — all new references AC)",
+    "python3 audit.py (structural + test-quality gate — clean, 14 legacy warnings)",
+    "python3 make_hidden.py <id> (hidden tests from the reference for each new package)",
+    "g++ -std=gnu++17 -O2 + brute-force cross-checks (1500-4000 trials per new reference; BFS reachability for Largest Container)",
+    "cursor-agent -p --force --model cursor-grok-4.5-high --workspace ../oa-scraper (drove Grok on the scraper, scoped)",
+    "python scrape.py --source tuf/--source oa-helper (full/resumable premium scrapes)",
+    "git commit + push oa-judge and oa-problems (per batch); scraper committed locally"
+  ],
+  "decisions_made": [
+    { "decision": "Live problem bank lives on the Fly persistent volume (/data/problems), seeded once from the image", "rationale": "Scale-to-zero wipes the ephemeral fs; a baked-only bank reverts on cold start so Syncs never stick", "locked": true },
+    { "decision": "Stub main() only does I/O and calls a named solution function; enforced by audit.py", "rationale": "A batch regressed to solving inside main(); mirrors real OA/LC harness; now a hard gate", "locked": true },
+    { "decision": "Test quality is mandatory: >=5 curated edges incl. a max-scale case, and every reference is brute-force cross-checked", "rationale": "Weak suites let a wrong/slow solution pass; audit warns below 5", "locked": true },
+    { "decision": "Presence is best-effort with no heartbeat (last_seen bumped by real traffic only)", "rationale": "A background heartbeat would keep the scale-to-zero machine awake and cost money", "locked": true },
+    { "decision": "Delegate the scraper only to Grok (cursor-agent), scoped to oa-scraper; author judged packages in Claude", "rationale": "Bulk scraping fits delegation; authoring/verification stays with Claude; the app is never touched, verified via git HEAD checks", "locked": true },
+    { "decision": "Skip OA problems whose provided solution contradicts their own samples (e.g. #8 Square Tile)", "rationale": "Cannot ship a guessed judge; verification discipline over coverage", "locked": true }
+  ],
+  "errors_encountered": [
+    { "error": "Hosted Sync required multiple clicks; new problems didn't persist", "resolved": true, "resolution": "Bank was in the ephemeral image fs under scale-to-zero; relocated to the persistent volume (/data/problems), seeded from the image on first boot" },
+    { "error": "TUF+ authenticated scrape still returned gated (empty) premium fields", "resolved": true, "resolution": "SSR page stays gated; premium data comes from the authenticated backend-go API (/api/v2/plus/problem/{slug}). Rewired the scraper to call it with the Bearer token" },
+    { "error": "OA-Helper premium content nulled under anon; assumed a Supabase JWT was needed", "resolved": true, "resolution": "OA-Helper uses cookie-based auth (oa_session), not a Supabase token; premium content served by oahelper.in /api/proxy/question?action=get_question&question_ref=base64('{id}|0')" },
+    { "error": "OA #8 Square Tile Arrangement: official solution returns 18 for input '0 18' expecting 8", "resolved": true, "resolution": "Its own solution contradicts its samples; skipped rather than ship a guessed judge" },
+    { "error": "OA-Helper scrape hits 3586 questions (~3h); interrupted for user's OA", "resolved": true, "resolution": "Scraper writes one complete JSON per problem and is resumable (skips existing); time-boxed / stopped cleanly and resumed from where it left off" }
+  ],
+  "next_action": "Await the user's content direction, then run the next verified batch: (a) more Microsoft (243 TUF textbook remain + OA-Helper story problems with samples), (b) finish the OA-Helper scrape (~2000 left; re-capture the oa_session cookie from oahelper.in DevTools -> Cookies if it 401s), or (c) backfill the 14 older problems flagged by audit.py for <5 edge cases. Every batch: verified reference + independent brute-force cross-check + >=5 edges incl. max-scale, verify_all + audit green, push to oa-problems, then user Syncs."
+}

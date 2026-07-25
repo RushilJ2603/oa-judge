@@ -14,6 +14,21 @@
 
 ---
 
+## [2026-07-25] — Treating a mutant TIMEOUT as "skip this input" instead of a kill
+**What was tried:** To stop the mutation score flapping under CPU load, `mutation_test.run()` returned a `<TIMEOUT>` sentinel and `killed_by` SKIPPED any input where the mutant timed out (don't count it as a kill).
+**Why rejected:** A mutant that flips a loop counter (`i++`→`i--`) infinite-loops on EVERY input, so skipping made it survive `killed_by`, then `find_distinguisher` re-ran it against ~80 generator inputs, each hitting the 25s timeout → a >30-minute hang per such mutant. The real fix is a RELIABLE ORACLE (retry the reference at 4× timeout, then DROP any input it still can't finish); given that, every kept input is reference-tractable, so a mutant timeout/crash there is a genuine TLE/crash = **KILL** (confirmed with one larger-budget retry to rule out a load blip). Per-mutant timeout is adaptive (`max(6, min(25, 15×max_ref_seconds))`).
+**If user brings it up again:** Don't skip mutant timeouts. Make the oracle reliable first; then timeout/crash on a tractable input IS a kill. And never run two heavy mutation processes at once — that OOM-crashed the 10GB WSL VM (cap `OAJ_MUT_WORKERS`).
+
+## [2026-07-25] — Fuzzing any token (incl. count fields) and reading a reference crash as empty output
+**What was tried:** The ±1 fuzzer (equivalent-vs-gap triage) perturbed every integer token of an input, and `run()` returned the reference's stdout regardless of exit code.
+**Why rejected:** Perturbing a COUNT/header field (leading `N`, or `r`→`r>M`) desyncs the input grammar or drives the otherwise-correct reference out of bounds → it crashes (SIGSEGV) or misparses. `run()` read that crash as `stdout=""`, so any non-crashing mutant "differed" from `""` and a harmless `i<n`→`i<=n` mutant looked killable — a PHANTOM GAP that would persist an invalid edge test (make_hidden then drops it with rc=-11). Fix: fuzz PAYLOAD rows only (lines with ≥3 numeric tokens), never a header/count line or the first token; and `run()` returns `<ERR rc=N>` on a non-zero exit so the oracle DROPS crash inputs and triage SKIPS them.
+**If user brings it up again:** A distinguisher must be a VALID in-grammar input on which the reference succeeds; watch for `EDGE reference FAILED … rc=-11` in make_hidden as the tell of an out-of-range fuzz gap.
+
+## [2026-07-25] — Letting a Python-only reference pass the gate (mutation silently skipped)
+**What was tried:** Running the full gate on a package whose reference is `reference.py` (needed for bignum output, e.g. Decode-Ways count). `mutation_test.py` only mutates C++, so it printed `SKIP (no reference.cpp)` and exited 0 — `gate_candidate.py` counted that as a mutation PASS.
+**Why rejected:** A skipped strength check reading as PASS is exactly the "bugged code passes 17/18 tests" failure the gate exists to prevent — the suite's strength is UNVERIFIED. `gate_candidate.py` now HARD-FAILS on a mutation SKIP. `valid-number-partitions` was correctly deferred (not merged).
+**If user brings it up again:** A problem needs a C++ reference to be certified; to ship a bignum/Python one, convert to mod-1e9+7 C++ (re-anchor) or add Python-mutation support to the gate — never merge on anchor+brute alone.
+
 ## [2026-07-24] — Baking the problem bank only into the Docker image on a scale-to-zero host
 **What was tried:** Hosting `oa-problems` at `/problems` (image filesystem) with `OAJ_PROBLEMS_DIR=/problems`, expecting the in-app **Sync** (`git pull`) to keep it current.
 **Why rejected:** Fly `auto_stop_machines` stops the machine on idle; the next request cold-starts from the **baked image**, discarding pulled commits — while the search index on the persistent volume stayed newer. Symptom: "have to click Sync several times / new problems don't stick." Fix: put the LIVE bank on the persistent volume (`OAJ_PROBLEMS_DIR=/data/problems`), seeded once from the baked `/problems` by `sharing.ensure_seeded()`.

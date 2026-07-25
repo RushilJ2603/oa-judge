@@ -19,6 +19,57 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 4 — 2026-07-25 (mutation-testing gate, gated Grok pilot +14 problems, 3 app features, $0 storage, 3 deploys)
+
+**AI:** Claude (Opus 4.8) via Claude Code. Orchestrated **Grok 4.5** (`cursor-agent --model cursor-grok-4.5-high`) to bulk-author candidate problems — but ONLY inside an isolated staging clone, and nothing merged without my gate passing. The gate tooling, all fixes, all app code, and every merge decision were mine.
+**Start → End:** 2026-07-25 (long continued session, spanning the quality pivot through content + features) → 2026-07-25 ~22:35 IST.
+**Goal at start (evolved):** finish pushing the last authored problems → then a hard pivot the user asked for: *"ensure the quality never drops even a single bit, not for questions or test cases."* That became: build real test-suite-strength checking, use Grok to scale authoring safely behind it, then fix whatever the user found while using the live app.
+
+### What we set out to do (and did)
+1. **Made quality a tool, not a checklist.** Built `mutation_test.py` — it mutates the verified reference (flip `<`/`<=`/`==`/`+`/`min`, delete statements) and demands the suite KILL every non-equivalent mutant; survivors are auto-triaged (generator + ±1 fuzz) into "equivalent" vs a real GAP, and `--fix` saves each gap's distinguishing input as an edge test. Wrapped everything into `gate_candidate.py` (one command: anchor + independent brute + audit + 100% mutation).
+2. **Fought the gate until it was trustworthy.** Four real soundness bugs, each of which would have silently corrupted the bank at scale (see "what went wrong").
+3. **Healed the existing bank to 100% mutation**, relabelled 2 mislabeled Easy problems, clarified book-allocation.
+4. **Ran a gated Grok pilot** (4 agents, 18 slugs) → **14 merged, 1 deferred, 3 correct SKIPs**. Bank 42 → 62.
+5. **Fixed/added 3 app features the user asked for or hit:** LaTeX statement rendering, one-click bug reporting (+ a discoverable tab-bar button), topic search that's hidden on the problem view.
+6. **$0 storage:** gzipped hidden tests (bank 112M → 58M) with transparent decompression.
+7. **Deployed 3× (Fly v8/v9/v10)** and answered the user's Fly cost question.
+
+### Files touched (exact paths)
+**Gate tooling (`/mnt/c/Users/jishu/Desktop/oa-judge/`):**
+- `mutation_test.py` (NEW then hardened) — `cpp_mutants`/`cpp_deletion_mutants`, PCH-based compile, `oracle_outputs` (reliable: retry@4× then drop uncomputable, returns `max_ref_seconds`), `killed_by` (timeout/crash = kill w/ confirm-retry), adaptive `mutant_to`, `find_distinguisher` (generator + `_fuzz_inputs`), grammar-safe `_fuzz_inputs` (payload rows only), `run()` (non-zero exit → `<ERR>`), `_slurp` + gzip-aware `collect_inputs`, `OAJ_MUT_WORKERS` cap.
+- `gate_candidate.py` (NEW) — full per-candidate gate; hard-fails on a mutation SKIP (Python-only ref).
+- `compress_bank.py` (NEW) — gzip existing hidden tests in place (idempotent, mtime=0).
+- `make_hidden.py` — `_write_gz` (writes `*.in.gz/*.out.gz`), `OAJ_PROBLEMS_DIR` isolation.
+- `audit.py` — `OAJ_PROBLEMS_DIR` isolation; `SOLUTION.md` — §4.1 mutation standard + §4.2 difficulty rubric.
+**App (`app/`), deployed:**
+- `app/runner/md.py` — `_mathify`/`_math_inner` (inline `\(…\)` → Unicode + `<sup>/<sub>`).
+- `app/runner/problems.py` — `_read` + `_load_tests` read plain-or-`.gz` (the judge's compressed-test support).
+- `app/store.py` — free-text search matches `topic`; `add_bug_report`/`bug_reports`.
+- `app/server.py` — `POST /api/report`, `GET /api/reports` (owner-gated by `OAJ_OWNER_GITHUB_ID`).
+- `app/migrations/005_bug_reports.sql` (NEW) — `bug_report` table.
+- `app/static/app.js` — hide topic on the sidebar sub-line; report box + `wireReportIssue`/`openReportBox`; tab-bar Report button.
+- `app/static/index.html` — `#tab-report-btn`; `app/static/style.css` — `.math`, `.report-*`, `.tab-report`.
+**Bank (`problems/`, repo `oa-problems`):** 14 merged Grok packages (`oahelper-meeting-room-allocation`, `-train-reservation-reroute-auditor`, `-walking-in-light`, `-maximize-score-after-n-operations`, `-colorful-construction`, `-the-magic-graph`, `-vertex-disappearance-in-a-graph`, `-warehouse-robotics-system`, `-maximum-array-sum-with-subarray-flips`, `-valid-edge-addition`, `-valid-memory-block-sizes`, `-weighted-meeting-scheduler`, `-kth-number-containing-101-in-binary`, `-uber-zone-clusters`); healed `goldman-2048`, `rippling-q2-array-merge`, `tuf-aggressive-cows`, `tuf-count-number-of-nice-subarrays`; relabelled `oahelper-calculate-amount` + `oahelper-final-price`; clarified `tuf-book-allocation-problem`; ALL `tests/hidden/*` gzipped by `compress_bank.py`.
+**Staging (`/mnt/c/Users/jishu/Desktop/oa-staging/`):** `agentA..D/` (gate tools + `scraped/` + `PROMPT.txt` + `out/`); `agentD/out/oahelper-valid-number-partitions` kept as the deferred package.
+**Context manager (this close-out):** `templatesv2/PROJECT_STATE.md`, `templatesv2/CHANGELOG.md`, `templatesv2/.context/dead_ends.md` (3 new entries), `templatesv2/.context/session.json` (+ archived prior to `templatesv2/.context/sessions/2026-07-24T20-45-00+05-30.json`), and this file.
+
+### What went right
+- The gate did its job on Grok's output: every package with a *correct* reference but a *weak suite* was caught and auto-healed to 100%; the too-easy ones Grok correctly SKIPped. Nothing weak slipped through.
+- The user's "the constraints don't render" report turned out to be presentation, not correctness — I verified the vertex problem against a 3000-case independent simulator before touching anything, so I fixed the renderer (the real bug) instead of the problem.
+- Caught my own bugs before they hit the bank: the phantom-gap classes were found because I actually re-ran and read the outputs, not because a test told me.
+
+### What went wrong / got redone (honest)
+- **My own timeout "fix" hung the gate for >30 min.** I first made a mutant timeout "skip, don't kill" — which let an infinite-loop mutant survive and get re-run 80×. Root cause was the oracle, not the kill rule; redone properly (reliable oracle, timeout/crash = kill, adaptive timeout).
+- **Two phantom-gap classes.** The ±1 fuzzer mangled count fields, and `run()` read a reference SIGSEGV as empty output — both made harmless mutants look killable and would have persisted invalid edge tests. Found the crash one only because `make_hidden` printed `rc=-11`; fixed both, then RE-HEALED train-reservation (its 5 "gaps" collapsed to 1 real one; 4 mutants correctly reclassified as equivalent-on-valid-domain).
+- **I OOM-crashed the WSL VM** by running a full-bank mutation sweep concurrently with single runs. That was the "it crashed again" the user saw — not Grok. Capped workers; never stack heavy runs.
+- **A `fly deploy` failed** because `cd X && git push &` backgrounded the `cd`, so deploy ran from the wrong directory. Re-ran with explicit `-a oa123`.
+- **The compressed-bank commit looked "lost"** — the background `git add -A` of 4304 files over `/mnt/c` was slow and I checked mid-push, saw the old HEAD, and pkill'd a push that had actually already committed. Recovered cleanly (commit `05266ce` was there; re-pushed).
+
+### What I was uncertain about / deferred
+- **valid-number-partitions** — Python bignum reference, so `mutation_test` (C++ only) can't certify its suite. I refused to merge it under-gated. It needs a mod-1e9+7 C++ rewrite or Python-mutation support.
+- **gzip only gave ~2.3–2.9×** on max-scale numeric data (high entropy), not the 5–8× I hoped. It roughly doubles the volume ceiling; past ~3,500 problems the next lever is capping max-scale hidden-test size (lossy) — I left that as a deliberate future choice rather than silently reducing coverage.
+- Exact per-problem provenance of the +20 oa-helper count is approximate; the 14 pilot merges are exact (commits `12f6a9b`…`8399dbb`), the rest were OA-Helper batches A/B earlier this session.
+
 ## Session 3 — 2026-07-24 (went live on Fly + OAuth, built a scraper via Grok, ingested verified problem batches)
 
 **AI:** Claude (Opus 4.8) via Claude Code. Orchestrated **Grok 4.5** through the Cursor CLI (`cursor-agent`) for the scraper only; the app + all problem authoring were done by Claude directly.

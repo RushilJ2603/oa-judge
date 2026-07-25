@@ -1,104 +1,101 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-24 20:45 IST (session 3 — deploy + scraping pipeline + verified batches) | By: Claude (Opus 4.8, via Claude Code)
+# Last Updated: 2026-07-25 22:35 IST (session 4 — mutation-testing gate, gated Grok pilot, app features, $0 storage) | By: Claude (Opus 4.8, via Claude Code)
 
 ## Current Phase
-**Live, multi-user, and being filled with content.** All v2 phases (0–6) are done *and deployed*:
-the judge runs hosted on Fly.io with GitHub-OAuth multi-user, and there is now a separate scraping
-pipeline feeding a growing, verified problem bank. Focus has shifted from *building the judge* to
-*populating it with verified OA problems in reviewed batches*.
+**Live, multi-user, and scaling content behind an enforced quality gate.** The judge is hosted on
+Fly.io with GitHub-OAuth multi-user. This session turned quality from a checklist into *tooling*:
+a mutation-testing gate now certifies test-suite STRENGTH, and Grok may bulk-author problems because
+nothing merges without `gate_candidate.py` = PASS. Focus is populating the bank at scale, safely.
 
 ## What is live right now
-- **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x` machine, **scale-to-zero**
-  → ~$0/month). GitHub OAuth: everyone signs in and sees only their own attempts/drafts/stats. The
-  DB and the problem bank both live on the persistent volume at `/data`. Health: `version:2`,
-  **42 problems** (hosted is currently in sync with the bank).
-- **Two public repos:** `RushilJ2603/oa-judge` (app) + `RushilJ2603/oa-problems` (bank, cloned into
-  `problems/`). Push a problem → anyone clicks **Sync** → it appears for everyone.
-- **Bank: 42 packages** — by source: **Iris — Personal (`gyan`) 22**, **TUF+ (`tuf`) 13**,
-  **OA-Helper (`oa-helper`) 7**. 40 runnable, 2 statement-only. Sidebar groups by **source ▸ company**.
-- **Scraper (sibling project `/mnt/c/Users/jishu/Desktop/oa-scraper`, git-init'd this session):**
-  built by orchestrating Grok 4.5 via `cursor-agent`. **TUF+: 397 scraped** (premium fields via the
-  authenticated `backend-go.takeuforward.org` API). **OA-Helper: ~1500/3586 scraped** and climbing
-  (premium content via the `oahelper.in /api/proxy/question` proxy + `oa_session` cookie). Raw JSON
-  is **local + gitignored**; it does NOT go to the app automatically — it is ingested in reviewed
-  batches. Resumable (skips existing).
+- **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, **release v10**, single `shared-cpu-1x:512MB`,
+  **scale-to-zero** → ~$0/mo). GitHub OAuth. DB + bank on the persistent volume at `/data`. Storage/IP
+  cost = $0 (1GB volume < 3GB free; shared IPv4 free; dedicated IP is v6 = free). The only Fly charge
+  is active compute (~$0.01/hr while serving); a $0.05 line = a few active hours, not waste.
+- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `48444db`) + `RushilJ2603/oa-problems`
+  (bank, cloned into `problems/`, HEAD `05266ce`). Push a problem → anyone clicks **Sync** → it appears.
+- **Bank: 62 packages** — by source: **Iris — Personal (`gyan`) 22**, **TUF+ (`tuf`) 13**,
+  **OA-Helper (`oa-helper`) 27**. All runnable carry **cpp + py**. Sidebar groups by **source ▸ company**.
+  **Bank size 58M** (hidden tests gzipped; was 112M). Live app shows the new problems after a Sync.
+- **Four gates** (author identity is irrelevant to all of them):
+  `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
+  **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
+  anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
-## Shipped this session (session 3, 2026-07-24)
-- **Deployed to Fly.io with GitHub OAuth** (multi-user, scale-to-zero, persistent volume). Docker
-  per-run sandbox validated live earlier; hosted runs the `local` backend inside the Firecracker VM.
-- **Scalable UI:** a `problem_index` search table (rebuilt on startup + after Sync) powers a paginated,
-  filtered sidebar; **two-level `source ▸ company` dropdown** (TUF+ / OA-Helper / Iris — Personal),
-  company filter + search. Relabelled the legacy `gyan` source to **"Iris — Personal"** (key unchanged
-  on disk). Presence chip: **best-effort "who's online", $0** (last_seen bumped by real traffic, no
-  heartbeat; migration `004_presence.sql`, `/api/presence`).
-- **Sync-persistence fix:** the live bank now lives on the **persistent volume** (`OAJ_PROBLEMS_DIR=
-  /data/problems`), seeded once from the image-baked `/problems` via `sharing.ensure_seeded()`.
-  Previously the bank sat in the container's ephemeral fs, so scale-to-zero discarded every `git pull`
-  on cold start — the "have to click Sync several times" bug. Now one Sync sticks.
-- **Stub-rule regression fixed + gated:** all stubs now expose a **separate solution function** (never
-  solve inside `main()`). New `audit.py` structural gate hard-fails that (plus missing metadata /
-  reference / sample), and **enforces test quality** (warns below 5 edge cases). `SOLUTION.md` is the
-  new authoritative "what we built + how we author" reference. **`FORMAT.md` in the bank** now points
-  to both gates and states the mandatory test standard.
-- **Verified problem batches ingested** (each: stub-with-separate-function, verified reference,
-  ≥5 edges incl. max-scale/overflow, `verify_all` + `audit` green, **independent brute-force
-  cross-check**):
-  - **Microsoft — TUF+ textbook (13):** 3 Easy (assign-cookies, best-time-to-buy-and-sell-stock,
-    climbing-stairs) + 10 Med/Hard (best-time-ii, count-inversions, aggressive-cows, book-allocation,
-    binary-subarrays-with-sum, xor-k, nice-subarrays, candy, 0/1-knapsack, burst-balloons).
-  - **Microsoft — OA-Helper story (2):** Calculate Amount (prefix-min), Final Price (monotonic stack).
-  - **Goldman — Iris-Personal (3):** Missed Courses, Unstable Tasks, Largest Container (union-find;
-    reading validated against full BFS reachability).
+## Shipped this session (session 4, 2026-07-25)
+- **Mutation-testing quality system.** `mutation_test.py` mutates the verified reference (flip
+  `<`/`<=`/`==`/`+`/`min`, delete statements) and requires the suite to KILL every non-equivalent
+  mutant; survivors are auto-triaged (generator + ±1 fuzz) into equivalent vs a real GAP, and `--fix`
+  persists each gap's distinguishing input as an edge test. `gate_candidate.py` composes every gate
+  into one PASS/FAIL. Codified in `SOLUTION.md` §4.1–4.2.
+- **Four gate-soundness bugs fixed** (see dead_ends): timeout/hang flap, count-field fuzz phantom-gaps,
+  reference-crash phantom-gaps, and mutation silently skipped for Python refs.
+- **Healed the whole bank to 100% mutation** (goldman-2048, rippling-q2, tuf-aggressive-cows,
+  tuf-nice-subarrays), **relabelled 2 mislabeled Easy** (oahelper calculate-amount + final-price,
+  were Medium), and **clarified book-allocation** (contiguity + a discriminating 2nd sample).
+- **Gated Grok pilot** (`cursor-grok-4.5-high`, 4 agents in isolated `../oa-staging`): **14 problems
+  merged** (greedy/heap, segment tree, graph connectivity, bitmask/interval DP, DAG, MEX, digit-DP,
+  union-find…), **1 deferred** (valid-number-partitions — Python bignum ref, un-gateable), **3 correct
+  SKIPs** (too easy). Also added OA-Helper batches A/B earlier this session (DE Shaw ×2, Arcesium,
+  Google, Uber ×2) and enabled **Python as a second language** on all runnable problems.
+- **App features (deployed).** (1) **LaTeX rendering** — statements keep `\(…\)`; the renderer converts
+  to Unicode + `<sup>/<sub>` (no KaTeX). (2) **One-click bug reporting** — a Report button in the tab
+  bar + a box under the statement → `POST /api/report` → `bug_report` table; owner review at
+  `/api/reports`. (3) **Topic search** — free-text now matches topic, but topic is HIDDEN on the
+  problem view (approach-giveaway).
+- **$0 storage.** Hidden tests are gzipped (`*.in.gz`); the judge + `mutation_test` read plain-or-`.gz`
+  transparently. **Bank 112M → 58M (2.9×)** — roughly doubles the free-3GB-volume ceiling.
+- **Deployed 3×**: Fly **v8** (render + report), **v9** (report button + topic search), **v10** (`.gz`
+  reader — shipped BEFORE the compressed bank so the live app can read it).
 
 ## Blocking Issues
 - **NONE** for the app or the deployment.
 
 ## Next Session Must Start With
-> **User's direction on content** — the judge and pipeline are done; remaining work is populating the
-> bank in reviewed batches. Options, all "just say which":
-> 1. **More Microsoft** (243 TUF textbook remain; more OA-Helper story problems — verify each, skip
->    the sample-less / self-contradicting ones like #8 Square Tile Arrangement).
-> 2. **Finish the OA-Helper scrape** (~2000 left of 3586; the `oa_session` cookie expires — re-capture
->    from oahelper.in DevTools → Cookies if 401s appear).
-> 3. **Backfill the 14 older problems** flagged by `audit.py` for having <5 edge cases.
-> Every batch goes through the same gate: verified reference + brute-force cross-check + ≥5 edges +
-> `verify_all` + `audit`, then push to `oa-problems`; the user Syncs.
+> **User's direction**, all optional / "just say which":
+> 1. **Scale Grok authoring** beyond the pilot (up to 25 agents), each package gated by
+>    `gate_candidate.py` in isolated staging — pull more graphs/DP/greedy **medium+hard** from
+>    TUF+/OA-Helper (skip easy-mislabeled ones).
+> 2. **Ship valid-number-partitions**: convert to a **mod-1e9+7 C++ reference** (re-anchor) or add
+>    **Python mutation support** to the gate. Staging copy kept in `../oa-staging/agentD/out/`.
+> 3. If the bank must grow well past **~3,500 problems**, **cap max-scale hidden-test size** in
+>    `make_hidden` (lossy — trades some TLE coverage; gzip alone is only ~2.9×).
 
 ## Environment Notes
 - OS: Windows 11 + WSL2; app at `C:\Users\jishu\Desktop\oa-judge` (= `/mnt/c/Users/jishu/Desktop/oa-judge`).
-- Scraper: `/mnt/c/Users/jishu/Desktop/oa-scraper` (own `.venv`; httpx/bs4/markdownify; `config.local.json`
-  holds the TUF Bearer token + OA-Helper `oa_session` cookie — **gitignored, never commit secrets**).
-- `cursor-agent` (Cursor CLI) installed at `~/.local/bin`, logged in; used to drive Grok 4.5 scoped to
-  the scraper repo only (never the app). Verify its output; never trust its self-report.
-- Python 3.12, `g++` 13.3 (C++17). Server binds `127.0.0.1:5137` locally; hosted binds `0.0.0.0:5137`.
-- Fly CLI (`flyctl`) at `~/.fly/bin`, authenticated.
+- **Gate tools run heavy** (bits/stdc++.h compiles). Never run two mutation processes at once — that
+  OOM-crashed the 10GB WSL VM (the "crash", **not** Grok). Cap with `OAJ_MUT_WORKERS` (default min(4,ncpu)).
+  Stage/compile in `/tmp` (ext4); `/mnt/c` (9p) is slow. `OAJ_PROBLEMS_DIR` scopes tools to a candidate.
+- Grok pilot staging: `/mnt/c/Users/jishu/Desktop/oa-staging` (agentA..D; gate tools + `scraped/` + `out/`).
+  `cursor-agent` authed as jishu373@gmail.com; verify FILES in `out/`, never its self-report.
+- Python 3.12, `g++` 13.3 (C++17). Fly CLI (`flyctl`) at `~/.fly/bin`, authed. **`fly deploy` runs
+  from the app dir with `-a oa123`.** App code needs a deploy; bank/problem changes only need Sync.
 
 ## Recent Decisions (this session)
 | Decision | Rationale | Date |
 |---|---|---|
-| Live problem bank lives on the Fly **persistent volume** (`/data/problems`), seeded from the image | Scale-to-zero wipes the ephemeral fs; a baked-only bank reverts each cold start and Syncs don't stick | 2026-07-24 |
-| Stub `main()` only does I/O and calls a **named solution function**; enforced by `audit.py` | A batch regressed to solving inside `main()`; mirrors real OA/LC harness; now a hard gate | 2026-07-24 |
-| **Test quality mandatory**: ≥5 curated edges incl. a max-scale case; brute-force cross-check every reference | Weak suites let a wrong/slow solution pass; audit warns below 5 | 2026-07-24 |
-| Presence is **best-effort, no heartbeat** (last_seen on real traffic only) | A background heartbeat would keep the scale-to-zero machine awake and cost money | 2026-07-24 |
-| Delegate the **scraper only** to Grok (`cursor-agent`), scoped to `oa-scraper`; author judged packages myself | Bulk scraping fits delegation; authoring/verification stays with Claude; app never touched | 2026-07-24 |
-| Skip OA problems whose provided solution contradicts their own samples (e.g. #8 Square Tile) | Can't ship a guessed judge; verification discipline over coverage | 2026-07-24 |
+| Test-suite strength enforced by **mutation testing**; ship only at 100% killed (non-equivalent) mutants | A bugged solution once passed 17/18 tests; verify_all/audit can't see a weak suite | 2026-07-25 |
+| **Grok may bulk-author** OA-judge questions, gated by `gate_candidate.py` in isolated staging | Author identity is irrelevant to the gate; quality is tooling-enforced. DSA-notes prose stays Claude-only | 2026-07-25 |
+| A mutant **timeout/crash = KILL** (reliable oracle first); adaptive per-mutant timeout | Skipping timeouts hung the gate; a load blip as data flapped the score | 2026-07-25 |
+| Fuzzer perturbs **payload rows only**; `run()` non-zero exit = unreliable | Mangling a count field / crashing the ref fabricates phantom gaps | 2026-07-25 |
+| A **Python-only reference is a hard FAIL** (mutation mutates C++ only) | A skipped mutation step must never read as PASS | 2026-07-25 |
+| Statements keep **LaTeX**; the renderer converts it (no KaTeX) | Fix the renderer once vs sanitize every problem; stays offline | 2026-07-25 |
+| **Topic searchable but hidden** on the problem view | Seeing the topic gives away the approach | 2026-07-25 |
+| Hidden tests **gzipped**; deploy the `.gz` reader **before** the compressed bank | ~2.9× smaller ≈ doubles the volume ceiling; ordering keeps the live app readable | 2026-07-25 |
 
 ## Known Issues / Tech Debt
-- **OA-Helper scrape is partial** (~1500/3586) and the `oa_session` cookie expires — resume with a
-  fresh cookie when needed. Raw only; not yet ingested.
-- **14 older problems have <5 edge cases** (audit warnings) — deshaw-q1, flipkart-q4, goldman-2048,
-  goldman-book-cricket, goldman-dora, goldman-non-repeating, millennium-q2, oa-q1/q2/q3,
-  rippling-q1/q2, uber-q3, tuf-climbing-stairs — backfill to the new standard when convenient.
-- **Two problems deferred (correctly)**: Array Burst (removal order not confluent), Optimal
-  Reconstruction (unreadable sample tree edges) — need clarification before a judge can be written.
-- Many premium OA-Helper questions have **no stored sample tests** in the API → only author the ones
-  with clear semantics + samples that can be verified.
-- The templates' own `CLAUDE.md`/dead_ends still carry some **v1 history** (the pre-Monaco overlay
-  editor) — kept as history; the live editor is Monaco.
+- **valid-number-partitions DEFERRED** — Python bignum reference; `mutation_test` mutates C++ only, so
+  its suite strength can't be certified. Fix: mod-1e9+7 C++ ref, or Python mutation support.
+- **gzip is only ~2.3–2.9×** on max-scale numeric data (high entropy). Past ~3,500 problems, cap
+  max-scale hidden-test size in `make_hidden` (lossy) rather than compress harder.
+- **OA-Helper scrape is partial** (~1500/3586, raw + local in `../oa-scraper`); the `oa_session` cookie
+  expires — re-capture when resuming.
+- A few older problems still carry `audit.py` <5-edge warnings (allowed, not blocking); backfill when convenient.
+- The templates' `CLAUDE.md`/dead_ends still carry some **v1 history** (pre-Monaco overlay editor) — kept as history.
 
 ## Reference Links
-- `SOLUTION.md` (authoritative: architecture + authoring rules), `problems/FORMAT.md` (package format +
-  test standard), `API.md`, `PLAN_V2.md`/`DEPLOY.md`. Gates: `verify_all.py` (correctness), `audit.py`
-  (structure + test-quality).
-- Hosted: `https://oa123.fly.dev`. Repos: `github.com/RushilJ2603/oa-judge`, `.../oa-problems`.
+- `SOLUTION.md` (authoritative: architecture + authoring rules + §4 mutation standard + difficulty rubric),
+  `problems/FORMAT.md` (package format + test standard). Gates: `verify_all.py`, `audit.py`,
+  `mutation_test.py`, `gate_candidate.py`. Compression: `compress_bank.py`.
+- Hosted: `https://oa123.fly.dev` (Fly v10). Repos: `github.com/RushilJ2603/oa-judge`, `.../oa-problems`.

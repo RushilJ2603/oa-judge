@@ -1,6 +1,63 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-25 22:35 IST] — session 4: mutation-testing gate, gated Grok pilot (+14 problems), app features, $0 storage | By: Claude (Opus 4.8, Claude Code)
+
+### Done This Session
+- **Mutation-testing quality system.** `mutation_test.py` (NEW) mutates the verified reference and
+  requires the suite to KILL every non-equivalent mutant; survivors are auto-triaged (generator + ±1
+  fuzz) into equivalent vs a real GAP, and `--fix` writes each gap's distinguishing input as an edge
+  test. `gate_candidate.py` (NEW) is a one-command PASS/FAIL: **anchor** (reference reproduces every
+  scraped `provided_test`) + **independent brute** cross-check + `audit` + **100% mutation**. Codified
+  in `SOLUTION.md` §4.1 (binding standard) + §4.2 (difficulty rubric).
+- **Fixed 4 gate-soundness bugs**: (a) score flap + a >30min hang — now a reliable oracle
+  (retry@4×, drop uncomputable) + mutant timeout/crash = KILL (confirm-retry) + adaptive per-mutant
+  timeout + `OAJ_MUT_WORKERS` cap; (b) fuzzer mangling a COUNT field → phantom gaps — now perturbs
+  payload rows only; (c) `run()` reading a reference CRASH as `""` → phantom gaps — now non-zero exit
+  = `<ERR>` (oracle drops it, triage skips it); (d) a Python-only reference silently skipped mutation
+  yet passed — now a hard FAIL.
+- **Healed the whole bank to 100% mutation** (goldman-2048, rippling-q2, tuf-aggressive-cows,
+  tuf-nice-subarrays), **relabelled 2 Easy** (oahelper calculate-amount + final-price), **clarified
+  book-allocation** (contiguity + a 2nd discriminating sample).
+- **Gated Grok pilot** — `cursor-grok-4.5-high`, 4 agents in isolated `../oa-staging`. **14 problems
+  merged** (meeting-room-allocation, train-reservation-reroute-auditor, walking-in-light,
+  maximize-score-after-n-operations, colorful-construction, the-magic-graph,
+  vertex-disappearance-in-a-graph, warehouse-robotics-system, maximum-array-sum-with-subarray-flips,
+  valid-edge-addition, valid-memory-block-sizes, weighted-meeting-scheduler,
+  kth-number-containing-101-in-binary, uber-zone-clusters), **1 deferred** (valid-number-partitions —
+  Python bignum ref, un-gateable), **3 correct SKIPs** (too easy). Cleaned Grok's scraping artifacts
+  (LaTeX `\n` note + literal-`\n` edge input) on the two affected problems. Bank **42 → 62**.
+- **App features (all deployed).** (1) **LaTeX rendering** in `app/runner/md.py` — `\(…\)` → Unicode +
+  `<sup>/<sub>`, dependency-free (fixes constraints showing raw). (2) **One-click bug reporting** —
+  migration `005_bug_reports.sql`, `POST /api/report` + `GET /api/reports`, a box under the statement
+  **and** an always-visible Report button in the tab bar. (3) **Topic search** — free-text now matches
+  `topic`, but topic is HIDDEN on the problem view (approach-giveaway).
+- **$0 storage.** Hidden tests gzipped (`*.in.gz`, deterministic mtime=0); judge + `mutation_test` read
+  plain-or-`.gz` transparently; `compress_bank.py` (NEW) compresses in place. **Bank 112M → 58M (2.9×)**
+  ≈ doubles the free-3GB-volume ceiling.
+- **Deployed 3× (Fly v8/v9/v10).** Also earlier this session: OA-Helper batches A/B (DE Shaw ×2,
+  Arcesium, Google, Uber ×2) and **Python enabled as a 2nd language** on all runnable problems.
+
+### Errors Hit
+- **mutation_test flapped 100↔96.8% then HUNG >30min** — reliable oracle + timeout/crash-as-KILL +
+  adaptive timeout; and **running two heavy mutation procs at once OOM-crashed the 10GB WSL VM** (the
+  reported "crash", NOT Grok) → cap workers, never stack heavy runs.
+- **Phantom gaps** from the fuzzer corrupting count fields / crashing the reference → grammar-safe
+  fuzzer + `run()` treats non-zero exit as unreliable.
+- **User report: vertex constraints rendered as raw `\(2 \le N \le 10^5\)`** → renderer fix. The
+  problem itself was verified correct (3000-case independent simulation) — the bug was presentation.
+- **User couldn't find the bug-report control** (buried at statement bottom) → added the tab-bar button.
+- **valid-number-partitions un-gateable** (Python bignum ref) → DEFERRED, not merged.
+- **First `fly deploy` failed 'missing an app name'** — `cd X && git push &` backgrounded the `cd`, so
+  deploy ran from the wrong dir; re-ran with explicit `-a oa123` from the app dir.
+
+### Next Session Must
+- Take the user's direction: (1) scale Grok authoring beyond the pilot (up to 25 agents, each gated);
+  (2) ship valid-number-partitions via a mod-1e9+7 C++ ref (or add Python mutation support);
+  (3) if growing past ~3,500 problems, cap max-scale hidden-test size in `make_hidden` (lossy).
+- Every batch stays on the gate: `gate_candidate.py` = PASS (anchor + brute + audit + 100% mutation),
+  push the bank; deploy the app **only** when app code changes (bank changes just need Sync).
+
 ## [2026-07-24 20:45 IST] — session 3: deployed live (Fly + OAuth), scraping pipeline, verified batches | By: Claude (Opus 4.8, Claude Code)
 
 ### Done This Session
