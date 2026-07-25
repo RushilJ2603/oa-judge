@@ -1,4 +1,5 @@
 """Load problem packages from the problems bank (a separate oa-problems checkout)."""
+import gzip
 import json
 import os
 import sys
@@ -18,8 +19,15 @@ DEFAULT_LIMITS = {"time_ms": 2000, "memory_mb": 256}
 
 
 def _read(path):
+    """Read a file, transparently falling back to a gzip-compressed sibling (path + '.gz').
+    Hidden tests are stored gzipped to keep the bank small enough to host 1000s of problems on the
+    free volume; sample/edge/source files stay plain. Callers pass the logical name (…​.in/.out)."""
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
+            return f.read()
+    gz = path + ".gz"
+    if os.path.exists(gz):
+        with gzip.open(gz, "rt", encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -39,12 +47,16 @@ def _load_tests(pdir, group) -> list[dict]:
     tdir = os.path.join(pdir, "tests", group)
     if not os.path.isdir(tdir):
         return []
+    # Accept both plain ".in" and gzipped ".in.gz" (hidden tests are stored compressed).
+    stems = set()
+    for fn in os.listdir(tdir):
+        if fn.endswith(".in"):
+            stems.add(fn[:-3])
+        elif fn.endswith(".in.gz"):
+            stems.add(fn[:-6])
     tests = []
-    for fn in sorted(os.listdir(tdir)):
-        if not fn.endswith(".in"):
-            continue
-        stem = fn[:-3]
-        inp = _read(os.path.join(tdir, fn))
+    for stem in sorted(stems):
+        inp = _read(os.path.join(tdir, stem + ".in"))
         out = _read(os.path.join(tdir, stem + ".out"))
         if inp is None or out is None:
             continue

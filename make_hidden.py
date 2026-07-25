@@ -16,11 +16,22 @@ Both are written into tests/hidden/ (curated as e##, random as r##). The referen
 
 Usage:  python3 make_hidden.py <problem-id> [random_count] [--sizes s1,s2,...] [--seed-base N]
 """
+import gzip
 import os
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _write_gz(path_no_gz, text):
+    """Write text to path_no_gz + '.gz'. Hidden tests are stored gzipped (~5-8x smaller) so the bank
+    scales to 1000s of problems on the free 3GB volume. mtime=0 keeps the bytes deterministic so
+    regenerating identical tests produces no git churn."""
+    data = text.encode("utf-8")
+    with open(path_no_gz + ".gz", "wb") as fh:
+        with gzip.GzipFile(fileobj=fh, mode="wb", mtime=0) as gz:
+            gz.write(data)
 # Honour OAJ_PROBLEMS_DIR so a candidate can be materialised in an isolated staging dir (this is how
 # gate_candidate.py builds hidden tests for a not-yet-merged package without touching the live bank).
 PROBLEMS = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or os.path.join(ROOT, "problems"))
@@ -79,8 +90,8 @@ def main():
                 print(f"  EDGE reference FAILED on {fn}: rc={rc} {err.strip()[:120]}")
                 continue
             n_edge += 1
-            open(os.path.join(hidden, f"e{n_edge:02d}.in"), "w").write(inp)
-            open(os.path.join(hidden, f"e{n_edge:02d}.out"), "w").write(out)
+            _write_gz(os.path.join(hidden, f"e{n_edge:02d}.in"), inp)
+            _write_gz(os.path.join(hidden, f"e{n_edge:02d}.out"), out)
 
     # --- layer 2: random cases across sizes (incl. the max) ---
     gen = os.path.join(pdir, "generator.py")
@@ -99,8 +110,8 @@ def main():
                 print(f"  reference failed on seed={seed}: rc={rc} {err.strip()[:100]}")
                 continue
             n_rand += 1
-            open(os.path.join(hidden, f"r{n_rand:02d}.in"), "w").write(gp.stdout)
-            open(os.path.join(hidden, f"r{n_rand:02d}.out"), "w").write(out)
+            _write_gz(os.path.join(hidden, f"r{n_rand:02d}.in"), gp.stdout)
+            _write_gz(os.path.join(hidden, f"r{n_rand:02d}.out"), out)
 
     b = os.path.join(pdir, ".ref_bin")
     if os.path.exists(b):

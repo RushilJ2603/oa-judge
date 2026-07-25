@@ -26,6 +26,7 @@ Usage:
   python3 mutation_test.py --all            # whole bank, summary + non-zero exit on any survivor
   python3 mutation_test.py <id> --quick      # skip the largest (slowest) test inputs
 """
+import gzip
 import os
 import re
 import subprocess
@@ -168,17 +169,29 @@ def cpp_deletion_mutants(src):
     return muts
 
 
+def _slurp(path):
+    """Read a test input, transparently handling a gzipped store (path or path + '.gz')."""
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    with gzip.open(path + ".gz", "rt", encoding="utf-8") as fh:
+        return fh.read()
+
+
 def collect_inputs(pdir, quick=False):
-    """All judged inputs, smallest-first so a wrong mutant dies on a cheap case before the big ones."""
+    """All judged inputs, smallest-first so a wrong mutant dies on a cheap case before the big ones.
+    Hidden inputs may be stored gzipped (.in.gz); we return the LOGICAL '.in' path either way and read
+    through _slurp, so the rest of the file is oblivious to compression."""
     files = []
     for sub in ("sample", "edge", "hidden"):
         d = os.path.join(pdir, "tests", sub)
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
-            if f.endswith(".in"):
-                p = os.path.join(d, f)
-                files.append((os.path.getsize(p), p))
+            if f.endswith(".in") or f.endswith(".in.gz"):
+                actual = os.path.join(d, f)
+                logical = actual[:-3] if f.endswith(".gz") else actual   # strip .gz -> "*.in"
+                files.append((os.path.getsize(actual), logical))
     files.sort()
     if quick and len(files) > 4:
         files = files[: max(4, len(files) // 2)]
@@ -266,8 +279,7 @@ def oracle_outputs(refcmd, inputs):
     import time
     out, kept, dropped, max_t = {}, [], [], 0.0
     for p in inputs:
-        with open(p) as fh:
-            data = fh.read()
+        data = _slurp(p)
         t0 = time.time()
         o = run(refcmd, data)
         dt = time.time() - t0
@@ -289,8 +301,7 @@ def killed_by(cmd, inputs, oracle, same, to=BASE_TIMEOUT):
     load spike can't fake that, an unreliable result is confirmed with a single larger-budget retry
     before it's trusted — if the retry then matches the oracle, it was just a blip and we move on."""
     for p in inputs:
-        with open(p) as fh:
-            data = fh.read()
+        data = _slurp(p)
         got = run(cmd, data, to)
         if _unreliable(got):
             got = run(cmd, data, to * 3)   # confirm real divergence vs. a transient load spike
@@ -315,7 +326,7 @@ def _fuzz_inputs(inputs, cap=60):
     out = []
     for p in inputs[:6]:
         try:
-            data = open(p).read()
+            data = _slurp(p)
         except Exception:
             continue
         if len(data.split()) > 60:
