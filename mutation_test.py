@@ -230,6 +230,13 @@ def _unreliable(x):
 def run(cmd, stdin, timeout=BASE_TIMEOUT):
     try:
         r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, timeout=timeout)
+        # A NON-ZERO exit (segfault / abort / uncaught throw) is unreliable, NOT an output value of "".
+        # This matters for triage: the fuzzer can nudge a value out of its stated range (r>M, l=0),
+        # crashing an otherwise-correct reference. If we read the crash as empty stdout, any mutant
+        # that DOESN'T crash "differs" from it and we persist the crash input as a bogus edge test.
+        # Flagging it unreliable makes the oracle DROP such inputs and triage SKIP them instead.
+        if r.returncode != 0:
+            return f"<ERR rc={r.returncode}>"
         return r.stdout.strip()
     except subprocess.TimeoutExpired:
         return TIMEOUT_SENTINEL
