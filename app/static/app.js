@@ -568,7 +568,20 @@ async function loadProblem(id) {
             links = '<div class="prob-links">' + data.links.map(l =>
                 `<a href="${l.url}" target="_blank" rel="noopener">🔗 ${l.site}${l.note ? ' — ' + escapeHTML(l.note) : ''}</a>`).join('') + '</div>';
         }
-        document.getElementById('tab-statement').innerHTML = links + (data.statement_html || '<p class="placeholder">No statement.</p>');
+        const reportFooter =
+            '<div class="report-issue">' +
+              '<button type="button" id="report-toggle" class="report-link">⚠ Report an issue with this problem</button>' +
+              '<div id="report-box" class="report-box" hidden>' +
+                '<textarea id="report-msg" rows="3" placeholder="What\'s wrong? Wrong answer, unclear statement, typo, a bad test case…"></textarea>' +
+                '<div class="report-actions">' +
+                  '<button type="button" id="report-send" class="btn-report-send">Send report</button>' +
+                  '<span class="report-hint">Goes straight to the maintainer.</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+        document.getElementById('tab-statement').innerHTML =
+            links + (data.statement_html || '<p class="placeholder">No statement.</p>') + reportFooter;
+        wireReportIssue();
         document.getElementById('tab-editorial').innerHTML = data.editorial_html || '<p class="placeholder">No editorial for this problem.</p>';
 
         els.langSelect.innerHTML = '';
@@ -1353,6 +1366,37 @@ function val(id) { const el = document.getElementById(id); return el ? el.value 
 
 /* ---- lightweight toast ---- */
 let toastTimer = null;
+function wireReportIssue() {
+    const toggle = document.getElementById('report-toggle');
+    const box = document.getElementById('report-box');
+    const send = document.getElementById('report-send');
+    if (!toggle || !box || !send) return;
+    toggle.onclick = () => {
+        box.hidden = !box.hidden;
+        if (!box.hidden) document.getElementById('report-msg').focus();
+    };
+    send.onclick = async () => {
+        const ta = document.getElementById('report-msg');
+        const msg = (ta.value || '').trim();
+        if (!msg) { toast('Please describe the issue first', 'error'); ta.focus(); return; }
+        send.disabled = true;
+        try {
+            await api('/api/report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ problem_id: state.currentProblemId, message: msg }),
+            });
+            ta.value = '';
+            box.hidden = true;
+            toast('Thanks — reported 🙏', 'success');
+        } catch (e) {
+            toast('Could not send the report, please try again', 'error');
+        } finally {
+            send.disabled = false;
+        }
+    };
+}
+
 function toast(msg, kind) {
     let t = document.getElementById('oaj-toast');
     if (!t) {

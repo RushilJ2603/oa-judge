@@ -345,6 +345,31 @@ def api_make_snapshot():
     return jsonify({"ok": True, "snapshot_id": sid})   # sid is null when unchanged
 
 
+# ----------------------------------------------------------------- bug reports
+@app.route("/api/report", methods=["POST"])
+def api_report():
+    """One-click issue report from the problem view. Low friction: just a problem id + message."""
+    body = request.get_json(force=True)
+    pid = (body.get("problem_id") or "").strip()
+    msg = (body.get("message") or "").strip()
+    if not pid or not msg:
+        return jsonify({"error": "problem_id and message are required"}), 400
+    rid = store.add_bug_report(pid, msg[:2000])
+    return jsonify({"ok": True, "report_id": rid})
+
+
+@app.route("/api/reports")
+def api_reports():
+    """Owner review of submitted reports. On a personal deployment any logged-in user may list them;
+    when OAJ_OWNER_GITHUB_ID is set, only that user may."""
+    owner = os.environ.get("OAJ_OWNER_GITHUB_ID")
+    if owner:
+        me = store.get_user(getattr(g, "user_id", None) or 0) or {}
+        if str(me.get("github_id")) != str(owner):
+            return jsonify({"error": "forbidden"}), 403
+    return jsonify({"reports": store.bug_reports(status=request.args.get("status"))})
+
+
 # ----------------------------------------------------------------- runs
 @app.route("/api/runs/<pid>")
 def api_runs(pid):

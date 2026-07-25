@@ -297,6 +297,26 @@ def set_setting(key: str, value) -> None:
     conn.commit()
 
 
+# ------------------------------------------------------------------ bug reports
+def add_bug_report(problem_id: str, message: str) -> int:
+    conn = db.connect()
+    cur = conn.execute(
+        "INSERT INTO bug_report (problem_id, user_id, message, created_at) VALUES (?,?,?,?)",
+        (problem_id, _uid(), message, _now()))
+    conn.commit()
+    return cur.lastrowid
+
+
+def bug_reports(limit: int = 300, status: str | None = None) -> list[dict]:
+    q, args = "SELECT * FROM bug_report", []
+    if status:
+        q += " WHERE status = ?"
+        args.append(status)
+    q += " ORDER BY id DESC LIMIT ?"
+    args.append(limit)
+    return [dict(r) for r in db.connect().execute(q, args).fetchall()]
+
+
 # ------------------------------------------------------------------ stats
 def stats() -> dict:
     """Aggregates for the dashboard, for the current user only."""
