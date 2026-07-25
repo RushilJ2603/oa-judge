@@ -7,10 +7,47 @@ CommonMark implementation; deliberately small so the app needs no pip installs.
 import html
 import re
 
+# --- Inline LaTeX math: authored statements (esp. Grok-generated ones) wrap constraints in \(...\)
+# with commands like \le, 10^5, N_i. This tiny renderer has no KaTeX; converting to Unicode +
+# <sup>/<sub> keeps it dependency-free and renders everywhere. Only the inside of \(...\)/\[...\] is
+# touched, so plain prose and `code spans` (e.g. the older `2 <= n <= 10^5` style) are untouched. ---
+_MATH_CMDS = [
+    (r"\\leq?\b", "≤"), (r"\\geq?\b", "≥"), (r"\\neq\b", "≠"), (r"\\ne\b", "≠"),
+    (r"\\times\b", "×"), (r"\\cdot\b", "·"), (r"\\pm\b", "±"), (r"\\bmod\b", " mod "),
+    (r"\\ldots\b", "…"), (r"\\dots\b", "…"), (r"\\cdots\b", "…"),
+    (r"\\to\b", "→"), (r"\\rightarrow\b", "→"), (r"\\leftarrow\b", "←"),
+    (r"\\infty\b", "∞"), (r"\\lfloor\b", "⌊"), (r"\\rfloor\b", "⌋"),
+    (r"\\lceil\b", "⌈"), (r"\\rceil\b", "⌉"), (r"\\%", "%"), (r"\\\$", "$"),
+]
+
+
+def _math_inner(s: str) -> str:
+    for pat, rep in _MATH_CMDS:
+        s = re.sub(pat, rep, s)
+    s = re.sub(r"\\text\{([^{}]*)\}", r"\1", s)
+    s = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)", s)
+    s = re.sub(r"\^\{([^{}]*)\}", r"<sup>\1</sup>", s)   # 10^{18} -> 10<sup>18</sup>
+    s = re.sub(r"\^(-?[\w])", r"<sup>\1</sup>", s)        # 10^5 -> 10<sup>5</sup>
+    s = re.sub(r"_\{([^{}]*)\}", r"<sub>\1</sub>", s)     # A_{k} -> A<sub>k</sub>
+    s = re.sub(r"_([\w])", r"<sub>\1</sub>", s)           # X_s -> X<sub>s</sub>
+    s = re.sub(r"\\[,;\s]", " ", s)                       # thin/med spaces
+    s = re.sub(r"\\([A-Za-z]+)", r"\1", s)               # drop any unknown \command backslash
+    return s.replace("{", "").replace("}", "")
+
+
+def _mathify(escaped: str) -> str:
+    escaped = re.sub(r"\\\((.+?)\\\)",
+                     lambda m: f'<span class="math">{_math_inner(m.group(1))}</span>', escaped, flags=re.S)
+    escaped = re.sub(r"\\\[(.+?)\\\]",
+                     lambda m: f'<span class="math">{_math_inner(m.group(1))}</span>', escaped, flags=re.S)
+    return escaped
+
 
 def _inline(text: str) -> str:
     # Escape first, then re-introduce the small set of inline constructs.
     out = html.escape(text)
+    # inline LaTeX math \(...\) -> Unicode/sup/sub (before code so `\(` inside code stays literal)
+    out = _mathify(out)
     # inline code: `...`
     out = re.sub(r"`([^`]+)`", lambda m: f"<code>{m.group(1)}</code>", out)
     # bold: **...**
