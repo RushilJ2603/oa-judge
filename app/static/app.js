@@ -1368,11 +1368,26 @@ function val(id) { const el = document.getElementById(id); return el ? el.value 
 
 /* ---- lightweight toast ---- */
 let toastTimer = null;
+function openReportBox() {
+    // Jump to the Problem tab, reveal the report box, focus it and scroll it into view.
+    const stmtTab = document.querySelector('.tab-btn[data-tab="statement"]');
+    if (stmtTab) stmtTab.click();
+    const box = document.getElementById('report-box');
+    if (!box) return;
+    box.hidden = false;
+    const ta = document.getElementById('report-msg');
+    if (ta) ta.focus();
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function wireReportIssue() {
     const toggle = document.getElementById('report-toggle');
     const box = document.getElementById('report-box');
     const send = document.getElementById('report-send');
     if (!toggle || !box || !send) return;
+    // Always-visible header button (static in the DOM) opens the same box.
+    const headerBtn = document.getElementById('tab-report-btn');
+    if (headerBtn) headerBtn.onclick = openReportBox;
     toggle.onclick = () => {
         box.hidden = !box.hidden;
         if (!box.hidden) document.getElementById('report-msg').focus();

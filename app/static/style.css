@@ -171,6 +171,8 @@ body {
 .btn-report-send { font: inherit; font-size: 12.5px; padding: 5px 12px; border: none; border-radius: var(--radius-sm); background: var(--accent); color: #fff; cursor: pointer; }
 .btn-report-send:disabled { opacity: .6; cursor: default; }
 .report-hint { color: var(--text-muted); font-size: 11.5px; }
+.tab-report { margin-left: auto; align-self: center; background: none; border: 1px solid transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: var(--radius-sm); cursor: pointer; }
+.tab-report:hover { color: var(--warn); border-color: var(--border); background: var(--bg-sunken); }
 .tab-content pre { background: var(--ed-bg); color: var(--ed-text); padding: 12px 14px; border-radius: var(--radius-sm); overflow-x: auto; margin: 12px 0; }
 .tab-content pre code { background: none; padding: 0; color: inherit; font-size: 12.5px; }
 .tab-content table { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 13px; display: block; overflow-x: auto; }
