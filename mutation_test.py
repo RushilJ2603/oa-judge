@@ -215,12 +215,24 @@ def compile_src(src, out_path, idx, pch=True):
     return (ok, out_path + f".{idx}")
 
 
-def run(cmd, stdin, timeout=15):
+# A run is "unreliable" if it timed out or errored. Under CPU load (many mutants compiling/running in
+# parallel) a perfectly correct program can transiently exceed the wall-clock limit; if we treated
+# that sentinel as a real output value, a mutant's verdict would flip between runs and the score would
+# flap (observed 100%->96.8%). So a timeout is NEVER a data point — it is a skipped observation.
+TIMEOUT_SENTINEL = "<TIMEOUT>"
+BASE_TIMEOUT = 25  # generous: the reference is O(optimal); only contention makes it slow
+
+
+def _unreliable(x):
+    return x == TIMEOUT_SENTINEL or x.startswith("<ERR")
+
+
+def run(cmd, stdin, timeout=BASE_TIMEOUT):
     try:
         r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, timeout=timeout)
         return r.stdout.strip()
     except subprocess.TimeoutExpired:
-        return "<TIMEOUT>"
+        return TIMEOUT_SENTINEL
     except Exception as e:
         return f"<ERR {e}>"
 
@@ -238,53 +250,96 @@ def make_same(compare):
 
 
 def oracle_outputs(refcmd, inputs):
-    out = {}
-    for p in inputs:
-        with open(p) as fh:
-            out[p] = run(refcmd, fh.read())
-    return out
-
-
-def killed_by(cmd, inputs, oracle, same):
-    """Return the input path that kills `cmd`, or None if it survives (matches oracle everywhere)."""
+    """Reference output for every input, computed RELIABLY, plus the reference's own worst-case
+    runtime. If the reference times out on an input under load, retry once with a generous timeout;
+    if it still times out, that input is dropped (returned separately) so it can never poison a
+    mutant comparison with a phantom `<TIMEOUT>` value. Because every kept input is proven
+    reference-tractable, a MUTANT that later times out on one is a genuine divergence, not noise.
+    Returns (oracle, kept_inputs, dropped_inputs, max_ref_seconds)."""
+    import time
+    out, kept, dropped, max_t = {}, [], [], 0.0
     for p in inputs:
         with open(p) as fh:
             data = fh.read()
-        if not same(run(cmd, data), oracle[p]):
+        t0 = time.time()
+        o = run(refcmd, data)
+        dt = time.time() - t0
+        if _unreliable(o):
+            o = run(refcmd, data, timeout=BASE_TIMEOUT * 4)  # retry: assume transient contention
+        if _unreliable(o):
+            dropped.append(p)
+            continue
+        out[p] = o
+        kept.append(p)
+        max_t = max(max_t, dt)
+    return out, kept, dropped, max_t
+
+
+def killed_by(cmd, inputs, oracle, same, to=BASE_TIMEOUT):
+    """Return the input path that kills `cmd`, or None if it survives (matches oracle everywhere).
+    Every input here is reference-tractable (oracle_outputs guaranteed it), so a mutant that TIMES
+    OUT or ERRORS on one has genuinely diverged (TLE / crash) and is KILLED. To make sure a one-off
+    load spike can't fake that, an unreliable result is confirmed with a single larger-budget retry
+    before it's trusted — if the retry then matches the oracle, it was just a blip and we move on."""
+    for p in inputs:
+        with open(p) as fh:
+            data = fh.read()
+        got = run(cmd, data, to)
+        if _unreliable(got):
+            got = run(cmd, data, to * 3)   # confirm real divergence vs. a transient load spike
+            if _unreliable(got):
+                return p                    # genuine TLE/crash on a tractable input -> killed
+        if not same(got, oracle[p]):
             return p
     return None
 
 
 def _fuzz_inputs(inputs, cap=60):
-    """Generator-independent distinguishers: perturb each integer token of the small existing inputs
-    by +-1/+-2. Boundary mutants (< vs <=) die on exactly this kind of one-off nudge, so triage does
-    not rely solely on the candidate's generator being lucky."""
+    """Generator-independent distinguishers: perturb integer tokens of the small existing inputs by
+    +-1/+-2. Boundary mutants (< vs <=) die on exactly this kind of one-off nudge, so triage does not
+    rely solely on the candidate's generator being lucky.
+
+    CRITICAL: stay INSIDE the input grammar. Perturbing a COUNT field (e.g. the leading N) while
+    leaving the payload rows intact makes a malformed input, on which the reference does something
+    undefined and a harmless mutant (like an `i<n` -> `i<=n` loop bound) appears to 'differ' — a
+    phantom gap that would poison the bank with an invalid edge test. So we only nudge tokens on
+    PAYLOAD rows (lines with >=3 numeric tokens: arrays, edges, triples) and never a header/count
+    line or the very first token of the input."""
     out = []
     for p in inputs[:6]:
         try:
             data = open(p).read()
         except Exception:
             continue
-        toks = data.split()
-        if len(toks) > 40:
+        if len(data.split()) > 60:
             continue
-        for i, t in enumerate(toks):
-            if not re.fullmatch(r"-?\d{1,7}", t):
-                continue
-            for delta in (1, -1, 2):
-                nt = toks[:]
-                nt[i] = str(int(t) + delta)
-                out.append(" ".join(nt) + "\n")
-                if len(out) >= cap:
-                    return out
+        lines = data.splitlines()
+        for li, line in enumerate(lines):
+            toks = line.split()
+            nums = [j for j, t in enumerate(toks) if re.fullmatch(r"-?\d{1,7}", t)]
+            if len(nums) < 3:
+                continue  # header / count / small-scalar line: perturbing it desyncs the grammar
+            for j in nums:
+                if li == 0 and j == 0:
+                    continue  # first token overall is almost always a size
+                for delta in (1, -1, 2):
+                    nl = toks[:]
+                    nl[j] = str(int(toks[j]) + delta)
+                    new_lines = lines[:]
+                    new_lines[li] = " ".join(nl)
+                    out.append("\n".join(new_lines) + "\n")
+                    if len(out) >= cap:
+                        return out
     return out
 
 
-def find_distinguisher(mutant_cmd, refbin, gen, same, trials=80, inputs=()):
+def find_distinguisher(mutant_cmd, refbin, gen, same, trials=80, inputs=(), to=BASE_TIMEOUT):
     """A mutant that passed the curated suite is EITHER equivalent (unkillable — not a weakness) OR a
     real wrong solution the suite simply misses. Decide by firing (a) random generator inputs and
     (b) +-1 fuzzes of the existing inputs at it: if one makes it disagree with the reference, THAT
-    input is the exact missing edge case (a real gap); if none do, treat it as equivalent."""
+    input is the exact missing edge case (a real gap); if none do, treat it as equivalent. A probe
+    on which either side times out is skipped (we want a VALUE distinguisher to add as an edge test,
+    not a timing-flaky one); the small `to` keeps a slow/looping mutant from stalling the probe."""
     # (a) generator-driven
     if os.path.exists(gen):
         sizes = [3, 6, 12, 25, 60, 150, 400]
@@ -294,11 +349,19 @@ def find_distinguisher(mutant_cmd, refbin, gen, same, trials=80, inputs=()):
                                      capture_output=True, text=True, timeout=10).stdout
             except Exception:
                 continue
-            if inp.strip() and not same(run(mutant_cmd, inp), run([refbin], inp)):
+            if not inp.strip():
+                continue
+            mo, ro = run(mutant_cmd, inp, to), run([refbin], inp, to)
+            if _unreliable(mo) or _unreliable(ro):
+                continue  # can't trust a timeout as a disagreement -> not a real distinguisher
+            if not same(mo, ro):
                 return inp
     # (b) fuzz existing inputs (independent of the generator; nails boundary mutants)
     for inp in _fuzz_inputs(list(inputs)):
-        if not same(run(mutant_cmd, inp), run([refbin], inp)):
+        mo, ro = run(mutant_cmd, inp, to), run([refbin], inp, to)
+        if _unreliable(mo) or _unreliable(ro):
+            continue
+        if not same(mo, ro):
             return inp
     return None
 
@@ -322,7 +385,17 @@ def mutation_test_problem(pid, quick=False, verbose=True, fix=False):
     if not ok:
         print(f"  {pid}: reference.cpp did not compile:\n{err}")
         return None
-    oracle = oracle_outputs([refbin], inputs)
+    oracle, inputs, dropped, max_ref_t = oracle_outputs([refbin], inputs)
+    if dropped and verbose:
+        print(f"  {pid}: NOTE: reference could not finish {len(dropped)} input(s) even after retry; "
+              f"dropped from the mutation set (raise BASE_TIMEOUT if this is unexpected).")
+    if not inputs:
+        print(f"  {pid}: SKIP (no reliably-judgeable inputs)")
+        return None
+    # Per-mutant timeout scaled to the reference's OWN worst case: generous enough that a correct
+    # mutant never false-times-out (>=6s, and >=15x the reference), but tight enough that a mutant
+    # which infinite-loops is declared TLE-killed in seconds instead of stalling the whole run.
+    mutant_to = max(6, min(BASE_TIMEOUT, int(15 * max_ref_t) + 1))
     try:
         import json
         compare = json.load(open(os.path.join(pdir, "problem.json"))).get("compare", "tokens")
@@ -345,17 +418,22 @@ def mutation_test_problem(pid, quick=False, verbose=True, fix=False):
         cok, binp = compile_src(mutated, mbase, idx)
         if not cok:
             return ("compile_fail", label, None)
-        if killed_by([binp], inputs, oracle, same) is not None:
+        if killed_by([binp], inputs, oracle, same, to=mutant_to) is not None:
             return ("killed", label, None)
         # Survived the curated suite: is it equivalent, or a real gap? Ask the generator.
-        dist = find_distinguisher([binp], refbin, gen, same, inputs=inputs)
+        dist = find_distinguisher([binp], refbin, gen, same, inputs=inputs, to=mutant_to)
         if dist is None:
             return ("equivalent", label, None)   # unkillable by any input -> not a weakness
         return ("gap", label, dist)              # curated suite misses a killable wrong solution
 
     killed = gapped = compile_fail = equivalent = 0
     survivors = []  # (label, distinguishing_input)
-    with ThreadPoolExecutor(max_workers=min(16, (os.cpu_count() or 4))) as ex:
+    # Worker cap: each worker compiles bits/stdc++.h (hundreds of MB RAM). On a small WSL VM, stacking
+    # too many concurrent compiles is what OOM-crashes the VM, so keep this conservative and let it be
+    # overridden (OAJ_MUT_WORKERS=1 for a crash-safe serial run). NEVER run two of these concurrently.
+    _mw = os.environ.get("OAJ_MUT_WORKERS")
+    workers = max(1, int(_mw)) if _mw else max(1, min(4, (os.cpu_count() or 4)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
         for outcome, label, dist in ex.map(eval_mutant, enumerate(muts)):
             if outcome == "compile_fail":
                 compile_fail += 1
@@ -385,7 +463,7 @@ def mutation_test_problem(pid, quick=False, verbose=True, fix=False):
                 cmd = [PY, fp]
             else:
                 continue
-            if killed_by(cmd, inputs, oracle, same) is None:
+            if killed_by(cmd, inputs, oracle, same, to=mutant_to) is None:
                 planted_fail.append(f)
 
     # --fix: persist each gap's distinguishing input as a curated edge test so the suite self-heals.
