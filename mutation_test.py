@@ -255,24 +255,49 @@ def killed_by(cmd, inputs, oracle, same):
     return None
 
 
-def find_distinguisher(mutant_cmd, refbin, gen, same, trials=80):
-    """A mutant that passed the curated suite is EITHER equivalent (unkillable — not a weakness) OR a
-    real wrong solution the suite simply misses. Decide by firing random generator inputs at it: if
-    one makes it disagree with the reference, THAT input is the exact missing edge case (a real gap);
-    if none in `trials` do, treat the mutant as equivalent. Returns (distinguishing_input) or None."""
-    if not os.path.exists(gen):
-        return None
-    sizes = [3, 6, 12, 25, 60, 150, 400]
-    for k in range(trials):
-        seed = 91237 + k
-        size = sizes[k % len(sizes)]
+def _fuzz_inputs(inputs, cap=60):
+    """Generator-independent distinguishers: perturb each integer token of the small existing inputs
+    by +-1/+-2. Boundary mutants (< vs <=) die on exactly this kind of one-off nudge, so triage does
+    not rely solely on the candidate's generator being lucky."""
+    out = []
+    for p in inputs[:6]:
         try:
-            inp = subprocess.run([PY, gen, str(seed), str(size)],
-                                 capture_output=True, text=True, timeout=10).stdout
+            data = open(p).read()
         except Exception:
             continue
-        if not inp.strip():
+        toks = data.split()
+        if len(toks) > 40:
             continue
+        for i, t in enumerate(toks):
+            if not re.fullmatch(r"-?\d{1,7}", t):
+                continue
+            for delta in (1, -1, 2):
+                nt = toks[:]
+                nt[i] = str(int(t) + delta)
+                out.append(" ".join(nt) + "\n")
+                if len(out) >= cap:
+                    return out
+    return out
+
+
+def find_distinguisher(mutant_cmd, refbin, gen, same, trials=80, inputs=()):
+    """A mutant that passed the curated suite is EITHER equivalent (unkillable — not a weakness) OR a
+    real wrong solution the suite simply misses. Decide by firing (a) random generator inputs and
+    (b) +-1 fuzzes of the existing inputs at it: if one makes it disagree with the reference, THAT
+    input is the exact missing edge case (a real gap); if none do, treat it as equivalent."""
+    # (a) generator-driven
+    if os.path.exists(gen):
+        sizes = [3, 6, 12, 25, 60, 150, 400]
+        for k in range(trials):
+            try:
+                inp = subprocess.run([PY, gen, str(91237 + k), str(sizes[k % len(sizes)])],
+                                     capture_output=True, text=True, timeout=10).stdout
+            except Exception:
+                continue
+            if inp.strip() and not same(run(mutant_cmd, inp), run([refbin], inp)):
+                return inp
+    # (b) fuzz existing inputs (independent of the generator; nails boundary mutants)
+    for inp in _fuzz_inputs(list(inputs)):
         if not same(run(mutant_cmd, inp), run([refbin], inp)):
             return inp
     return None
@@ -323,7 +348,7 @@ def mutation_test_problem(pid, quick=False, verbose=True, fix=False):
         if killed_by([binp], inputs, oracle, same) is not None:
             return ("killed", label, None)
         # Survived the curated suite: is it equivalent, or a real gap? Ask the generator.
-        dist = find_distinguisher([binp], refbin, gen, same)
+        dist = find_distinguisher([binp], refbin, gen, same, inputs=inputs)
         if dist is None:
             return ("equivalent", label, None)   # unkillable by any input -> not a weakness
         return ("gap", label, dist)              # curated suite misses a killable wrong solution

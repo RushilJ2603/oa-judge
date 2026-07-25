@@ -14,7 +14,10 @@ import os
 import re
 import sys
 
-BANK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "problems")
+# Honour OAJ_PROBLEMS_DIR so gate_candidate.py can audit an isolated staged candidate, not the
+# live bank (without this the structure check silently runs against ROOT/problems instead).
+BANK = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or
+                       os.path.join(os.path.dirname(os.path.abspath(__file__)), "problems"))
 
 # A top-level C++ function definition: an identifier(...) at column 0, optionally opening a brace.
 _FUNC = re.compile(r"^[A-Za-z_][\w:<>,&*\s]*?\b([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{?\s*$", re.M)

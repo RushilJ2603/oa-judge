@@ -137,8 +137,29 @@ def main():
     elif not provided and not allow_no_anchor:
         fails.append("anchor: no provided_tests found (pass --allow-no-anchor only if truly original)")
 
-    # 5. brute agreement on provided + random generator inputs
+    # 4b. GENERATOR QUALITY (precondition for trusting the mutation gate). The mutation gate decides
+    #     "equivalent vs real gap" by firing generator inputs at a survivor; a degenerate generator
+    #     (no variety / ignores size) makes every real gap look equivalent and a weak suite passes.
+    #     So a generator that doesn't vary its output or respond to the size arg is itself a failure.
     gen = os.path.join(pdir, "generator.py")
+    if os.path.exists(gen):
+        outs = []
+        for seed, size in [(1, 3), (2, 3), (3, 10), (4, 10), (5, 40), (6, 40), (7, 150), (8, 150),
+                           (9, 400), (10, 400)]:
+            o = run_in([PY, gen, str(seed), str(size)], "", to=10)
+            if o.strip():
+                outs.append(o)
+        distinct = len(set(outs))
+        if len(outs) < 5:
+            fails.append("generator.py produced too few valid inputs (needs `<seed> <size>` CLI)")
+        elif distinct < max(5, int(0.6 * len(outs))):
+            fails.append(f"generator.py is degenerate: only {distinct}/{len(outs)} distinct outputs "
+                         f"— it must vary with seed. Test coverage from it cannot be trusted.")
+        elif outs and max(len(o) for o in outs) <= min(len(o) for o in outs):
+            fails.append("generator.py ignores the size arg (no max-scale input) — needed for TLE/"
+                         "overflow coverage.")
+    else:
+        fails.append("no generator.py — required for random coverage + mutation-gate triage")
     if refcmd and brutecmd:
         bad = 0
         for inp, _ in provided:
