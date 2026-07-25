@@ -216,6 +216,13 @@ def main():
     mut = sh([PY, os.path.join(ROOT, "mutation_test.py"), pid], env=env)
     if mut.returncode != 0:
         fails.append("mutation_test weak suite:\n" + mut.stdout[-1200:])
+    elif "SKIP (no reference.cpp" in mut.stdout:
+        # mutation_test only mutates C++. A Python-only reference means suite strength was NEVER
+        # verified — do not let that pass silently as if it were gated (that is exactly the
+        # "bugged code passed 17/18 tests" failure mode). Require a C++ reference to certify.
+        fails.append("mutation gate was SKIPPED: no reference.cpp (Python-only reference). Suite "
+                     "strength is UNVERIFIED. Provide a C++ reference, or gate this problem another "
+                     "way before merging — it cannot pass on anchor+brute alone.")
 
     # report
     print("=" * 70)
