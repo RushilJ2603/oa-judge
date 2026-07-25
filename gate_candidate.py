@@ -150,6 +150,14 @@ def main():
             if o.strip():
                 outs.append(o)
         distinct = len(set(outs))
+        # Determinism: same (seed,size) MUST give the same input twice. A generator that reseeds from
+        # the clock makes make_hidden draw different tests each run, so the mutation score flaps and
+        # 100% can't be certified. This is the single most important generator property.
+        d1 = run_in([PY, gen, "424242", "50"], "", to=10)
+        d2 = run_in([PY, gen, "424242", "50"], "", to=10)
+        if d1 != d2:
+            fails.append("generator.py is NON-DETERMINISTIC: same seed gave different output. It must "
+                         "`random.seed(int(sys.argv[1]))` so tests are reproducible and the score stable.")
         if len(outs) < 5:
             fails.append("generator.py produced too few valid inputs (needs `<seed> <size>` CLI)")
         elif distinct < max(5, int(0.6 * len(outs))):
