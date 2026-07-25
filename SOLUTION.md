@@ -138,6 +138,43 @@ never hand-written. Two layers:
 `tests/edge/` is durable: rerunning `make_hidden.py` recomputes `.out` from the reference but never
 deletes curated inputs.
 
+### 4.1 Test STRENGTH is measured, not assumed — mutation testing (binding)
+
+The `≥5 edges` rule is a proxy; the **binding measure of suite strength is the mutation score** from
+`mutation_test.py`. A suite that a bugged submission can pass (Goldman *unstable-tasks* passed 17/18)
+is a defect regardless of edge count. The gate deliberately breaks the verified reference one edit at
+a time (flip `<`/`<=`, `+`/`-`, `&&`/`||`, `min`/`max`; delete a statement — an ineffective/removed
+update is exactly the unstable-tasks bug) and **requires the tests to catch 100% of the killable
+mutants**. When a mutant survives, the gate fires random generator inputs at it: if one distinguishes
+it, that input is the **exact missing edge** (auto-added with `--fix`); if none do, it is a provable
+**equivalent** and excluded from the score. So `100%` means "no wrong solution of these shapes can
+pass," measured — not hoped.
+
+```bash
+python3 mutation_test.py <id>          # one problem: score + any GAP (with distinguishing input)
+python3 mutation_test.py <id> --fix    # write each gap's distinguishing input as a curated edge
+python3 mutation_test.py --all         # whole-bank sweep (run WITHOUT --quick for the true result;
+                                       # --quick drops max-scale tests and over-reports gaps)
+```
+
+Optional **planted wrongs**: drop a known-wrong solution in `problems/<id>/wrong/*.{cpp,py}` and the
+gate requires the suite to kill it — locks a specific trap (e.g. the sort-a-copy bug) against regress.
+
+A **committed independent `brute.{cpp,py}`** (a different, obviously-correct algorithm) is required
+for new problems: `gate_candidate.py` runs reference-vs-brute on all provided tests + hundreds of
+random inputs. The reference is only trusted once brute agrees AND it reproduces the source's own
+`provided_tests`.
+
+### 4.2 Difficulty rubric (a single loop is not "Medium")
+
+Label by the hardest idea the intended solution *requires*, calibrated to LeetCode:
+- **Easy** — one pass / running min-max / prefix sum / direct library call / one monotonic stack with
+  no twist. (LC-Easy like "final prices", or `max(0, p[i]-min_so_far)` are Easy — never Medium.)
+- **Medium** — needs a non-obvious idea: DP with a real state, binary-search-on-answer, greedy with
+  an exchange argument, graph traversal with bookkeeping, combinatorics/number theory.
+- **Hard** — multiple layered ideas, heavy DP (bitmask/interval/digit), advanced graph, or a proof-
+  heavy greedy. Mislabeling easy-as-medium is a gate reject, not a warning.
+
 ### Verification discipline (non-negotiable)
 
 Every reference and every hand-derived example is **cross-checked against an independent brute force
@@ -148,16 +185,24 @@ rule is pinned down. A wrong judge is worse than a missing one.
 
 ## 5. The gates (the safety net)
 
-Run both from the repo root before publishing anything:
+Run these from the repo root before publishing anything:
 
 ```bash
-python3 verify_all.py   # correctness: every reference ACs its own tests
-python3 audit.py        # structure: stub rule, required metadata, references present
+python3 verify_all.py                       # correctness: every reference ACs its own tests
+python3 audit.py                            # structure: stub rule, required metadata, references
+python3 mutation_test.py <id>               # test STRENGTH: 100% mutation score (§4.1)
+python3 gate_candidate.py <dir> --scraped <slug.json>   # ONE-COMMAND full gate for a new package
 ```
 
 `audit.py` prints **WARNINGS (allowed)** then **HARD FAILURES**; it exits non-zero only on a hard
 failure. The stub regression is a hard failure — this is the specific guard that keeps it from
 recurring.
+
+`gate_candidate.py` is the **single gate every candidate (incl. Grok-authored) must pass** before it
+merges: it composes structure + compile + **anchor** (reference reproduces every scraped
+`provided_test`) + **brute** agreement + samples + **100% mutation**. `GATE: PASS` is the only thing
+that authorizes a merge. Author identity is irrelevant — the gate is run by Claude in a clean state
+and never trusts a self-reported pass.
 
 ## 6. Adding a new question — end to end
 

@@ -21,6 +21,9 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+# Honour OAJ_PROBLEMS_DIR so a candidate can be materialised in an isolated staging dir (this is how
+# gate_candidate.py builds hidden tests for a not-yet-merged package without touching the live bank).
+PROBLEMS = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or os.path.join(ROOT, "problems"))
 PY = sys.executable or "python3"
 
 
@@ -55,7 +58,7 @@ def main():
         if a.startswith("--seed-base="):
             seed_base = int(a.split("=", 1)[1])
 
-    pdir = os.path.join(ROOT, "problems", pid)
+    pdir = os.path.join(PROBLEMS, pid)
     hidden = os.path.join(pdir, "tests", "hidden")
     edge = os.path.join(pdir, "tests", "edge")
     os.makedirs(hidden, exist_ok=True)
