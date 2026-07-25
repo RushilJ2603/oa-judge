@@ -399,10 +399,13 @@ def _search_where(source, company, difficulty, topic, q):
     if topic:
         clauses.append("topic = ?"); args.append(topic)
     if q:
-        # match title, tags, company or id — case-insensitive substring
+        # match title, topic, tags, company or id — case-insensitive substring. Topic is included so
+        # a solver can FIND problems by topic (search "graphs"/"dp"), even though the topic is hidden
+        # on the problem view itself (seeing it would give away the intended approach).
         like = f"%{q.lower()}%"
-        clauses.append("(title_lc LIKE ? OR lower(tags_json) LIKE ? OR lower(company) LIKE ? OR lower(id) LIKE ?)")
-        args += [like, like, like, like]
+        clauses.append("(title_lc LIKE ? OR lower(topic) LIKE ? OR lower(tags_json) LIKE ?"
+                       " OR lower(company) LIKE ? OR lower(id) LIKE ?)")
+        args += [like, like, like, like, like]
     return (" WHERE " + " AND ".join(clauses)) if clauses else "", args
 
 

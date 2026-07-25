@@ -523,8 +523,10 @@ function renderProblemItems(items) {
         row.appendChild(title); row.appendChild(badges);
         item.appendChild(row);
 
-        // Secondary line: company · topic — helps when the top-level grouping is by source.
-        const sub = (p.company || p.topic) ? `${p.company || ''}${p.company && p.topic ? ' · ' : ''}${p.topic || ''}` : '';
+        // Secondary line: company only. Topic is deliberately NOT shown — it's searchable (type a
+        // topic in the search box) but revealing it on the problem itself would give away the
+        // intended approach, which isn't how a real OA works.
+        const sub = p.company || '';
         if (sub) {
             const s = document.createElement('div');
             s.className = 'problem-sub';
