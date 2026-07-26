@@ -19,15 +19,17 @@
     S.view = view;
     document.querySelectorAll('.topnav-item').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
     const ws = document.querySelector('.workspace');
-    const sv = $('sheet-view'), tv = $('tracker-view'), bc = $('breadcrumb');
+    const sv = $('sheet-view'), tv = $('tracker-view'), cv = $('compiler-view'), bc = $('breadcrumb');
     if (ws) ws.style.display = view === 'judge' ? '' : 'none';
     if (sv) sv.style.display = (view === 'cp' || view === 'sd') ? 'flex' : 'none';
     if (tv) tv.style.display = view === 'tracker' ? 'block' : 'none';
+    if (cv) cv.style.display = view === 'compiler' ? 'block' : 'none';
     if (bc) bc.style.display = view === 'judge' ? '' : 'none';
     try { history.replaceState(null, '', view === 'judge' ? location.pathname : '#' + view); } catch (e) {}
     if (view === 'cp') loadSheet('cp');
     else if (view === 'sd') loadSheet('sd');
     else if (view === 'tracker') loadTracker();
+    else if (view === 'compiler') renderCompiler();
   }
 
   // ---------------------------------------------------------------- sheet
@@ -102,8 +104,9 @@
     if (!sec) { $('sheet-content').innerHTML = ''; return; }
     const buckets = { core: [], extended: [], stretch: [] };
     sec.items.forEach((it) => buckets[it.tier === 'core' ? 'core' : it.tier === 'stretch' ? 'stretch' : 'extended'].push(it));
+    const codeable = sid === 'cp';   // scratchpad is for the CP problems, not the SD reading list
     const group = (label, items) => items.length
-      ? `<div class="tier-group">${label ? `<div class="tier-label">${label}</div>` : ''}${items.map((it) => row(it, prog)).join('')}</div>` : '';
+      ? `<div class="tier-group">${label ? `<div class="tier-label">${label}</div>` : ''}${items.map((it) => row(it, prog, codeable)).join('')}</div>` : '';
     const meta = [
       sec.placement_value ? `<span class="tm topic-pv ${esc(sec.placement_value)}">${esc(sec.placement_value)} value</span>` : '',
       sec.band ? `<span class="tm">${esc(sec.band)}</span>` : '',
@@ -114,22 +117,275 @@
        ${meta ? `<div class="topic-meta">${meta}</div>` : ''}
        ${sec.summary ? `<p class="topic-summary">${esc(sec.summary)}</p>` : ''}
        ${group('Must-do core', buckets.core)}${group('Extended', buckets.extended)}${group('Stretch', buckets.stretch)}`;
-    $('sheet-content').querySelectorAll('.prob-check').forEach((el) =>
+    const content = $('sheet-content');
+    content.querySelectorAll('.prob-check').forEach((el) =>
       el.addEventListener('click', () => toggleItem(sid, el.dataset.item, el)));
+    content.querySelectorAll('.prob-code-btn').forEach((el) =>
+      el.addEventListener('click', () => togglePad(el)));
   }
 
-  function row(it, prog) {
+  function row(it, prog, codeable) {
     const done = prog[it.id] === 'done';
     const rb = it.rating != null ? `<span class="rating-badge" style="background:${ratingColor(it.rating)}">${it.rating}</span>` : '';
     const tier = it.tier ? `<span class="tier-pill ${esc(it.tier)}">${esc(it.tier)}</span>` : '';
-    return `<div class="prob-row ${done ? 'done' : ''}">
-      <button class="prob-check ${done ? 'done' : ''}" data-item="${esc(it.id)}" title="Mark solved" aria-pressed="${done}">${done ? '✓' : ''}</button>
-      <div class="prob-main">
-        <a class="prob-title" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
-        ${it.tag ? `<div class="prob-tag">${esc(it.tag)}</div>` : ''}
+    const code = codeable ? `<button class="prob-code-btn" data-item="${esc(it.id)}" title="Draft your solution here, then copy it into the site's submit box" aria-expanded="false">Code</button>` : '';
+    return `<div class="prob-item" data-item="${esc(it.id)}">
+      <div class="prob-row ${done ? 'done' : ''}">
+        <button class="prob-check ${done ? 'done' : ''}" data-item="${esc(it.id)}" title="Mark solved" aria-pressed="${done}">${done ? '✓' : ''}</button>
+        <div class="prob-main">
+          <a class="prob-title" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
+          ${it.tag ? `<div class="prob-tag">${esc(it.tag)}</div>` : ''}
+        </div>
+        <div class="prob-side">${rb}<span class="plat-badge">${esc(it.platform || '')}</span>${tier}${code}</div>
       </div>
-      <div class="prob-side">${rb}<span class="plat-badge">${esc(it.platform || '')}</span>${tier}</div>
+      <div class="prob-pad" hidden></div>
     </div>`;
+  }
+
+  // ---------------------------------------------------------------- scratchpad (draft-then-copy)
+  const PAD_LANGS = [['cpp', 'C++'], ['python', 'Python'], ['java', 'Java'], ['kotlin', 'Kotlin'], ['c', 'C'], ['py3', 'PyPy']];
+
+  function togglePad(btn) {
+    const item = btn.closest('.prob-item');
+    const pad = item.querySelector('.prob-pad');
+    if (!pad.hasAttribute('hidden')) {
+      pad.setAttribute('hidden', ''); btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('active');
+      return;
+    }
+    pad.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); btn.classList.add('active');
+    if (!pad.dataset.built) buildPad(pad, btn.dataset.item);
+    else pad.querySelector('.pad-code').focus();
+  }
+
+  function autoGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight, 128), 560) + 'px'; }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall through */ }
+    const t = document.createElement('textarea');
+    t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.focus(); t.select();
+    try { document.execCommand('copy'); } catch (_) { }
+    document.body.removeChild(t); return true;
+  }
+
+  const RUNNABLE = { cpp: 1, c: 1, py: 1, python: 1, py3: 1 };   // langs the built-in compiler runs
+
+  async function buildPad(pad, itemId) {
+    pad.dataset.built = '1';
+    pad.innerHTML =
+      `<div class="pad-bar">
+         <select class="pad-lang" title="Language">${PAD_LANGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+         <span class="pad-status" aria-live="polite"></span>
+         <button class="pad-run" type="button" title="Compile & run with the input below (Ctrl/Cmd+Enter)">Run ▸</button>
+         <button class="pad-copy" type="button" title="Copy code to clipboard">Copy</button>
+       </div>
+       <textarea class="pad-code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"
+                 placeholder="Write your solution here — Run it below, or Copy it into the site's submit box."></textarea>
+       <div class="pad-io" hidden>
+         <div class="pad-io-col">
+           <div class="pad-io-h">Custom input <span class="pad-io-sub">stdin</span></div>
+           <textarea class="pad-stdin" spellcheck="false" autocomplete="off" wrap="off" placeholder="Type input for your program here…"></textarea>
+         </div>
+         <div class="pad-io-col">
+           <div class="pad-io-h">Output <span class="pad-run-meta"></span></div>
+           <pre class="pad-out" tabindex="0"></pre>
+         </div>
+       </div>
+       <div class="pad-hint">Autosaved to your account · runs in the same sandbox as the judge (C++ &amp; Python). The problem link is unchanged.</div>`;
+    const ta = pad.querySelector('.pad-code'), sel = pad.querySelector('.pad-lang');
+    const status = pad.querySelector('.pad-status'), copy = pad.querySelector('.pad-copy');
+    const run = pad.querySelector('.pad-run'), io = pad.querySelector('.pad-io');
+    const stdin = pad.querySelector('.pad-stdin'), out = pad.querySelector('.pad-out');
+    const meta = pad.querySelector('.pad-run-meta');
+    try {
+      const d = await jget('/api/sheet-code?item=' + encodeURIComponent(itemId));
+      if (d.ok) { ta.value = d.code || ''; if (d.lang) sel.value = d.lang; }
+    } catch (e) { /* start blank */ }
+    autoGrow(ta); ta.focus();
+    const syncRunnable = () => {
+      const ok = !!RUNNABLE[sel.value];
+      run.disabled = !ok;
+      run.title = ok ? 'Compile & run with the input below (Ctrl/Cmd+Enter)' : 'Built-in Run supports C++ & Python';
+    };
+    syncRunnable();
+    let timer = null;
+    const save = () => {
+      status.textContent = 'Saving…';
+      jpost('/api/sheet-code', { item_id: itemId, lang: sel.value, code: ta.value })
+        .then(() => { status.textContent = 'Saved'; })
+        .catch(() => { status.textContent = 'Save failed'; });
+    };
+    const queue = () => { clearTimeout(timer); status.textContent = 'Editing…'; timer = setTimeout(save, 700); };
+    const insertTab = (el) => {
+      const s = el.selectionStart, en = el.selectionEnd;
+      el.value = el.value.slice(0, s) + '    ' + el.value.slice(en);
+      el.selectionStart = el.selectionEnd = s + 4;
+    };
+    ta.addEventListener('input', () => { autoGrow(ta); queue(); });
+    sel.addEventListener('change', () => { syncRunnable(); save(); });
+    ta.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); insertTab(ta); queue(); }
+    });
+    stdin.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); insertTab(stdin); }
+    });
+    copy.addEventListener('click', async () => {
+      await copyText(ta.value);
+      copy.textContent = 'Copied ✓'; copy.classList.add('ok');
+      setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
+    });
+
+    async function doRun() {
+      if (run.disabled || run.dataset.busy) return;
+      io.hidden = false;
+      run.dataset.busy = '1'; run.textContent = 'Running…';
+      out.className = 'pad-out'; out.textContent = ''; meta.textContent = 'compiling…';
+      try {
+        const r = await jpost('/api/scratch-run', { lang: sel.value, source: ta.value, stdin: stdin.value });
+        if (!r.ok) { out.classList.add('err'); out.textContent = r.error || 'Run failed.'; meta.textContent = ''; return; }
+        renderRun(r, out, meta);
+      } catch (e) {
+        out.classList.add('err'); out.textContent = 'Could not reach the runner. Try again.'; meta.textContent = '';
+      } finally {
+        run.dataset.busy = ''; run.textContent = 'Run ▸';
+      }
+    }
+    run.addEventListener('click', doRun);
+  }
+
+  const VERDICT_LABEL = { OK: 'Finished', CE: 'Compile error', TLE: 'Time limit exceeded', RE: 'Runtime error', MLE: 'Memory limit exceeded' };
+
+  function renderRun(r, out, meta) {
+    if (r.verdict === 'CE') {
+      out.classList.add('err');
+      out.textContent = r.compile_output || 'Compilation failed.';
+      meta.innerHTML = '<span class="rv rv-bad">Compile error</span>';
+      return;
+    }
+    const bits = [];
+    const bad = r.verdict !== 'OK';
+    bits.push(`<span class="rv ${bad ? 'rv-bad' : 'rv-ok'}">${esc(VERDICT_LABEL[r.verdict] || r.verdict)}</span>`);
+    if (r.time_ms != null) bits.push(`${r.time_ms} ms`);
+    if (r.memory_kb) bits.push(`${(r.memory_kb / 1024).toFixed(1)} MB`);
+    if (r.signal) bits.push(esc(r.signal));
+    else if (r.exit_code) bits.push(`exit ${r.exit_code}`);
+    meta.innerHTML = bits.join('<span class="rv-dot">·</span>');
+    const parts = [];
+    if (r.stdout) parts.push(r.stdout);
+    if (r.stderr) parts.push((r.stdout ? '\n' : '') + '── stderr ──\n' + r.stderr);
+    out.classList.toggle('err', bad && !r.stdout);
+    out.textContent = parts.join('') || '(no output)';
+  }
+
+  // ---------------------------------------------------------------- standalone compiler
+  const CC_KEY = 'oaj_compiler_v1';
+  const CC_LANGS = [['cpp', 'C++'], ['python', 'Python']];
+  const CC_STARTER = {
+    cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    \n    return 0;\n}\n',
+    py: '',
+  };
+  let ccBuilt = false;
+  const langBase = (v) => (v === 'cpp' || v === 'c' ? 'cpp' : 'py');
+
+  function ccLoad() { try { return JSON.parse(localStorage.getItem(CC_KEY)) || {}; } catch (e) { return {}; } }
+  function ccSave(state) { try { localStorage.setItem(CC_KEY, JSON.stringify(state)); } catch (e) { } }
+
+  function renderCompiler() {
+    const host = $('compiler-inner');
+    if (ccBuilt) { host.querySelector('.cc-code').focus(); return; }
+    ccBuilt = true;
+    const saved = ccLoad();
+    host.innerHTML =
+      `<div class="cc-head">
+         <div class="cc-head-main">
+           <h1 class="cc-title">Compiler</h1>
+           <p class="cc-sub">Compile &amp; run C++ or Python against your own input. Nothing here is graded — a scratch playground in the same sandbox as the judge.</p>
+           <div class="cc-env" title="The exact toolchain your code runs on"></div>
+         </div>
+         <div class="cc-tools">
+           <select class="cc-lang" title="Language">${CC_LANGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+           <span class="cc-status" aria-live="polite"></span>
+           <button class="cc-clear" type="button" title="Reset to a blank template">Reset</button>
+           <button class="cc-copy" type="button" title="Copy code to clipboard">Copy</button>
+           <button class="cc-run" type="button" title="Compile &amp; run (Ctrl/Cmd+Enter)">Run ▸</button>
+         </div>
+       </div>
+       <div class="cc-grid">
+         <div class="cc-pane cc-pane-code">
+           <div class="cc-pane-h">Source</div>
+           <textarea class="cc-code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+         </div>
+         <div class="cc-side">
+           <div class="cc-pane cc-pane-in">
+             <div class="cc-pane-h">Custom input <span class="cc-pane-sub">stdin</span></div>
+             <textarea class="cc-stdin" spellcheck="false" autocomplete="off" wrap="off" placeholder="Type input for your program here…"></textarea>
+           </div>
+           <div class="cc-pane cc-pane-out">
+             <div class="cc-pane-h">Output <span class="cc-run-meta"></span></div>
+             <pre class="cc-out" tabindex="0">Run your code to see output here.</pre>
+           </div>
+         </div>
+       </div>`;
+    const code = host.querySelector('.cc-code'), lang = host.querySelector('.cc-lang');
+    const stdin = host.querySelector('.cc-stdin'), out = host.querySelector('.cc-out');
+    const meta = host.querySelector('.cc-run-meta'), status = host.querySelector('.cc-status');
+    const run = host.querySelector('.cc-run'), copy = host.querySelector('.cc-copy'), clr = host.querySelector('.cc-clear');
+    const env = host.querySelector('.cc-env');
+    const showEnv = async () => {
+      if (!S.env) { try { S.env = await jget('/api/scratch-env'); } catch (e) { return; } }
+      const e = S.env[langBase(lang.value)];
+      if (!e) { env.textContent = ''; return; }
+      env.textContent = e.std ? e.label + ' · ' + e.std : e.label;
+      if (e.full) env.title = e.full;
+    };
+    lang.value = CC_LANGS.some(([v]) => v === saved.lang) ? saved.lang : 'cpp';
+    code.value = saved.code != null ? saved.code : (CC_STARTER[langBase(lang.value)] || '');
+    stdin.value = saved.stdin || '';
+    const persist = () => ccSave({ lang: lang.value, code: code.value, stdin: stdin.value });
+    let t = null;
+    const queue = () => { clearTimeout(t); status.textContent = 'Editing…'; t = setTimeout(() => { persist(); status.textContent = 'Saved'; }, 400); };
+    const insertTab = (el) => {
+      const s = el.selectionStart, e = el.selectionEnd;
+      el.value = el.value.slice(0, s) + '    ' + el.value.slice(e);
+      el.selectionStart = el.selectionEnd = s + 4;
+    };
+    code.addEventListener('input', queue);
+    stdin.addEventListener('input', queue);
+    lang.addEventListener('change', () => {
+      if (!code.value.trim()) code.value = CC_STARTER[langBase(lang.value)] || '';
+      persist(); showEnv();
+    });
+    [code, stdin].forEach((el) => el.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); insertTab(el); queue(); }
+    }));
+    copy.addEventListener('click', async () => {
+      await copyText(code.value);
+      copy.textContent = 'Copied ✓'; copy.classList.add('ok');
+      setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
+    });
+    clr.addEventListener('click', () => {
+      code.value = CC_STARTER[langBase(lang.value)] || ''; stdin.value = '';
+      out.className = 'cc-out'; out.textContent = 'Run your code to see output here.'; meta.textContent = '';
+      persist(); code.focus();
+    });
+    async function doRun() {
+      if (run.dataset.busy) return;
+      run.dataset.busy = '1'; run.textContent = 'Running…';
+      out.className = 'cc-out'; out.textContent = ''; meta.textContent = 'compiling…';
+      persist();
+      try {
+        const r = await jpost('/api/scratch-run', { lang: lang.value, source: code.value, stdin: stdin.value });
+        if (!r.ok) { out.classList.add('err'); out.textContent = r.error || 'Run failed.'; meta.textContent = ''; return; }
+        renderRun(r, out, meta);
+      } catch (e) {
+        out.classList.add('err'); out.textContent = 'Could not reach the runner. Try again.'; meta.textContent = '';
+      } finally { run.dataset.busy = ''; run.textContent = 'Run ▸'; }
+    }
+    run.addEventListener('click', doRun);
+    showEnv();
+    code.focus();
   }
 
   async function toggleItem(sid, itemId, el) {
@@ -372,7 +628,7 @@
   function boot() {
     document.querySelectorAll('.topnav-item').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
     const h = (location.hash || '').replace('#', '');
-    if (h === 'cp' || h === 'sd' || h === 'tracker') switchView(h);
+    if (h === 'cp' || h === 'sd' || h === 'tracker' || h === 'compiler') switchView(h);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

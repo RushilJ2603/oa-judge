@@ -556,6 +556,95 @@ def api_sheet_item():
     return jsonify({"ok": True})
 
 
+@app.route("/api/sheet-code", methods=["GET"])
+def api_sheet_code_get():
+    item_id = request.args.get("item", "")
+    if not item_id:
+        return jsonify({"ok": False, "error": "item required"}), 400
+    return jsonify({"ok": True, **store.sheet_code_get(item_id)})
+
+
+@app.route("/api/sheet-code", methods=["POST"])
+def api_sheet_code_set():
+    b = request.get_json(force=True)
+    item_id = b.get("item_id")
+    if not item_id:
+        return jsonify({"ok": False, "error": "item_id required"}), 400
+    # Cap at 64 KB — a scratchpad, not a repo; keeps a runaway paste from bloating the DB.
+    code = (b.get("code") or "")[:65536]
+    lang = (b.get("lang") or "cpp")[:16]
+    store.set_sheet_code(item_id, lang, code)
+    return jsonify({"ok": True})
+
+
+# Generic compile-and-run: a gcc/ideone-style playground, not tied to any problem. Runs untrusted
+# code in the exact same sandbox as the judge (see runner/sandbox.py), so it adds no new risk
+# surface — just fixed, generous limits and no expected-output comparison.
+_SCRATCH_LANGS = {"cpp": "cpp", "c": "cpp", "py": "py", "python": "py", "py3": "py", "pypy": "py"}
+_SCRATCH_TIME_MS = 5000
+_SCRATCH_MEM_MB = 256
+
+
+@app.route("/api/scratch-run", methods=["POST"])
+def api_scratch_run():
+    b = request.get_json(force=True)
+    lang = _SCRATCH_LANGS.get((b.get("lang") or "cpp").lower())
+    if lang is None:
+        return jsonify({"ok": False, "error": "Run supports C++ and Python only."}), 400
+    source = (b.get("source") or "")[:200000]
+    stdin_data = (b.get("stdin") or "")[:200000]
+    if not source.strip():
+        return jsonify({"ok": False, "error": "Nothing to compile — the editor is empty."}), 400
+    compiled = execute.compile_for(lang, source)
+    if not compiled.ok:
+        execute.cleanup(compiled)
+        return jsonify({"ok": True, "verdict": "CE", "compile_output": compiled.compile_output,
+                        "stdout": "", "stderr": "", "exit_code": None, "signal": None,
+                        "time_ms": 0, "memory_kb": 0})
+    res = execute.run_once(lang, compiled, stdin_data,
+                           time_ms=_SCRATCH_TIME_MS, memory_mb=_SCRATCH_MEM_MB)
+    execute.cleanup(compiled)
+    from runner import judge
+    verdict = judge.verdict_for_run(res, memory_mb=_SCRATCH_MEM_MB) or "OK"
+    return jsonify({"ok": True, "verdict": verdict, "compile_output": "",
+                    "stdout": res.stdout, "stderr": res.stderr, "exit_code": res.exit_code,
+                    "signal": res.signal_name, "time_ms": res.time_ms, "memory_kb": res.memory_kb})
+
+
+_TOOLCHAIN = None
+
+
+def _toolchain():
+    """The real compiler/interpreter the playground uses, probed once and cached. Reported to the UI
+    so a user sees exactly what their code runs on (e.g. 'GNU g++ 13.3.0 · C++17')."""
+    global _TOOLCHAIN
+    if _TOOLCHAIN is not None:
+        return _TOOLCHAIN
+    import subprocess
+    import sys as _sys
+    from runner import run_cpp
+    first, ver = run_cpp.GXX, ""
+    try:
+        r = subprocess.run([run_cpp.GXX, "--version"], capture_output=True, text=True, timeout=5)
+        line = (r.stdout.splitlines() or [""])[0].strip()
+        if line:
+            first, ver = line, line.split()[-1]
+    except Exception:  # noqa: BLE001
+        pass
+    std = run_cpp.STD.replace("-std=", "").replace("c++", "C++").replace("gnu++", "GNU++")
+    _TOOLCHAIN = {
+        "cpp": {"label": f"GNU g++ {ver}".strip(), "std": std, "full": first},
+        "py": {"label": "CPython " + _sys.version.split()[0], "std": "",
+               "full": "Python " + _sys.version.split()[0]},
+    }
+    return _TOOLCHAIN
+
+
+@app.route("/api/scratch-env")
+def api_scratch_env():
+    return jsonify(_toolchain())
+
+
 def _stats_age(iso):
     try:
         return (datetime.datetime.now(datetime.timezone.utc)

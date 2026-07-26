@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
-    <link rel="stylesheet" href="/static/style.css?v=16">
+    <link rel="stylesheet" href="/static/style.css?v=18">
 </head>
 <body>
     <header class="app-header">
@@ -16,6 +16,7 @@
                 <button class="topnav-item" data-view="cp">CP Sheet</button>
                 <button class="topnav-item" data-view="sd">System&nbsp;Design</button>
                 <button class="topnav-item" data-view="tracker">Tracker</button>
+                <button class="topnav-item" data-view="compiler">Compiler</button>
             </nav>
             <span class="breadcrumb" id="breadcrumb">Select a problem</span>
         </div>
@@ -156,6 +157,11 @@
         <div class="tracker-inner" id="tracker-inner"></div>
     </section>
 
+    <!-- ===== Standalone compiler view ===== -->
+    <section class="compiler-view" id="compiler-view" style="display:none">
+        <div class="compiler-inner" id="compiler-inner"></div>
+    </section>
+
     <!-- Login gate (hosted, multi-user mode only). Hidden locally. -->
     <div class="login-overlay" id="login-overlay" style="display:none">
         <div class="login-card">
@@ -181,6 +187,6 @@
 
     <script src="/static/editor.js?v=13"></script>
     <script src="/static/app.js?v=11"></script>
-    <script src="/static/sheets.js?v=16"></script>
+    <script src="/static/sheets.js?v=18"></script>
 </body>
 </html>

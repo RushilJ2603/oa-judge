@@ -579,6 +579,29 @@ def clear_sheet_item(item_id: str) -> None:
     conn.commit()
 
 
+def sheet_code_get(item_id: str) -> dict:
+    """The current user's scratchpad {lang, code} for a sheet item; empty defaults if none yet."""
+    row = db.connect().execute(
+        "SELECT lang, code FROM sheet_code WHERE user_id = ? AND item_id = ?",
+        (_uid(), item_id)).fetchone()
+    return {"lang": row["lang"], "code": row["code"]} if row else {"lang": "cpp", "code": ""}
+
+
+def set_sheet_code(item_id: str, lang: str, code: str) -> None:
+    """Upsert the scratchpad. An empty code with the default lang clears the row so we don't keep
+    blank scratchpads around."""
+    conn = db.connect()
+    if not (code or "").strip() and (lang or "cpp") == "cpp":
+        conn.execute("DELETE FROM sheet_code WHERE user_id = ? AND item_id = ?", (_uid(), item_id))
+    else:
+        conn.execute(
+            "INSERT INTO sheet_code (user_id, item_id, lang, code, updated_at) VALUES (?,?,?,?,?)"
+            " ON CONFLICT (user_id, item_id) DO UPDATE SET lang = excluded.lang,"
+            " code = excluded.code, updated_at = excluded.updated_at",
+            (_uid(), item_id, lang or "cpp", code or "", _now()))
+    conn.commit()
+
+
 def cp_handles() -> dict:
     rows = db.connect().execute(
         "SELECT site, handle FROM cp_handle WHERE user_id = ?", (_uid(),)).fetchall()
