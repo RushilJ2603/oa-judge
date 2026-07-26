@@ -34,6 +34,13 @@ RUN useradd -m -u 10001 judge \
     && chown -R judge /app /data /problems
 USER judge
 
+# The bank on the persistent volume can end up owned by a different uid than this process (e.g. a
+# root-level `fly ssh` re-clone). Modern git then refuses every command with "detected dubious
+# ownership", which surfaces in-app as "problems/ is not a git checkout" and silently breaks Sync.
+# This box is single-tenant and the volume is trusted, so mark the bank paths safe for the app user.
+RUN git config --global --add safe.directory /data/problems \
+    && git config --global --add safe.directory /problems
+
 ENV OAJ_HOST=0.0.0.0 \
     OAJ_PORT=5137 \
     OAJ_PROBLEMS_DIR=/problems \
