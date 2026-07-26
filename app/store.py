@@ -364,6 +364,24 @@ def stats() -> dict:
 SOURCE_LABELS = {"tuf": "TUF+", "oa-helper": "OA-Helper", "gyan": "Iris — Personal"}
 SOURCE_ORDER = ["tuf", "oa-helper", "gyan"]
 
+# Canonicalize company names so the sidebar doesn't split one company across casings/aliases, and so
+# every unknown/unlabelled problem lands in a single "Practice" bucket. Applied at index time.
+_COMPANY_CANON = {
+    "de shaw": "DE Shaw",
+    "algouniversity": "Algo University", "algo university": "Algo University",
+    "trilogy": "Trilogy Innovations", "trilogy innovations": "Trilogy Innovations",
+    "bny": "BNY Mellon", "bny mellon": "BNY Mellon",
+    "cisco code": "Cisco",
+}
+_UNKNOWN_COMPANY = {"", "unknown", "unknown oa", "n/a", "na", "none", "-", "?"}
+
+
+def canon_company(c: str) -> str:
+    c = (c or "").strip()
+    if c.lower() in _UNKNOWN_COMPANY:
+        return "Practice"
+    return _COMPANY_CANON.get(c.lower(), c)
+
 
 def reindex_problems(metas: list[dict]) -> int:
     """Replace the whole problem_index with the current on-disk metadata. Idempotent; cheap."""
@@ -376,7 +394,7 @@ def reindex_problems(metas: list[dict]) -> int:
         "  languages_json, indexed_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [(m["id"], m["title"], (m["title"] or "").lower(), m.get("difficulty", ""),
-          m.get("company", ""), m.get("source", "gyan"), m.get("topic", ""),
+          canon_company(m.get("company", "")), m.get("source", "gyan"), m.get("topic", ""),
           json.dumps(m.get("tags", [])), 1 if m.get("runnable", True) else 0,
           json.dumps(m.get("languages", [])), now)
          for m in metas])
