@@ -35,6 +35,7 @@
    "title": "HLD interview framework & rubric",
    "kind": "resource-meta",
    "sub": "Framework / resource",
+   "group": "Frameworks — start here",
    "items": [
     {
      "id": "sd:m01_hld_framework:hellointerviewlearnsystemdesigninah",
@@ -207,6 +208,7 @@
    "title": "LLD interview framework & rubric",
    "kind": "resource-meta",
    "sub": "Framework / resource",
+   "group": "Frameworks — start here",
    "items": [
     {
      "id": "sd:m02_lld_framework:hellointerviewlearnlowleveldesignin",
@@ -361,6 +363,7 @@
    "title": "Networking (DNS, TCP/IP, HTTP/HTTPS, TLS, WebSockets, long-polling/SSE)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h01_networking:youtubewatchvalkdbnbv7dk",
@@ -497,6 +500,7 @@
    "title": "Load balancing & reverse proxies",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h02_load_balancing:githubdonnemartinsystemdesignprimerl",
@@ -597,6 +601,7 @@
    "title": "Caching (cache-aside / write-through / write-back, eviction, Redis/Memcached, CDN, invalidation)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h03_caching:githubdonnemartinsystemdesignprimerc",
@@ -742,6 +747,7 @@
    "title": "Databases & indexing (SQL vs NoSQL, B-tree vs LSM, indexes, query planning)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h04_databases_indexing:githubdonnemartinsystemdesignprimerd",
@@ -896,6 +902,7 @@
    "title": "DB scaling: replication, sharding, partitioning, federation, read replicas, hot-key",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h05_db_scaling:githubdonnemartinsystemdesignprimerr",
@@ -1014,6 +1021,7 @@
    "title": "Consistency models, CAP, PACELC, ACID vs BASE, transactions, isolation levels",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h06_consistency_cap:githubdonnemartinsystemdesignprimerc",
@@ -1168,6 +1176,7 @@
    "title": "Consensus & coordination (leader election, Raft/Paxos idea, ZooKeeper, quorums)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h07_consensus:githubdonnemartinsystemdesignprimerc",
@@ -1322,6 +1331,7 @@
    "title": "Message queues & streaming (Kafka, RabbitMQ, pub/sub, delivery semantics, backpressure)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h08_message_queues:githubdonnemartinsystemdesignprimerm",
@@ -1503,6 +1513,7 @@
    "title": "Rate limiting & throttling: token bucket, leaky bucket, sliding window, distributed limits",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h09_rate_limiting:githubdonnemartinsystemdesignprimera",
@@ -1639,6 +1650,7 @@
    "title": "API design (REST vs gRPC vs GraphQL, pagination, idempotency, versioning, webhooks)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h10_api_design:hellointerviewlearnsystemdesigncorec",
@@ -1847,6 +1859,7 @@
    "title": "Object/blob storage & file systems (S3-style, chunking, replication, durability)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h11_storage:blogpstoragesystemsoverview",
@@ -2037,6 +2050,7 @@
    "title": "Search (inverted index, Elasticsearch, ranking, autocomplete indexing)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h12_search:githubdonnemartinsystemdesignprimerb",
@@ -2200,6 +2214,7 @@
    "title": "Observability (logging, metrics, distributed tracing, alerting, SLO/SLA)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h13_observability:bytebytegoguidesloggingtracingmetrics",
@@ -2444,6 +2459,7 @@
    "title": "Back-of-envelope estimation & capacity planning (QPS, storage, bandwidth)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h14_estimation:githubdonnemartinsystemdesignprimerb",
@@ -2589,6 +2605,7 @@
    "title": "Core building blocks: consistent hashing, bloom filters, quorum, gossip, HLL, geohash",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h15_building_blocks:blogpep15012algorithmsforsystemdes",
@@ -2761,6 +2778,7 @@
    "title": "Microservices foundation (monolith vs microservices, service discovery, API gateway, saga, circuit breaker)",
    "kind": "HLD-foundation",
    "sub": "HLD foundation",
+   "group": "Foundations",
    "items": [
     {
      "id": "sd:h16_microservices:githubdonnemartinsystemdesignprimerm",
@@ -2978,6 +2996,7 @@
    "title": "Design a URL Shortener (TinyURL / Bitly)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq01_url_shortener:hellointerviewlearnsystemdesignproble",
@@ -3132,6 +3151,7 @@
    "title": "Design a distributed rate limiter",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq02_rate_limiter:youtubewatchvyxkodwbwqaa",
@@ -3268,6 +3288,7 @@
    "title": "Design a chat / messaging system (WhatsApp / Messenger)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq03_chat_whatsapp:bytebytegoguidesshortlongpollingssew",
@@ -3449,6 +3470,7 @@
    "title": "News feed / Twitter timeline (fan-out)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq04_news_feed:hellointerviewlearnsystemdesigninah",
@@ -3612,6 +3634,7 @@
    "title": "Design Video Streaming (YouTube / Netflix)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq05_video_streaming:hellointerviewlearnsystemdesignproble",
@@ -3748,6 +3771,7 @@
    "title": "Design ride-hailing (Uber/Lyft) with geospatial matching",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq06_ride_hailing:hellointerviewlearnsystemdesignanswer",
@@ -3911,6 +3935,7 @@
    "title": "Design a Web Crawler",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq07_web_crawler:hellointerviewlearnsystemdesignproble",
@@ -4056,6 +4081,7 @@
    "title": "Design a notification / push system",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq08_notification_system:hellointerviewlearnsystemdesignproble",
@@ -4264,6 +4290,7 @@
    "title": "Design search autocomplete / typeahead",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq09_autocomplete:bytebytegocoursessystemdesignintervie",
@@ -4427,6 +4454,7 @@
    "title": "Design File Storage & Sync (Google Drive / Dropbox)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq10_file_storage:hellointerviewlearnsystemdesignproble",
@@ -4590,6 +4618,7 @@
    "title": "Design a Booking System (Ticketmaster / BookMyShow, seat locking)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq11_booking:hellointerviewlearnsystemdesignproble",
@@ -4780,6 +4809,7 @@
    "title": "Design a Payment System (idempotency, ledger, reconciliation)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq12_payment:hellointerviewlearnsystemdesignproble",
@@ -4952,6 +4982,7 @@
    "title": "Design a Distributed Unique ID Generator (Snowflake)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq13_unique_id:hellointerviewlearnsystemdesigninah",
@@ -5088,6 +5119,7 @@
    "title": "Design a distributed cache (Redis / Memcached)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq14_distributed_cache:hellointerviewlearnsystemdesignproble",
@@ -5350,6 +5382,7 @@
    "title": "Design Instagram (photo-sharing)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq15_instagram:hellointerviewlearnsystemdesignproble",
@@ -5585,6 +5618,7 @@
    "title": "Design Google Maps / nearby-places (geospatial, quadtree)",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq16_google_maps:hellointerviewlearnsystemdesigndeepd",
@@ -5757,6 +5791,7 @@
    "title": "Design an Ad Click Aggregator / Real-Time Analytics",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq17_ad_aggregator:hellointerviewlearnsystemdesignproble",
@@ -5956,6 +5991,7 @@
    "title": "Design a Gaming Leaderboard",
    "kind": "question",
    "sub": "HLD question",
+   "group": "HLD questions",
    "items": [
     {
      "id": "sd:hq18_leaderboard:bytebytegocoursessystemdesignintervie",
@@ -6083,6 +6119,7 @@
    "title": "OOP & SOLID principles",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l01_oop_solid:docsjavasetutorialjavaconcepts",
@@ -6237,6 +6274,7 @@
    "title": "Design Patterns: Creational (Singleton, Factory, Builder, Prototype)",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l02_patterns_creational:refactoringdesignpatternscreationalpa",
@@ -6391,6 +6429,7 @@
    "title": "Design patterns: structural (Adapter, Decorator, Facade, Composite, Proxy)",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l03_patterns_structural:refactoringdesignpatternsstructuralpa",
@@ -6545,6 +6584,7 @@
    "title": "Design Patterns: Behavioral (Strategy, Observer, State, Command, Iterator)",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l04_patterns_behavioral:refactoringdesignpatternsbehavioralpa",
@@ -6744,6 +6784,7 @@
    "title": "Concurrency in LLD: thread-safety, locks, producer-consumer, thread-safe singleton",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l05_concurrency_lld:hellointerviewlearnlowleveldesigncon",
@@ -7069,6 +7110,7 @@
    "title": "LLD interview framework & UML basics",
    "kind": "LLD-fundamental",
    "sub": "LLD fundamental",
+   "group": "LLD fundamentals",
    "items": [
     {
      "id": "sd:l06_lld_framework:algomasterlearnlldoodapproach",
@@ -7232,6 +7274,7 @@
    "title": "Design a Parking Lot",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq01_parking_lot:githubashishps1awesomelowleveldesign",
@@ -7377,6 +7420,7 @@
    "title": "Design an Elevator System",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq02_elevator:hellointerviewlearnlowleveldesignpro",
@@ -7513,6 +7557,7 @@
    "title": "Design a Movie Ticket Booking System (BookMyShow)",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq03_movie_booking:hellointerviewlearnlowleveldesignpro",
@@ -7739,6 +7784,7 @@
    "title": "Design Splitwise (Expense Sharing)",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq04_splitwise:algomasterlearnllddesignsplitwise",
@@ -7893,6 +7939,7 @@
    "title": "Design a Vending Machine",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq05_vending_machine:githubashishps1awesomelowleveldesign",
@@ -8065,6 +8112,7 @@
    "title": "Design an ATM",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq06_atm:githubashishps1awesomelowleveldesign",
@@ -8255,6 +8303,7 @@
    "title": "Design Snake and Ladder",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq07_snake_ladder:workatmachinecodingpracticesnakeand",
@@ -8409,6 +8458,7 @@
    "title": "Design a Chess / Tic-Tac-Toe Game",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq08_chess:githubashishps1awesomelowleveldesign",
@@ -8563,6 +8613,7 @@
    "title": "Design a Library Management System",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq09_library:algomasterlearnllddesignlibrarymanag",
@@ -8726,6 +8777,7 @@
    "title": "Design a Logging Framework",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq10_logging:githubashishps1awesomelowleveldesign",
@@ -8925,6 +8977,7 @@
    "title": "Design a Rate Limiter",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq11_rate_limiter_lld:hellointerviewlearnlowleveldesignpro",
@@ -9097,6 +9150,7 @@
    "title": "Design a Notification Service",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq12_notification_lld:theskilledcoderpostslowleveldesignde",
@@ -9314,6 +9368,7 @@
    "title": "Design an LRU / LFU Cache",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq13_cache_lld:githubashishps1awesomelowleveldesign",
@@ -9540,6 +9595,7 @@
    "title": "Design Food Delivery (Swiggy / Zomato)",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq14_food_delivery:algomasterlearnllddesignonlinefoodd",
@@ -9811,6 +9867,7 @@
    "title": "Design a Ride-Sharing Service (Uber / Ola)",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq15_ride_sharing_lld:githubashishps1awesomelowleveldesign",
@@ -9974,6 +10031,7 @@
    "title": "Design a Hotel Booking System",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq16_hotel_booking:githubashishps1awesomelowleveldesign",
@@ -10299,6 +10357,7 @@
    "title": "Design an In-Memory Key-Value Store",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq17_kv_store:hellointerviewcommunityquestionsmemory",
@@ -10525,6 +10584,7 @@
    "title": "Design a Meeting Scheduler / Calendar",
    "kind": "question",
    "sub": "LLD question",
+   "group": "LLD questions",
    "items": [
     {
      "id": "sd:lq18_meeting_scheduler:educativecoursesgrokkingthelowlevel",
@@ -10715,6 +10775,7 @@
    "title": "Best SD resources ranked (courses / books / playlists)",
    "kind": "resource-meta",
    "sub": "Framework / resource",
+   "group": "Resources & deep dives",
    "items": [
     {
      "id": "sd:m03_best_resources:githubdonnemartinsystemdesignprimer",
@@ -10797,6 +10858,7 @@
    "title": "DDIA chapter-by-chapter digest (interview lens)",
    "kind": "resource-meta",
    "sub": "Framework / resource",
+   "group": "Resources & deep dives",
    "items": [
     {
      "id": "sd:m04_ddia_digest:dataintensive",
@@ -11023,6 +11085,7 @@
    "title": "Company-specific SD/LLD interview patterns (FAANG + Indian product cos)",
    "kind": "resource-meta",
    "sub": "Framework / resource",
+   "group": "Resources & deep dives",
    "items": [
     {
      "id": "sd:m05_company_patterns:tryexponentblogsystemdesigninterview",

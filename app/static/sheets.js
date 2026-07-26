@@ -58,14 +58,20 @@
         <div class="rm-milestone">◆ ${esc(p.milestone || '')}</div>
       </div>`).join('');
     const active = S.activeSection[sid] || 0;
-    $('sheet-rail').innerHTML = sheet.sections.map((sec, i) => {
+    const grouped = sheet.sections.some((s) => s.group);
+    let railHtml = grouped ? '<div class="rail-seq-hint">Follow top to bottom ↓</div>' : '';
+    let lastGroup = null;
+    sheet.sections.forEach((sec, i) => {
       const sp = secProgress(sec, prog), pc = sp.total ? Math.round(sp.done / sp.total * 100) : 0;
       const complete = sp.total && sp.done === sp.total;
-      return `<div class="rail-topic ${i === active ? 'active' : ''} ${complete ? 'complete' : ''}" data-idx="${i}">
-        <div class="rail-trow"><span class="rail-tname">${esc(sec.title)}</span><span class="rail-tcount">${sp.done}/${sp.total}</span></div>
+      if (grouped && sec.group !== lastGroup) { railHtml += `<div class="rail-section-h">${esc(sec.group)}</div>`; lastGroup = sec.group; }
+      const step = grouped ? `<span class="rail-step ${complete ? 'done' : ''}">${complete ? '✓' : i + 1}</span>` : '';
+      railHtml += `<div class="rail-topic ${i === active ? 'active' : ''} ${complete ? 'complete' : ''}" data-idx="${i}">
+        <div class="rail-trow">${step}<span class="rail-tname">${esc(sec.title)}</span><span class="rail-tcount">${sp.done}/${sp.total}</span></div>
         <div class="rail-tbar"><div class="rail-tfill" style="width:${pc}%"></div></div>
       </div>`;
-    }).join('');
+    });
+    $('sheet-rail').innerHTML = railHtml;
     $('sheet-rail').querySelectorAll('.rail-topic').forEach((el) =>
       el.addEventListener('click', () => { S.activeSection[sid] = +el.dataset.idx; renderSheet(sid); }));
     renderSection(sid);
