@@ -820,6 +820,7 @@ select option { background: var(--bg-elev); color: var(--text); }
 .cadence .big { font-size: 34px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .cadence .unit { font-size: 13px; color: var(--text-muted); }
 .cadence-note { margin-top: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.rec-note { font-size: 12px; color: var(--text-muted); margin: -6px 0 14px; line-height: 1.5; }
 .cadence-dots { display: flex; gap: 5px; margin-top: 14px; }
 .cadence-dots i { width: 20px; height: 8px; border-radius: 3px; background: var(--bg-sunken); }
 .cadence-dots i.on { background: var(--accent); }

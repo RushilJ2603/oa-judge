@@ -169,6 +169,35 @@
     } catch (e) { return iso; }
   }
 
+  // Deterministic contest recommendation: classify a contest, then keep it if it's rated + right-level
+  // for the user's current rating band. Pure rules, no AI.
+  function contestClass(c) {
+    const n = (c.name || '').toLowerCase(), s = c.site || '';
+    if (s.includes('atcoder')) return n.includes('beginner') ? 'ABC' : n.includes('regular') ? 'ARC' : n.includes('grand') ? 'AGC' : 'AtCoder';
+    if (s.includes('codeforces')) {
+      if (/div\.?\s*4/.test(n)) return 'Div4';
+      if (/div\.?\s*3/.test(n)) return 'Div3';
+      if (/educational/.test(n)) return 'Edu';
+      if (/div\.?\s*1\s*\+\s*2|global/.test(n)) return 'Div12';
+      if (/div\.?\s*2/.test(n)) return 'Div2';
+      if (/div\.?\s*1/.test(n)) return 'Div1';
+      return 'CF';
+    }
+    if (s.includes('codechef')) return 'Starters';
+    if (s.includes('leetcode')) return 'LC';
+    return 'other';
+  }
+  function recSet(r) {
+    if (r == null || r < 1400) return { ABC: 1, Div4: 1, Div3: 1, Edu: 1, Div12: 1, Starters: 1, LC: 1, AtCoder: 1, CF: 1 };
+    if (r < 1600) return { ABC: 1, Div3: 1, Div2: 1, Div12: 1, Edu: 1, Starters: 1 };
+    if (r < 1900) return { ABC: 1, ARC: 1, Div2: 1, Div12: 1, Edu: 1, Starters: 1 };
+    if (r < 2100) return { ARC: 1, AGC: 1, Div2: 1, Div12: 1, Edu: 1 };
+    return { ARC: 1, AGC: 1, Div1: 1, Div12: 1 };
+  }
+  const CLS_NAME = { ABC: 'AtCoder Beginner', ARC: 'AtCoder Regular', AGC: 'AtCoder Grand', Div4: 'CF Div 4',
+    Div3: 'CF Div 3', Div2: 'CF Div 2', Div1: 'CF Div 1', Div12: 'CF Div 1+2', Edu: 'Educational',
+    Starters: 'CodeChef Starters', LC: 'LeetCode', AtCoder: 'AtCoder', CF: 'Codeforces' };
+
   async function loadTracker() {
     const box = $('tracker-inner');
     box.innerHTML = '<div class="tracker-inner"><p class="spinner">Loading your stats…</p></div>';
@@ -192,6 +221,17 @@
       reached: 'Goal reached', 'no-data': 'Link Codeforces to track' }[v] || v;
     const gapStr = trk.gap != null ? (trk.gap >= 0 ? '+' : '') + trk.gap : '—';
     const yr = String(goal.deadline || '').slice(0, 4);
+    // Recommendations: every Codeforces round always qualifies (it's the goal platform), plus any
+    // other contest that's rated + right-level for the current rating band.
+    const rating = trk.current;
+    const _rs = recSet(rating);
+    const recs = contests.filter((c) => (c.site || '').includes('codeforces') || _rs[contestClass(c)]).slice(0, 6);
+    const recRow = (c) => `<div class="contest-row">
+        <div class="contest-when">${fmtWhen(c.start_at)}</div>
+        <div class="contest-name"><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a>
+          <div class="contest-site">${esc(siteName(c.site))} · ${esc(CLS_NAME[contestClass(c)] || 'contest')}${(c.site || '').includes('codeforces') ? ' · rating platform' : ' · rated for your level'}</div></div>
+        <a class="contest-ics" href="${icsHref(c)}" download="${esc(slug(c.name))}.ics" title="Add to calendar">+ .ics</a>
+      </div>`;
 
     html += `<div class="tk-grid">
       <div class="tk-card wide">
@@ -206,6 +246,12 @@
           <div class="tk-stat"><div class="v">${trk.days_left != null ? trk.days_left : '—'}</div><div class="l">Days to deadline</div></div>
         </div>
         ${trajectoryChart(trk, goal)}
+      </div>
+
+      <div class="tk-card wide">
+        <h2>Recommended for you</h2>
+        <div class="rec-note">Contests that move your rating${rating != null ? ` at ${rating} (${tierName(rating)})` : ''} — every Codeforces round, plus level-matched AtCoder / CodeChef / LeetCode.</div>
+        ${recs.length ? recs.map(recRow).join('') : '<p class="tk-muted">No matching contests in the current window — see the full list below.</p>'}
       </div>
 
       <div class="tk-card"><h2>Contest cadence</h2>
