@@ -9,6 +9,7 @@ from flask import Flask, g, jsonify, request, send_from_directory, session
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import auth  # noqa: E402  (GitHub OAuth; no-op when AUTH is not configured)
 import config  # noqa: E402
+import cp  # noqa: E402  (CP + System Design sheets: fetchers + deterministic tracker)
 import db  # noqa: E402
 import sharing  # noqa: E402  (Phase 5: git sync + problem authoring/publish)
 import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
@@ -518,6 +519,135 @@ def api_bank_publish():
         return jsonify({"ok": False, "error": "verification failed — not publishing",
                         "verify": ver}), 400
     return jsonify(sharing.publish(pid, body.get("message", "")))
+
+
+# ============================================================ CP + System Design sheets
+_STATS_TTL = 6 * 3600      # refresh a linked site's stats at most this often
+_CONTEST_TTL = 3600        # refresh the upcoming-contest feed hourly
+
+
+@app.route("/api/sheets")
+def api_sheets():
+    return jsonify({"sheets": cp.list_sheets()})
+
+
+@app.route("/api/sheet/<sid>")
+def api_sheet(sid):
+    sheet = cp.load_sheet(sid)
+    if not sheet:
+        return jsonify({"error": "no such sheet"}), 404
+    prog = store.sheet_progress()
+    ids = cp.all_item_ids(sheet)
+    done = sum(1 for i in ids if prog.get(i) == "done")
+    return jsonify({"sheet": sheet, "progress": prog,
+                    "counts": {"total": len(ids), "done": done}})
+
+
+@app.route("/api/sheet-item", methods=["POST"])
+def api_sheet_item():
+    b = request.get_json(force=True)
+    item_id = b.get("item_id")
+    if not item_id:
+        return jsonify({"ok": False, "error": "item_id required"}), 400
+    if b.get("clear"):
+        store.clear_sheet_item(item_id)
+    else:
+        store.set_sheet_item(item_id, b.get("status", "done"))
+    return jsonify({"ok": True})
+
+
+def _stats_age(iso):
+    try:
+        return (datetime.datetime.now(datetime.timezone.utc)
+                - datetime.datetime.fromisoformat(iso)).total_seconds()
+    except Exception:
+        return None
+
+
+def _calibrate_goal():
+    """The first time we ever see a Codeforces rating, pin it as the tracker's start point."""
+    if store.cp_goal().get("start_rating") is not None:
+        return
+    p = (store.cp_stats_cache_get("codeforces") or {}).get("payload") or {}
+    if not p.get("ok"):
+        return
+    hist = p.get("history") or []
+    if hist:
+        store.set_cp_goal(start_rating=hist[0]["r"], start_at=hist[0]["t"])
+    elif p.get("rating") is not None:
+        store.set_cp_goal(start_rating=p["rating"],
+                          start_at=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
+
+
+def _refresh_cp_stats(handles):
+    for site, handle in handles.items():
+        fn = cp.FETCHERS.get(site)
+        if fn and handle:
+            res = fn(handle)
+            store.cp_stats_cache_put(site, res, ok=bool(res.get("ok")))
+    _calibrate_goal()
+
+
+def _cp_payload():
+    stats = {}
+    for site in ("codeforces", "atcoder", "leetcode", "codechef"):
+        c = store.cp_stats_cache_get(site)
+        if c:
+            stats[site] = {"data": c["payload"], "ok": c["ok"], "fetched_at": c["fetched_at"]}
+    cf = store.cp_stats_cache_get("codeforces")
+    trk = cp.tracker(store.cp_goal(), (cf or {}).get("payload") if cf else None)
+    return {"handles": store.cp_handles(), "stats": stats, "tracker": trk, "goal": store.cp_goal()}
+
+
+@app.route("/api/cp/handles", methods=["GET", "POST"])
+def api_cp_handles():
+    if request.method == "POST":
+        b = request.get_json(force=True)
+        for site in ("codeforces", "atcoder", "leetcode", "codechef"):
+            if site in b:
+                store.set_cp_handle(site, (b.get(site) or "").strip())
+        return jsonify({"ok": True, "handles": store.cp_handles()})
+    return jsonify({"handles": store.cp_handles()})
+
+
+@app.route("/api/cp/sync", methods=["POST"])
+def api_cp_sync():
+    """Force-refresh every linked site now (the 'Refresh' button)."""
+    _refresh_cp_stats(store.cp_handles())
+    return jsonify(_cp_payload())
+
+
+@app.route("/api/cp/stats")
+def api_cp_stats():
+    handles = store.cp_handles()
+    if handles:
+        stale = any(
+            (store.cp_stats_cache_get(s) is None) or
+            ((_stats_age(store.cp_stats_cache_get(s)["fetched_at"]) or 1e9) > _STATS_TTL)
+            for s in handles)
+        if stale:
+            _refresh_cp_stats(handles)
+    return jsonify(_cp_payload())
+
+
+@app.route("/api/cp/contests")
+def api_cp_contests():
+    age = store.contests_age_seconds()
+    if age is None or age > _CONTEST_TTL:
+        rows = cp.fetch_contests()
+        if rows:
+            store.contests_replace(rows)
+    return jsonify({"contests": store.contests_get()})
+
+
+@app.route("/api/cp/goal", methods=["GET", "POST"])
+def api_cp_goal():
+    if request.method == "POST":
+        b = request.get_json(force=True)
+        store.set_cp_goal(target_rating=b.get("target_rating"), deadline=b.get("deadline"),
+                          pace_per_day=b.get("pace_per_day"))
+        return jsonify({"ok": True, "goal": store.cp_goal()})
+    return jsonify({"goal": store.cp_goal()})
 
 
 def _already_running(port: int) -> bool:

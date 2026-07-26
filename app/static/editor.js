@@ -390,10 +390,13 @@
         /** Raw Monaco instance — self-test only; app code should use the methods above. */
         _editorForTest() { return editor; },
 
-        /** Bind Ctrl/Cmd+Enter to submit, matching the old editor's shortcut. */
+        /** Bind Ctrl/Cmd+Enter and Ctrl/Cmd+' (LeetCode-style) to submit. */
         addSubmitShortcut(fn) {
             if (!editor || !monacoRef) return;
             editor.addCommand(monacoRef.KeyMod.CtrlCmd | monacoRef.KeyCode.Enter, fn);
+            if (monacoRef.KeyCode.Quote != null) {
+                editor.addCommand(monacoRef.KeyMod.CtrlCmd | monacoRef.KeyCode.Quote, fn);
+            }
         }
     };
 

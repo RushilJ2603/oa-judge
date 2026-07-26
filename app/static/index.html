@@ -4,13 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
-    <link rel="stylesheet" href="/static/style.css?v=11">
+    <link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body>
     <header class="app-header">
         <div class="header-left">
             <button class="icon-btn" id="sidebar-toggle" title="Toggle problem list" aria-label="Toggle problem list">☰</button>
             <span class="app-name">OA&nbsp;Judge</span>
+            <nav class="topnav" id="topnav" aria-label="Sections">
+                <button class="topnav-item active" data-view="judge">Judge</button>
+                <button class="topnav-item" data-view="cp">CP Sheet</button>
+                <button class="topnav-item" data-view="sd">System&nbsp;Design</button>
+                <button class="topnav-item" data-view="tracker">Tracker</button>
+            </nav>
             <span class="breadcrumb" id="breadcrumb">Select a problem</span>
         </div>
         <div class="header-right">
@@ -123,11 +129,32 @@
                     <button class="btn btn-subtle" id="btn-custom-input-toggle" title="Toggle the custom-input box">Custom Input</button>
                     <button class="btn btn-subtle" id="btn-stress" title="Race your code against the reference on random inputs to surface the smallest input where it fails">Find Failing Test</button>
                     <button class="btn btn-neutral" id="btn-run" title="Compile and run once against your custom input">Run</button>
-                    <button class="btn btn-primary" id="btn-submit" title="Judge against all tests (Ctrl/Cmd+Enter)">Submit</button>
+                    <button class="btn btn-primary" id="btn-submit" title="Judge against all tests (Ctrl/Cmd+Enter or Ctrl/Cmd+')">Submit</button>
                 </div>
             </div>
         </section>
     </div>
+
+    <!-- ===== CP / System Design sheet view (hidden until its nav tab is picked) ===== -->
+    <section class="sheet-view" id="sheet-view" style="display:none">
+        <div class="sheet-head">
+            <div class="sheet-head-main">
+                <h1 class="sheet-title" id="sheet-title"></h1>
+                <p class="sheet-sub" id="sheet-sub"></p>
+            </div>
+            <div class="sheet-meter" id="sheet-meter"></div>
+        </div>
+        <div class="roadmap" id="sheet-roadmap"></div>
+        <div class="sheet-body">
+            <aside class="sheet-rail" id="sheet-rail"></aside>
+            <div class="sheet-content" id="sheet-content"></div>
+        </div>
+    </section>
+
+    <!-- ===== Contest tracker view ===== -->
+    <section class="tracker-view" id="tracker-view" style="display:none">
+        <div class="tracker-inner" id="tracker-inner"></div>
+    </section>
 
     <!-- Login gate (hosted, multi-user mode only). Hidden locally. -->
     <div class="login-overlay" id="login-overlay" style="display:none">
@@ -152,7 +179,8 @@
         </div>
     </div>
 
-    <script src="/static/editor.js?v=11"></script>
+    <script src="/static/editor.js?v=13"></script>
     <script src="/static/app.js?v=11"></script>
+    <script src="/static/sheets.js?v=14"></script>
 </body>
 </html>

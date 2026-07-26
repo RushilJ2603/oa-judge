@@ -531,3 +531,133 @@ def online_users(within_seconds: int = 300) -> list[dict]:
         " WHERE last_seen IS NOT NULL AND last_seen >= ? ORDER BY last_seen DESC",
         (cutoff,)).fetchall()
     return [dict(r) for r in rows]
+
+
+# ============================================================ CP + System Design sheets
+# Data access for the two "sheets", the per-user checklist that rides them, linked CP handles,
+# cached stats, cached upcoming contests, and the rating goal. Network fetchers and the
+# deterministic tracker maths live in cp.py; this stays pure DB.
+
+def sheet_progress() -> dict:
+    """{item_id: status} for the current user across every sheet."""
+    rows = db.connect().execute(
+        "SELECT item_id, status FROM sheet_progress WHERE user_id = ?", (_uid(),)).fetchall()
+    return {r["item_id"]: r["status"] for r in rows}
+
+
+def set_sheet_item(item_id: str, status: str = "done") -> None:
+    conn = db.connect()
+    conn.execute(
+        "INSERT INTO sheet_progress (user_id, item_id, status, updated_at) VALUES (?,?,?,?)"
+        " ON CONFLICT (user_id, item_id) DO UPDATE SET status = excluded.status,"
+        " updated_at = excluded.updated_at",
+        (_uid(), item_id, status, _now()))
+    conn.commit()
+
+
+def clear_sheet_item(item_id: str) -> None:
+    conn = db.connect()
+    conn.execute("DELETE FROM sheet_progress WHERE user_id = ? AND item_id = ?", (_uid(), item_id))
+    conn.commit()
+
+
+def cp_handles() -> dict:
+    rows = db.connect().execute(
+        "SELECT site, handle FROM cp_handle WHERE user_id = ?", (_uid(),)).fetchall()
+    return {r["site"]: r["handle"] for r in rows}
+
+
+def set_cp_handle(site: str, handle: str) -> None:
+    conn = db.connect()
+    if not handle:
+        conn.execute("DELETE FROM cp_handle WHERE user_id = ? AND site = ?", (_uid(), site))
+    else:
+        conn.execute(
+            "INSERT INTO cp_handle (user_id, site, handle, updated_at) VALUES (?,?,?,?)"
+            " ON CONFLICT (user_id, site) DO UPDATE SET handle = excluded.handle,"
+            " updated_at = excluded.updated_at",
+            (_uid(), site, handle.strip(), _now()))
+    conn.commit()
+
+
+def cp_stats_cache_get(site: str) -> dict | None:
+    r = db.connect().execute(
+        "SELECT payload, ok, fetched_at FROM cp_stats_cache WHERE user_id = ? AND site = ?",
+        (_uid(), site)).fetchone()
+    if not r:
+        return None
+    try:
+        payload = json.loads(r["payload"])
+    except Exception:
+        payload = None
+    return {"payload": payload, "ok": bool(r["ok"]), "fetched_at": r["fetched_at"]}
+
+
+def cp_stats_cache_put(site: str, payload: dict, ok: bool = True) -> None:
+    conn = db.connect()
+    conn.execute(
+        "INSERT INTO cp_stats_cache (user_id, site, payload, ok, fetched_at) VALUES (?,?,?,?,?)"
+        " ON CONFLICT (user_id, site) DO UPDATE SET payload = excluded.payload,"
+        " ok = excluded.ok, fetched_at = excluded.fetched_at",
+        (_uid(), site, json.dumps(payload), 1 if ok else 0, _now()))
+    conn.commit()
+
+
+def contests_get(limit: int = 60) -> list[dict]:
+    rows = db.connect().execute(
+        "SELECT site, name, url, start_at, duration_min FROM contest_cache"
+        " ORDER BY start_at LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def contests_age_seconds() -> float | None:
+    r = db.connect().execute("SELECT MAX(fetched_at) AS f FROM contest_cache").fetchone()
+    if not r or not r["f"]:
+        return None
+    try:
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(r["f"])).total_seconds()
+    except Exception:
+        return None
+
+
+def contests_replace(rows: list[dict]) -> None:
+    """Swap the global upcoming-contest cache in one transaction."""
+    conn = db.connect()
+    now = _now()
+    conn.execute("DELETE FROM contest_cache")
+    conn.executemany(
+        "INSERT INTO contest_cache (site, name, url, start_at, duration_min, fetched_at)"
+        " VALUES (?,?,?,?,?,?)",
+        [(r["site"], r["name"], r["url"], r["start_at"], r.get("duration_min"), now) for r in rows])
+    conn.commit()
+
+
+def cp_goal() -> dict:
+    r = db.connect().execute(
+        "SELECT target_rating, deadline, start_rating, start_at, pace_per_day FROM cp_goal"
+        " WHERE user_id = ?", (_uid(),)).fetchone()
+    if not r:
+        return {"target_rating": 1900, "deadline": "2027-05-31", "start_rating": None,
+                "start_at": None, "pace_per_day": 3}
+    return dict(r)
+
+
+def set_cp_goal(target_rating=None, deadline=None, start_rating=None, start_at=None,
+                pace_per_day=None) -> None:
+    cur = cp_goal()
+    conn = db.connect()
+    conn.execute(
+        "INSERT INTO cp_goal (user_id, target_rating, deadline, start_rating, start_at,"
+        " pace_per_day, updated_at) VALUES (?,?,?,?,?,?,?)"
+        " ON CONFLICT (user_id) DO UPDATE SET target_rating = excluded.target_rating,"
+        " deadline = excluded.deadline, start_rating = excluded.start_rating,"
+        " start_at = excluded.start_at, pace_per_day = excluded.pace_per_day,"
+        " updated_at = excluded.updated_at",
+        (_uid(),
+         target_rating if target_rating is not None else cur["target_rating"],
+         deadline if deadline is not None else cur["deadline"],
+         start_rating if start_rating is not None else cur["start_rating"],
+         start_at if start_at is not None else cur["start_at"],
+         pace_per_day if pace_per_day is not None else cur["pace_per_day"],
+         _now()))
+    conn.commit()
