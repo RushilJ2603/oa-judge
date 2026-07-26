@@ -15,6 +15,8 @@
     const BASE = '/static/vendor/monaco/';
     let editor = null;
     let monacoRef = null;
+    let monacoLoading = null;   // shared promise so init() + create() load Monaco exactly once
+    let lastDark = true;        // last theme applied; new instances adopt it (Monaco theme is global)
     let changeHandler = null;
     // Set while the app writes the buffer itself (loading a draft, switching language,
     // resetting to the stub). Without this, merely opening a problem would look like an
@@ -264,11 +266,12 @@
         });
     }
 
-    // ---------------------------------------------------------------- public API
-    const OAEditor = {
-        /** Boot Monaco into `container`. Resolves once the editor is usable. */
-        init(container, opts) {
-            opts = opts || {};
+    // Load the offline AMD Monaco exactly once; both the judge editor and any create()'d
+    // instance (compiler, scratchpad) await this same promise.
+    function ensureMonaco() {
+        if (monacoRef) return Promise.resolve(monacoRef);
+        if (monacoLoading) return monacoLoading;
+        monacoLoading = new Promise((resolve) => {
             // The AMD loader and the web worker both need to resolve paths offline.
             window.require = { paths: { vs: BASE + 'vs' } };
             window.MonacoEnvironment = {
@@ -278,61 +281,99 @@
                     return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(src);
                 }
             };
-
             const loader = document.createElement('script');
             loader.src = BASE + 'vs/loader.js';
             loader.onload = () => {
                 window.require.config({ paths: { vs: BASE + 'vs' } });
                 window.require(['vs/editor/editor.main'], () => {
-                    // The global is the conventional AMD entry point and is complete once
-                    // this module resolves.
                     const monaco = window.monaco;
                     monacoRef = monaco;
                     defineTheme(monaco);
                     registerCompletions(monaco);
-
-                    editor = monaco.editor.create(container, {
-                        value: opts.value || '',
-                        language: opts.language === 'py' ? 'python' : 'cpp',
-                        theme: opts.dark === false ? 'oaj-light' : 'oaj-dark',
-                        fontFamily: "'JetBrains Mono','Cascadia Code',Consolas,'Courier New',monospace",
-                        fontSize: 13.5,
-                        lineHeight: 20,
-                        minimap: { enabled: false },
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        tabSize: 4,
-                        insertSpaces: true,
-                        renderWhitespace: 'selection',
-                        bracketPairColorization: { enabled: true },
-                        autoClosingBrackets: 'languageDefined',
-                        autoIndent: 'full',
-                        formatOnPaste: false,
-                        smoothScrolling: true,
-                        cursorBlinking: 'smooth',
-                        padding: { top: 10, bottom: 10 },
-                        suggestOnTriggerCharacters: true,
-                        quickSuggestions: { other: true, comments: false, strings: false },
-                        acceptSuggestionOnEnter: 'on',    // Enter accepts the highlighted suggestion (Tab too).
-                        tabCompletion: 'on',
-                        wordBasedSuggestions: 'currentDocument',
-                        suggestSelection: 'first',
-                        scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
-                        stickyScroll: { enabled: false },
-                        occurrencesHighlight: 'singleFile',
-                        renderLineHighlight: 'line'
-                    });
-
-                    editor.onDidChangeModelContent(() => {
-                        if (programmatic) return;
-                        if (changeHandler) changeHandler(editor.getValue());
-                    });
-
-                    readyResolve(OAEditor);
+                    resolve(monaco);
                 });
             };
             document.head.appendChild(loader);
+        });
+        return monacoLoading;
+    }
+
+    // Options shared by every OA Judge Monaco instance so they look and feel identical.
+    function baseOptions(opts) {
+        return {
+            value: opts.value || '',
+            language: opts.language === 'py' ? 'python' : 'cpp',
+            theme: (opts.dark != null ? opts.dark : lastDark) ? 'oaj-dark' : 'oaj-light',
+            fontFamily: "'JetBrains Mono','Cascadia Code',Consolas,'Courier New',monospace",
+            fontSize: 13.5,
+            lineHeight: 20,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 4,
+            insertSpaces: true,
+            renderWhitespace: 'selection',
+            bracketPairColorization: { enabled: true },
+            autoClosingBrackets: 'languageDefined',
+            autoIndent: 'full',
+            formatOnPaste: false,
+            smoothScrolling: true,
+            cursorBlinking: 'smooth',
+            padding: { top: 10, bottom: 10 },
+            suggestOnTriggerCharacters: true,
+            quickSuggestions: { other: true, comments: false, strings: false },
+            acceptSuggestionOnEnter: 'on',
+            tabCompletion: 'on',
+            wordBasedSuggestions: 'currentDocument',
+            suggestSelection: 'first',
+            scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
+            stickyScroll: { enabled: false },
+            occurrencesHighlight: 'singleFile',
+            renderLineHighlight: 'line'
+        };
+    }
+
+    // ---------------------------------------------------------------- public API
+    const OAEditor = {
+        /** Boot the judge's Monaco into `container`. Resolves once the editor is usable. */
+        init(container, opts) {
+            opts = opts || {};
+            lastDark = opts.dark !== false;
+            ensureMonaco().then((monaco) => {
+                editor = monaco.editor.create(container, baseOptions(opts));
+                editor.onDidChangeModelContent(() => {
+                    if (programmatic) return;
+                    if (changeHandler) changeHandler(editor.getValue());
+                });
+                readyResolve(OAEditor);
+            });
             return ready;
+        },
+
+        /** Create an INDEPENDENT Monaco editor (compiler / scratchpad) in `container`.
+         *  Returns a lightweight handle immediately; its methods no-op until Monaco is ready.
+         *  opts: { value, language, onChange, onRun }. */
+        create(container, opts) {
+            opts = opts || {};
+            const h = { _ed: null, _onChange: opts.onChange || null, ready: null };
+            h.ready = ensureMonaco().then((monaco) => {
+                const ed = monaco.editor.create(container, baseOptions(opts));
+                h._ed = ed;
+                ed.onDidChangeModelContent(() => { if (h._onChange) h._onChange(ed.getValue()); });
+                if (opts.onRun) {
+                    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, opts.onRun);
+                    if (monaco.KeyCode.Quote != null) ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Quote, opts.onRun);
+                }
+                return h;
+            });
+            h.getValue = () => (h._ed ? h._ed.getValue() : (opts.value || ''));
+            h.setValue = (t) => { if (h._ed) h._ed.setValue(t == null ? '' : t); };
+            h.setLanguage = (lang) => { if (h._ed && monacoRef) monacoRef.editor.setModelLanguage(h._ed.getModel(), lang === 'py' ? 'python' : 'cpp'); };
+            h.onChange = (cb) => { h._onChange = cb; };
+            h.focus = () => { if (h._ed) h._ed.focus(); };
+            h.layout = () => { if (h._ed) h._ed.layout(); };
+            h.dispose = () => { if (h._ed) { h._ed.dispose(); h._ed = null; } };
+            return h;
         },
 
         whenReady() { return ready; },
@@ -363,6 +404,7 @@
         },
 
         setTheme(dark) {
+            lastDark = !!dark;
             if (monacoRef) monacoRef.editor.setTheme(dark ? 'oaj-dark' : 'oaj-light');
         },
 

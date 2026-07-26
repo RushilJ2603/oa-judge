@@ -154,7 +154,7 @@
     }
     pad.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); btn.classList.add('active');
     if (!pad.dataset.built) buildPad(pad, btn.dataset.item);
-    else pad.querySelector('.pad-code').focus();
+    else if (pad._cc) { pad._cc.layout(); pad._cc.focus(); }
   }
 
   function autoGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight, 128), 560) + 'px'; }
@@ -178,8 +178,7 @@
          <button class="pad-run" type="button" title="Compile & run with the input below (Ctrl/Cmd+Enter)">Run ▸</button>
          <button class="pad-copy" type="button" title="Copy code to clipboard">Copy</button>
        </div>
-       <textarea class="pad-code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"
-                 placeholder="Write your solution here — Run it below, or Copy it into the site's submit box."></textarea>
+       <div class="pad-editor"></div>
        <div class="pad-io" hidden>
          <div class="pad-io-col">
            <div class="pad-io-h">Custom input <span class="pad-io-sub">stdin</span></div>
@@ -191,16 +190,21 @@
          </div>
        </div>
        <div class="pad-hint">Autosaved to your account · runs in the same sandbox as the judge (C++ &amp; Python). The problem link is unchanged.</div>`;
-    const ta = pad.querySelector('.pad-code'), sel = pad.querySelector('.pad-lang');
+    const editorHost = pad.querySelector('.pad-editor'), sel = pad.querySelector('.pad-lang');
     const status = pad.querySelector('.pad-status'), copy = pad.querySelector('.pad-copy');
     const run = pad.querySelector('.pad-run'), io = pad.querySelector('.pad-io');
     const stdin = pad.querySelector('.pad-stdin'), out = pad.querySelector('.pad-out');
     const meta = pad.querySelector('.pad-run-meta');
+    let initCode = '', initLang = 'cpp';
     try {
       const d = await jget('/api/sheet-code?item=' + encodeURIComponent(itemId));
-      if (d.ok) { ta.value = d.code || ''; if (d.lang) sel.value = d.lang; }
+      if (d.ok) { initCode = d.code || ''; if (d.lang) initLang = d.lang; }
     } catch (e) { /* start blank */ }
-    autoGrow(ta); ta.focus();
+    if (PAD_LANGS.some(([v]) => v === initLang)) sel.value = initLang;
+    const pcc = window.OAEditor.create(editorHost, {
+      value: initCode, language: langBase(sel.value), onRun: () => doRun(),
+    });
+    pad._cc = pcc;
     const syncRunnable = () => {
       const ok = !!RUNNABLE[sel.value];
       run.disabled = !ok;
@@ -210,31 +214,23 @@
     let timer = null;
     const save = () => {
       status.textContent = 'Saving…';
-      jpost('/api/sheet-code', { item_id: itemId, lang: sel.value, code: ta.value })
+      jpost('/api/sheet-code', { item_id: itemId, lang: sel.value, code: pcc.getValue() })
         .then(() => { status.textContent = 'Saved'; })
         .catch(() => { status.textContent = 'Save failed'; });
     };
     const queue = () => { clearTimeout(timer); status.textContent = 'Editing…'; timer = setTimeout(save, 700); };
-    const insertTab = (el) => {
-      const s = el.selectionStart, en = el.selectionEnd;
-      el.value = el.value.slice(0, s) + '    ' + el.value.slice(en);
-      el.selectionStart = el.selectionEnd = s + 4;
-    };
-    ta.addEventListener('input', () => { autoGrow(ta); queue(); });
-    sel.addEventListener('change', () => { syncRunnable(); save(); });
-    ta.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
-      if (e.key === 'Tab') { e.preventDefault(); insertTab(ta); queue(); }
-    });
+    pcc.onChange(queue);
+    sel.addEventListener('change', () => { syncRunnable(); pcc.setLanguage(langBase(sel.value)); save(); });
     stdin.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
-      if (e.key === 'Tab') { e.preventDefault(); insertTab(stdin); }
+      if (e.key === 'Tab') { e.preventDefault(); const s = stdin.selectionStart, en = stdin.selectionEnd; stdin.value = stdin.value.slice(0, s) + '    ' + stdin.value.slice(en); stdin.selectionStart = stdin.selectionEnd = s + 4; }
     });
     copy.addEventListener('click', async () => {
-      await copyText(ta.value);
+      await copyText(pcc.getValue());
       copy.textContent = 'Copied ✓'; copy.classList.add('ok');
       setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
     });
+    pcc.ready.then(() => pcc.focus());
 
     async function doRun() {
       if (run.disabled || run.dataset.busy) return;
@@ -242,7 +238,7 @@
       run.dataset.busy = '1'; run.textContent = 'Running…';
       out.className = 'pad-out'; out.textContent = ''; meta.textContent = 'compiling…';
       try {
-        const r = await jpost('/api/scratch-run', { lang: sel.value, source: ta.value, stdin: stdin.value });
+        const r = await jpost('/api/scratch-run', { lang: sel.value, source: pcc.getValue(), stdin: stdin.value });
         if (!r.ok) { out.classList.add('err'); out.textContent = r.error || 'Run failed.'; meta.textContent = ''; return; }
         renderRun(r, out, meta);
       } catch (e) {
@@ -293,7 +289,7 @@
 
   function renderCompiler() {
     const host = $('compiler-inner');
-    if (ccBuilt) { host.querySelector('.cc-code').focus(); return; }
+    if (ccBuilt) { if (S.cc) { S.cc.layout(); S.cc.focus(); } return; }
     ccBuilt = true;
     const saved = ccLoad();
     host.innerHTML =
@@ -314,7 +310,7 @@
        <div class="cc-grid">
          <div class="cc-pane cc-pane-code">
            <div class="cc-pane-h">Source</div>
-           <textarea class="cc-code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+           <div class="cc-editor"></div>
          </div>
          <div class="cc-side">
            <div class="cc-pane cc-pane-in">
@@ -327,11 +323,13 @@
            </div>
          </div>
        </div>`;
-    const code = host.querySelector('.cc-code'), lang = host.querySelector('.cc-lang');
+    const lang = host.querySelector('.cc-lang'), editorHost = host.querySelector('.cc-editor');
     const stdin = host.querySelector('.cc-stdin'), out = host.querySelector('.cc-out');
     const meta = host.querySelector('.cc-run-meta'), status = host.querySelector('.cc-status');
     const run = host.querySelector('.cc-run'), copy = host.querySelector('.cc-copy'), clr = host.querySelector('.cc-clear');
     const env = host.querySelector('.cc-env');
+    lang.value = CC_LANGS.some(([v]) => v === saved.lang) ? saved.lang : 'cpp';
+    stdin.value = saved.stdin || '';
     const showEnv = async () => {
       if (!S.env) { try { S.env = await jget('/api/scratch-env'); } catch (e) { return; } }
       const e = S.env[langBase(lang.value)];
@@ -339,36 +337,35 @@
       env.textContent = e.std ? e.label + ' · ' + e.std : e.label;
       if (e.full) env.title = e.full;
     };
-    lang.value = CC_LANGS.some(([v]) => v === saved.lang) ? saved.lang : 'cpp';
-    code.value = saved.code != null ? saved.code : (CC_STARTER[langBase(lang.value)] || '');
-    stdin.value = saved.stdin || '';
-    const persist = () => ccSave({ lang: lang.value, code: code.value, stdin: stdin.value });
+    const cc = window.OAEditor.create(editorHost, {
+      value: saved.code != null ? saved.code : (CC_STARTER[langBase(lang.value)] || ''),
+      language: langBase(lang.value),
+      onRun: () => doRun(),
+    });
+    S.cc = cc;
+    const persist = () => ccSave({ lang: lang.value, code: cc.getValue(), stdin: stdin.value });
     let t = null;
     const queue = () => { clearTimeout(t); status.textContent = 'Editing…'; t = setTimeout(() => { persist(); status.textContent = 'Saved'; }, 400); };
-    const insertTab = (el) => {
-      const s = el.selectionStart, e = el.selectionEnd;
-      el.value = el.value.slice(0, s) + '    ' + el.value.slice(e);
-      el.selectionStart = el.selectionEnd = s + 4;
-    };
-    code.addEventListener('input', queue);
+    cc.onChange(queue);
     stdin.addEventListener('input', queue);
+    stdin.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); const s = stdin.selectionStart, en = stdin.selectionEnd; stdin.value = stdin.value.slice(0, s) + '    ' + stdin.value.slice(en); stdin.selectionStart = stdin.selectionEnd = s + 4; queue(); }
+    });
     lang.addEventListener('change', () => {
-      if (!code.value.trim()) code.value = CC_STARTER[langBase(lang.value)] || '';
+      cc.setLanguage(langBase(lang.value));
+      if (!cc.getValue().trim()) cc.setValue(CC_STARTER[langBase(lang.value)] || '');
       persist(); showEnv();
     });
-    [code, stdin].forEach((el) => el.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
-      if (e.key === 'Tab') { e.preventDefault(); insertTab(el); queue(); }
-    }));
     copy.addEventListener('click', async () => {
-      await copyText(code.value);
+      await copyText(cc.getValue());
       copy.textContent = 'Copied ✓'; copy.classList.add('ok');
       setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
     });
     clr.addEventListener('click', () => {
-      code.value = CC_STARTER[langBase(lang.value)] || ''; stdin.value = '';
+      cc.setValue(CC_STARTER[langBase(lang.value)] || ''); stdin.value = '';
       out.className = 'cc-out'; out.textContent = 'Run your code to see output here.'; meta.textContent = '';
-      persist(); code.focus();
+      persist(); cc.focus();
     });
     async function doRun() {
       if (run.dataset.busy) return;
@@ -376,7 +373,7 @@
       out.className = 'cc-out'; out.textContent = ''; meta.textContent = 'compiling…';
       persist();
       try {
-        const r = await jpost('/api/scratch-run', { lang: lang.value, source: code.value, stdin: stdin.value });
+        const r = await jpost('/api/scratch-run', { lang: lang.value, source: cc.getValue(), stdin: stdin.value });
         if (!r.ok) { out.classList.add('err'); out.textContent = r.error || 'Run failed.'; meta.textContent = ''; return; }
         renderRun(r, out, meta);
       } catch (e) {
@@ -385,7 +382,7 @@
     }
     run.addEventListener('click', doRun);
     showEnv();
-    code.focus();
+    cc.ready.then(() => cc.focus());
   }
 
   async function toggleItem(sid, itemId, el) {

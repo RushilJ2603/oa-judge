@@ -818,6 +818,7 @@ select option { background: var(--bg-elev); color: var(--text); }
     font-family: var(--mono); font-size: 13px; line-height: 1.55; tab-size: 4; white-space: pre;
     overflow-x: auto; }
 .pad-code::placeholder { color: var(--text-muted); opacity: .7; font-family: var(--font, inherit); white-space: normal; }
+.pad-editor { height: 260px; width: 100%; border-bottom: 1px solid var(--border); }
 .pad-hint { padding: 7px 12px; font-size: 11px; color: var(--text-muted);
     border-top: 1px solid var(--border); background: var(--bg-sunken); }
 
@@ -899,9 +900,10 @@ select option { background: var(--bg-elev); color: var(--text); }
     background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px;
     line-height: 1.55; white-space: pre; overflow: auto; }
 .cc-out.err { color: var(--error); }
+.cc-editor { height: 520px; width: 100%; }
 @media (max-width: 860px) {
     .cc-grid { grid-template-columns: 1fr; }
-    .cc-code { min-height: 320px; }
+    .cc-code, .cc-editor { min-height: 340px; height: 360px; }
     .cc-head { gap: 12px; }
     .cc-tools { width: 100%; }
     .cc-status { flex: 1; }
