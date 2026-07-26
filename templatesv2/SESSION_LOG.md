@@ -19,6 +19,28 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 5 — 2026-07-26 (CP + System Design sheets, per-user contest tracker, Ctrl+' submit, company dedup, +1 problem, sync-infra fix)
+
+**AI:** Claude (Opus 4.8) via Claude Code. Orchestrated a large **Grok 4.5** research fan-out for the sheet content; all synthesis, the app code, the design/QA, and every deploy were mine.
+**Start → End:** 2026-07-26 (long continued session) → 2026-07-26 ~23:30 IST.
+
+### What we set out to do
+Turn the user's competitive-programming + system-design prep into structure inside OA Judge: a curated **CP sheet** (post-Striver, Codeforces-style, aiming Candidate Master) and a **System Design sheet** (HLD + LLD for placements), plus a **per-user contest tracker** that says whether they're on pace — all without touching the existing judge UI.
+
+### What actually happened
+- **Research (Grok vs agy).** Fanned out **106 Grok agents** (10 agy + 10 grok first, then a 106-job pool) via a memory-guarded pool (`_research_pool/run_pool.py`, cap 6, MemAvailable floor) so the 10GB WSL box never OOM'd. Grok clearly won on deep-research-with-link-verification (**10/10 vs agy 7/10** completion; richer, more accurate links), so Grok became the default. All 106 finished clean.
+- **Synthesis.** `synth.py` parsed the Grok ladders into `app/sheets/cp.json` + `sd.json`: dedup by URL, **drop LeetCode from CP** (post-Striver = CF-style), then an **importance-weighted retier** — a flat 8/topic was wrong, so backbone OA topics (two-pointer, DP-1D, graphs, binary search…) get 16 core each and pure rating topics (FFT, HLD, centroid) get 0–2. Result: **335 must-do core** → ~4–5 months at 2–3/day. SD sections carry a `group` so the rail renders **sequentially** (Frameworks→Foundations→HLD→LLD, numbered steps).
+- **Build (native, judge untouched).** `app/migrations/006_cp_sheets.sql`, `app/cp.py` (fetchers + deterministic tracker + multi-site contest feed), `app/store.py` (data layer + `canon_company`), `app/server.py` (8 routes), `app/static/sheets.js` + big `style.css` additions (v12→v16), `app/static/index.html` (header nav), `app/static/editor.js` (Ctrl+' = KeyCode.Quote).
+- **Visual QA.** Used the Playwright chromium cache (`--headless --screenshot`) to shoot CP/SD/Tracker on desktop **and** mobile, then a single fix pass: tofu `+` glyph → ASCII, SD titles leaking `h02_load_balancing` (fixed `h1_title` to strip id/slug prefixes), goal label "Rating 1900 (1900)" → CF tier name, and a **mobile header overlap** (hide wordmark + scroll the left cluster).
+- **New problem.** Authored + gated `practice-min-edge-reversals` (0-1 BFS, `problems/practice-min-edge-reversals/`) under Iris — Personal / **Practice**; reference cross-checked vs a Dijkstra brute over 500 random graphs, `gate_candidate.py --allow-no-anchor` = PASS, 100% mutation, 23 hidden gz tests.
+- **Company dedup.** `store.canon_company()` merges `de shaw` + `DE Shaw` → `DE Shaw` and routes blank/`Unknown OA` → a single **Practice** company (verified: Iris — Personal 27→28, DE Shaw 5+3→8).
+
+### The gnarly bug (worth remembering)
+The user reported the tracker still showed **only Codeforces contests** after I'd shipped the multi-site fetch. Two things: (1) the `contest_cache` has a 1h TTL so the old CF-only rows were still served — force-refreshed via `fly ssh`; (2) more importantly, `sharing.sync()` on live returned **"problems/ is not a git checkout"** — the volume bank at `/data/problems` had been seeded WITHOUT a usable `.git`, so **every bank push since seeding (batch8, DE Shaw) had silently never reached the live app** (it sat at 122). Since `oa-problems` is public, I git-cloned it fresh onto the volume (temp dir → swap → `fly apps restart`), which also made future Syncs work. Also learned LeetCode's `/contest/api/list/` REST endpoint 403s bots — switched to its **GraphQL `upcomingContests`**, which works.
+
+### State at end
+Live at oa123.fly.dev: **123 problems** (bank now a real git checkout), CP + SD sheets, deterministic per-user tracker with a keyless four-site contest feed + rating-band recommendations (CF always included), Ctrl+' submit. app HEAD `ab50adb`, bank HEAD `6e6c47c`, assets v16. Parked: batch9's 14 grok judge-problems still need gate/merge.
+
 ## Session 4 — 2026-07-25 (mutation-testing gate, gated Grok pilot +14 problems, 3 app features, $0 storage, 3 deploys)
 
 **AI:** Claude (Opus 4.8) via Claude Code. Orchestrated **Grok 4.5** (`cursor-agent --model cursor-grok-4.5-high`) to bulk-author candidate problems — but ONLY inside an isolated staging clone, and nothing merged without my gate passing. The gate tooling, all fixes, all app code, and every merge decision were mine.

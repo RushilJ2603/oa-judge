@@ -1,6 +1,35 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-26 23:30 IST] — session 5: CP + System Design sheets, per-user contest tracker, Ctrl+' submit, company dedup, +1 gated problem, sync-infra fix | By: Claude (Opus 4.8, Claude Code)
+
+### Done This Session
+- **Two new sheets, native to the judge (judge UI untouched).** A **CP sheet** (43 topics, 1513
+  problems) and a **System Design sheet** (63 HLD/LLD modules), authored from a **106-agent Grok
+  research fan-out** (`_research_pool/run_pool.py`, memory-guarded pool; Grok beat agy 10/10 vs 7/10 on
+  deep-research-with-link-verification) and synthesized into `app/sheets/cp.json` + `sd.json` by
+  `synth.py` (parse ladders → dedup by URL → drop LeetCode from CP → importance-weighted retier).
+  CP is **post-Striver, Codeforces-style**, ceiling Candidate Master; core is **weighted by OA/interview
+  frequency to 335 must-do problems** (backbone topics 16 each, advanced 2, FFT 0) → **~4–5 months at
+  2–3/day**. SD is **explicitly sequential** (grouped rail Frameworks→Foundations→HLD→LLD, numbered steps).
+- **Contest Tracker (deterministic, per-user, $0).** Link CF/AtCoder/LeetCode/CodeChef handles once →
+  auto **rating trajectory vs a target line** (CM/1900 by 2027-05-31) with an on-track verdict (SVG
+  chart), **cadence**, a **multi-site upcoming-contest feed with NO clist key** (CF `contest.list`,
+  AtCoder page scrape, CodeChef list API, LeetCode **GraphQL** `upcomingContests`), `.ics`, and a
+  **deterministic "Recommended for you"** (every Codeforces round always qualifies + level-matched
+  others). No AI. Backend: `migration 006`, `cp.py`, `store.py` data layer, 8 routes.
+- **Ctrl/Cmd+' submits** (LeetCode-style), alongside Ctrl/Cmd+Enter.
+- **Sidebar company dedup**: `canon_company()` merges variants (de shaw + DE Shaw → DE Shaw) and routes
+  blank/unknown companies to a single **Practice** company (at index time).
+- **+1 gated problem**: `practice-min-edge-reversals` (0-1 BFS) under **Iris — Personal / Practice** —
+  GATE: PASS (100% mutation; reference cross-checked vs a Dijkstra brute over 500 random graphs).
+- **Fixed a real infra bug**: the live **volume bank was not a git checkout**, so `Sync` had been
+  silently failing — prior bank pushes (batch8, DE Shaw) never reached live (stuck at 122). Re-cloned
+  the public `oa-problems` onto `/data/problems` as a proper checkout + restarted; **live bank now 123
+  and Sync works again.**
+- Deployed several times; assets **v12 → v16**; visual QA via headless-chromium screenshots (desktop +
+  mobile) with a fix pass (tofu glyphs, SD slug-titles, goal label, mobile header overlap).
+
 ## [2026-07-25 22:35 IST] — session 4: mutation-testing gate, gated Grok pilot (+14 problems), app features, $0 storage | By: Claude (Opus 4.8, Claude Code)
 
 ### Done This Session

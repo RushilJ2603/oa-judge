@@ -14,6 +14,16 @@
 
 ---
 
+## [2026-07-26] — Populating the live volume bank without a real .git (breaks Sync silently)
+**What was tried:** `sharing.ensure_seeded()` copied the seed bank onto `/data/problems`, and we assumed the in-app **Sync** (`git fetch` + `merge --ff-only`) would then keep it current.
+**Why rejected:** The volume copy ended up **without a usable `.git`**, so `sharing.sync()` returned `"problems/ is not a git checkout — nothing to sync"` and **every bank push after the seed never reached the live app** — it sat at 122 problems while origin had 123+. The symptom the user saw was "the new problems / the multi-site contest change aren't showing." Fix: because `oa-problems` is **public**, git-clone it fresh onto the volume as a real checkout (`fly ssh` → clone to a temp dir → swap into `/data/problems` → `fly apps restart`, which reindexes on boot). The DB (`/data/judge.db`) is a separate file so personal data is untouched.
+**If user brings it up again:** After seeding, VERIFY the volume bank is a git checkout (`git -C /data/problems rev-parse HEAD`); if not, re-clone. Sync (or `fly ssh git pull`) only works on a real checkout.
+
+## [2026-07-26] — LeetCode's /contest/api/list/ REST endpoint for upcoming contests
+**What was tried:** Fetching upcoming LeetCode contests from `https://leetcode.com/contest/api/list/` for the tracker's multi-site feed.
+**Why rejected:** It returns **HTTP 403 Forbidden** to the server (bot protection), same as LC's other REST/HTML surfaces. Fix: use the **GraphQL** endpoint instead — `POST https://leetcode.com/graphql` with `query{upcomingContests{title titleSlug startTime duration}}` is NOT blocked (it's the same endpoint already used for LC user stats). AtCoder (page scrape), CodeChef (`/api/list/contests/all`), and CF (`contest.list`) all work keyless; each fetcher is best-effort so one site failing never blanks the others.
+**If user brings it up again:** For any LeetCode data from the server, prefer the GraphQL endpoint; the REST/HTML endpoints 403. (This is consistent with the earlier note that LC problem links can't be curl/WebFetch-verified.)
+
 ## [2026-07-25] — Treating a mutant TIMEOUT as "skip this input" instead of a kill
 **What was tried:** To stop the mutation score flapping under CPU load, `mutation_test.run()` returned a `<TIMEOUT>` sentinel and `killed_by` SKIPPED any input where the mutant timed out (don't count it as a kill).
 **Why rejected:** A mutant that flips a loop counter (`i++`→`i--`) infinite-loops on EVERY input, so skipping made it survive `killed_by`, then `find_distinguisher` re-ran it against ~80 generator inputs, each hitting the 25s timeout → a >30-minute hang per such mutant. The real fix is a RELIABLE ORACLE (retry the reference at 4× timeout, then DROP any input it still can't finish); given that, every kept input is reference-tractable, so a mutant timeout/crash there is a genuine TLE/crash = **KILL** (confirmed with one larger-budget retry to rule out a load blip). Per-mutant timeout is adaptive (`max(6, min(25, 15×max_ref_seconds))`).
