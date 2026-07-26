@@ -153,44 +153,102 @@ FETCHERS = {"codeforces": fetch_codeforces, "atcoder": fetch_atcoder,
 
 
 # --------------------------------------------------------------------------- contests
+# Each site fetched from its own public endpoint so the multi-site feed works with NO key. clist.by
+# (one call, all judges) is used only when a key is configured. Every fetcher is best-effort and
+# returns [] on any failure, so one flaky site never blanks the others.
+
+def _contests_codeforces() -> list[dict]:
+    out = []
+    d = _get_json("https://codeforces.com/api/contest.list?gym=false")
+    if d.get("status") == "OK":
+        for c in d["result"]:
+            if c.get("phase") != "BEFORE" or not c.get("startTimeSeconds"):
+                continue
+            out.append({"site": "codeforces.com", "name": c["name"],
+                        "url": f"https://codeforces.com/contest/{c['id']}",
+                        "start_at": datetime.fromtimestamp(c["startTimeSeconds"], timezone.utc).isoformat(),
+                        "duration_min": (c.get("durationSeconds") or 0) // 60})
+    return out
+
+
+def _contests_codechef() -> list[dict]:
+    out = []
+    d = _get_json("https://www.codechef.com/api/list/contests/all")
+    for c in d.get("future_contests", []):
+        start = c.get("contest_start_date_iso") or c.get("contest_start_date")
+        out.append({"site": "codechef.com", "name": c.get("contest_name", ""),
+                    "url": f"https://www.codechef.com/{c.get('contest_code', '')}",
+                    "start_at": start, "duration_min": int(c.get("contest_duration") or 0) or None})
+    return out
+
+
+def _contests_atcoder() -> list[dict]:
+    out = []
+    html = _get_text("https://atcoder.jp/contests/")
+    m = re.search(r'id="contest-table-upcoming".*?</table>', html, re.S)
+    if not m:
+        return out
+    for row in re.findall(r'<tr>.*?</tr>', m.group(0), re.S):
+        tt = re.search(r'>(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)([+\-]\d{4})<', row)
+        am = re.search(r'href="(/contests/[^"]+)"[^>]*>([^<]+)</a>', row)
+        if tt and am:
+            off = tt.group(2)[:3] + ":" + tt.group(2)[3:]        # +0900 -> +09:00 (JS-parseable)
+            out.append({"site": "atcoder.jp", "name": am.group(2).strip(),
+                        "url": "https://atcoder.jp" + am.group(1),
+                        "start_at": tt.group(1).replace(" ", "T") + off, "duration_min": None})
+    return out
+
+
+def _contests_leetcode() -> list[dict]:
+    # The REST /contest/api/list/ endpoint 403s bots; the GraphQL upcomingContests field does not.
+    out = []
+    body = json.dumps({"query": "query{upcomingContests{title titleSlug startTime duration}}"}).encode()
+    d = _get_json("https://leetcode.com/graphql", data=body,
+                  headers={"Content-Type": "application/json", "Referer": "https://leetcode.com/contest/"})
+    for c in (d.get("data") or {}).get("upcomingContests") or []:
+        st = c.get("startTime")
+        if not st:
+            continue
+        out.append({"site": "leetcode.com", "name": c.get("title", ""),
+                    "url": f"https://leetcode.com/contest/{c.get('titleSlug', '')}",
+                    "start_at": datetime.fromtimestamp(st, timezone.utc).isoformat(),
+                    "duration_min": (c.get("duration") or 0) // 60})
+    return out
+
+
 def fetch_contests() -> list[dict]:
-    """Upcoming contests across judges. Prefer clist.by (all sites) when a key is set; always fall
-    back to the keyless Codeforces contest.list so the tracker works out of the box."""
-    key = os.environ.get("OAJ_CLIST_KEY")
-    user = os.environ.get("OAJ_CLIST_USER")
+    """Upcoming contests across all four judges. With a clist.by key -> one aggregated call; without
+    -> each site's own public endpoint, merged. Deduped by URL, sorted by start, capped at 50."""
+    key, user = os.environ.get("OAJ_CLIST_KEY"), os.environ.get("OAJ_CLIST_USER")
     rows: list[dict] = []
     if key and user:
         try:
             q = urllib.parse.urlencode({
-                "username": user, "api_key": key, "upcoming": "true",
-                "order_by": "start", "limit": 50,
+                "username": user, "api_key": key, "upcoming": "true", "order_by": "start", "limit": 50,
                 "resource": "codeforces.com,atcoder.jp,codechef.com,leetcode.com"})
             d = _get_json(f"https://clist.by/api/v4/contest/?{q}")
             for c in d.get("objects", []):
+                st = c.get("start", "")
                 rows.append({"site": c.get("resource", ""), "name": c.get("event", ""),
-                             "url": c.get("href", ""), "start_at": c.get("start", "") + "Z"
-                             if c.get("start") and not c["start"].endswith("Z") else c.get("start", ""),
+                             "url": c.get("href", ""),
+                             "start_at": st + "Z" if st and not st.endswith("Z") else st,
                              "duration_min": int(c.get("duration", 0)) // 60 if c.get("duration") else None})
         except Exception:
             rows = []
     if not rows:
-        try:
-            d = _get_json("https://codeforces.com/api/contest.list?gym=false")
-            if d.get("status") == "OK":
-                for c in d["result"]:
-                    if c.get("phase") != "BEFORE":
-                        continue
-                    st = c.get("startTimeSeconds")
-                    if not st:
-                        continue
-                    rows.append({"site": "codeforces.com", "name": c["name"],
-                                 "url": f"https://codeforces.com/contest/{c['id']}",
-                                 "start_at": datetime.fromtimestamp(st, timezone.utc).isoformat(),
-                                 "duration_min": (c.get("durationSeconds") or 0) // 60})
-                rows.sort(key=lambda r: r["start_at"])
-        except Exception:
-            rows = []
-    return rows[:50]
+        for fn in (_contests_codeforces, _contests_atcoder, _contests_codechef, _contests_leetcode):
+            try:
+                rows += fn()
+            except Exception:
+                pass
+    seen, out = set(), []
+    for r in sorted(rows, key=lambda r: r.get("start_at") or "z"):
+        u = r.get("url")
+        if not r.get("start_at") or not u or u in seen:
+            continue
+        seen.add(u)
+        out.append(r)
+    return out[:50]
 
 
 # --------------------------------------------------------------------------- tracker (pure math)
