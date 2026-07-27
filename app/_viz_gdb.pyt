@@ -119,17 +119,12 @@ def main():
         err = "gdb: " + str(e)
 
     raw = 0
-    last_line = None
     while len(steps) < MAX_STEPS and raw < MAX_RAW:
         if not _alive():
             break
         snap = _snap()
-        if snap is not None:
-            # collapse consecutive identical (line, depth) stops that add nothing
-            key = (snap["line"], len(snap["stack"]))
-            if key != last_line:
-                steps.append(snap)
-                last_line = key
+        if snap is not None:      # record every stop in user code (loop iterations included)
+            steps.append(snap)
         try:
             gdb.execute("step", to_string=True)
         except gdb.error:
