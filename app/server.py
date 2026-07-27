@@ -1,5 +1,6 @@
 """OA Judge — Flask server. Serves the static UI and the JSON API defined in API.md."""
 import datetime
+import json
 import os
 import secrets
 import sys
@@ -603,6 +604,85 @@ def api_sheet_code_set():
 _SCRATCH_LANGS = {"cpp": "cpp", "c": "cpp", "py": "py", "python": "py", "py3": "py", "pypy": "py"}
 _SCRATCH_TIME_MS = 5000
 _SCRATCH_MEM_MB = 256
+_VIZ_TIME_MS = 8000          # Python tracer budget
+_VIZ_CPP_TIME_MS = 12000     # gdb is slower per step
+_VIZ_TEMPLATES = {}
+
+
+def _viz_template(name):
+    """Load a tracer template file once (kept as a file so it reads like normal Python)."""
+    if name not in _VIZ_TEMPLATES:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), name),
+                  encoding="utf-8") as f:
+            _VIZ_TEMPLATES[name] = f.read()
+    return _VIZ_TEMPLATES[name]
+
+
+def _visualize_py(source, stdin_data):
+    program = ("USER_SRC = " + json.dumps(source) + "\nSTDIN_DATA = " + json.dumps(stdin_data)
+               + "\n" + _viz_template("_viz_tracer.pyt"))
+    compiled = execute.compile_for("py", program)
+    if not compiled.ok:
+        execute.cleanup(compiled)
+        return {"ok": False, "error": "Could not stage the tracer."}
+    res = execute.run_once("py", compiled, "", time_ms=_VIZ_TIME_MS, memory_mb=_SCRATCH_MEM_MB)
+    execute.cleanup(compiled)
+    try:
+        return json.loads(res.stdout or "")
+    except (ValueError, TypeError):
+        tail = (res.stderr or "").strip().splitlines()
+        return {"ok": False, "error": tail[-1][:300] if tail else
+                "The program didn't finish in time or produced no trace (infinite loop / too many steps?)."}
+
+
+def _visualize_cpp(source, stdin_data):
+    """Compile with -g -O0, then drive gdb to single-step, staying in the user's code (STL/library is
+    skipped). gdb writes the same-shape trace JSON to trace.json in the workspace."""
+    from runner import run_cpp, sandbox
+    wd = sandbox.workspace()
+    try:
+        src = os.path.join(wd, "sol.cpp")
+        binp = os.path.join(wd, "sol")
+        with open(src, "w", encoding="utf-8") as f:
+            f.write(source)
+        with open(os.path.join(wd, "prog_in.txt"), "w", encoding="utf-8") as f:
+            f.write(stdin_data)
+        with open(os.path.join(wd, "viz_gdb.py"), "w", encoding="utf-8") as f:
+            f.write(_viz_template("_viz_gdb.pyt"))
+        rc, out = sandbox.compile_argv(
+            [run_cpp.GXX, run_cpp.STD, "-g", "-O0", "-w", "-o", binp, src], cwd=wd, timeout=25)
+        if rc != 0:
+            return {"ok": False, "error": (out or "compilation failed")[:1500], "compile": True}
+        res = sandbox.run(["gdb", "-q", "-batch", "-nx", "-x", "viz_gdb.py", "--args", "./sol"],
+                          "", time_ms=_VIZ_CPP_TIME_MS, memory_mb=512, cwd=wd)
+        try:
+            with open(os.path.join(wd, "trace.json"), encoding="utf-8") as f:
+                return json.loads(f.read())
+        except (OSError, ValueError):
+            tail = (res.stderr or res.stdout or "").strip().splitlines()
+            if any("ptrace" in t.lower() or "operation not permitted" in t.lower() for t in tail):
+                return {"ok": False, "error": "The host doesn't permit gdb tracing here."}
+            return {"ok": False, "error": tail[-1][:300] if tail else
+                    "gdb produced no trace (the program may not have reached main, or timed out)."}
+    finally:
+        execute.cleanup(type("C", (), {"workdir": wd})())
+
+
+@app.route("/api/visualize", methods=["POST"])
+def api_visualize():
+    """Step-through execution trace (Python Tutor style) for the user's code. Python uses sys.settrace;
+    C++ is driven through gdb. Both run in the same sandbox as the judge and emit one JSON step log:
+    {ok, lang, steps:[{line, func, stack:[{func,line,locals:{name:{t,v}}}], o}], stdout, truncated}."""
+    b = request.get_json(force=True)
+    lang = _SCRATCH_LANGS.get((b.get("lang") or "py").lower())
+    if lang not in ("py", "cpp"):
+        return jsonify({"ok": False, "error": "The visualizer supports Python and C++."}), 400
+    source = (b.get("source") or "")[:100000]
+    stdin_data = (b.get("stdin") or "")[:100000]
+    if not source.strip():
+        return jsonify({"ok": False, "error": "Nothing to visualize — the editor is empty."}), 400
+    data = _visualize_py(source, stdin_data) if lang == "py" else _visualize_cpp(source, stdin_data)
+    return jsonify(data)
 
 
 @app.route("/api/scratch-run", methods=["POST"])

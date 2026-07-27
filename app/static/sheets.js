@@ -304,6 +304,7 @@
            <span class="cc-status" aria-live="polite"></span>
            <button class="cc-clear" type="button" title="Reset to a blank template">Reset</button>
            <button class="cc-copy" type="button" title="Copy code to clipboard">Copy</button>
+           <button class="cc-viz" type="button" title="Step through your code line-by-line (Python &amp; C++)">◆ Visualize</button>
            <button class="cc-run" type="button" title="Compile &amp; run (Ctrl/Cmd+Enter)">Run ▸</button>
          </div>
        </div>
@@ -381,8 +382,163 @@
       } finally { run.dataset.busy = ''; run.textContent = 'Run ▸'; }
     }
     run.addEventListener('click', doRun);
+
+    const vizBtn = host.querySelector('.cc-viz');
+    async function doVisualize() {
+      if (vizBtn.dataset.busy) return;
+      const base = langBase(lang.value);
+      vizBtn.dataset.busy = '1';
+      const prev = vizBtn.textContent;
+      vizBtn.textContent = 'Tracing…';
+      status.textContent = 'Tracing…';
+      persist();
+      try {
+        const r = await jpost('/api/visualize', { lang: base, source: cc.getValue(), stdin: stdin.value });
+        if (!r || !r.ok) { openVizError((r && r.error) || 'Could not build a trace.', r); return; }
+        if (!r.steps || !r.steps.length) { openVizError('No steps were traced — did the program execute any of your lines?', r); return; }
+        status.textContent = 'Saved';
+        openViz(cc.getValue(), base, r);
+      } catch (e) {
+        openVizError('Could not reach the visualizer.');
+      } finally {
+        vizBtn.dataset.busy = ''; vizBtn.textContent = prev;
+      }
+    }
+    vizBtn.addEventListener('click', doVisualize);
+
     showEnv();
     cc.ready.then(() => cc.focus());
+  }
+
+  // ---------------------------------------------------------------- execution visualizer overlay
+  // Shared renderer for Python (structured values) and C++ (raw gdb-pretty-printed strings).
+  function openVizError(msg, r) {
+    const body = (r && r.compile)
+      ? `<p class="viz-em">The code didn't compile:</p><pre class="viz-err-pre">${esc(msg)}</pre>`
+      : `<p class="viz-em">${esc(msg)}</p>`;
+    if (window.openModal) window.openModal('Visualizer', body, '');
+    else if (window.toast) window.toast(msg, 'err');
+  }
+
+  function vizVal(x) {
+    if (x == null) return '<span class="vz-obj">?</span>';
+    const t = x.t;
+    if (t === 'raw') return `<span class="vz-raw">${esc(x.v)}</span>`;
+    if (t === 'prim') return `<span class="vz-prim">${esc(x.v)}</span>`;
+    if (t === 'str') return `<span class="vz-str">${esc(JSON.stringify(x.v))}</span>`;
+    if (t === 'obj') return `<span class="vz-obj">${esc(x.v)}</span>`;
+    if (t === 'list' || t === 'tuple' || t === 'set') {
+      const br = t === 'tuple' ? ['(', ')'] : t === 'set' ? ['{', '}'] : ['[', ']'];
+      const items = (x.v || []).map(vizVal).join('<span class="vz-p">, </span>');
+      const more = x.more ? `<span class="vz-more"> +${x.more}</span>` : '';
+      return `<span class="vz-br">${br[0]}</span>${items}${more}<span class="vz-br">${br[1]}</span>`;
+    }
+    if (t === 'dict') {
+      const items = (x.v || []).map((kv) => `${vizVal(kv[0])}<span class="vz-p">: </span>${vizVal(kv[1])}`).join('<span class="vz-p">, </span>');
+      const more = x.more ? `<span class="vz-more"> +${x.more}</span>` : '';
+      return `<span class="vz-br">{</span>${items}${more}<span class="vz-br">}</span>`;
+    }
+    return `<span class="vz-obj">${esc(String(x.v))}</span>`;
+  }
+
+  function openViz(source, base, trace) {
+    const steps = trace.steps || [];
+    const fullOut = trace.stdout || '';
+    const lines = source.replace(/\r\n/g, '\n').split('\n');
+    const old = document.getElementById('viz-ov');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'viz-ov';
+    ov.className = 'viz-ov';
+    const note = [
+      trace.truncated ? `trace truncated at ${steps.length} steps` : '',
+      trace.error ? `<span class="viz-err-inline">${esc(trace.error)}</span>` : '',
+    ].filter(Boolean).join(' · ');
+    ov.innerHTML =
+      `<div class="viz-panel">
+         <div class="viz-head">
+           <span class="viz-title">◆ Visualizer <span class="viz-lang">${base === 'cpp' ? 'C++' : 'Python'}</span></span>
+           <span class="viz-note">${note}</span>
+           <button class="viz-x" title="Close (Esc)">×</button>
+         </div>
+         <div class="viz-main">
+           <div class="viz-code"><div class="viz-code-inner">${lines.map((ln, i) =>
+             `<div class="vz-ln" data-l="${i + 1}"><span class="vz-no">${i + 1}</span><span class="vz-tx">${esc(ln) || ' '}</span></div>`).join('')}</div></div>
+           <div class="viz-side">
+             <div class="viz-side-h">Frames &amp; variables</div>
+             <div class="viz-frames"></div>
+             <div class="viz-side-h">Output${base === 'cpp' ? ' <span class="viz-out-sub">· C++ buffers stdout, so it appears at the end</span>' : ''}</div>
+             <pre class="viz-out"></pre>
+           </div>
+         </div>
+         <div class="viz-bar">
+           <button class="viz-b viz-first" title="First">⏮</button>
+           <button class="viz-b viz-prev" title="Previous (←)">◀ Prev</button>
+           <input type="range" class="viz-slider" min="0" max="${Math.max(0, steps.length - 1)}" value="0">
+           <button class="viz-b viz-next" title="Next (→)">Next ▶</button>
+           <button class="viz-b viz-last" title="Last">⏭</button>
+           <button class="viz-b viz-play" title="Play / pause">▶ Play</button>
+           <span class="viz-count"></span>
+         </div>
+       </div>`;
+    document.body.appendChild(ov);
+
+    const lnEls = Array.from(ov.querySelectorAll('.vz-ln'));
+    const framesEl = ov.querySelector('.viz-frames');
+    const outEl = ov.querySelector('.viz-out');
+    const slider = ov.querySelector('.viz-slider');
+    const countEl = ov.querySelector('.viz-count');
+    const playBtn = ov.querySelector('.viz-play');
+    let i = 0, timer = null;
+
+    function render() {
+      const s = steps[i];
+      if (!s) return;
+      lnEls.forEach((el) => el.classList.remove('cur', 'ret', 'exc'));
+      const cur = lnEls[s.line - 1];
+      if (cur) {
+        cur.classList.add('cur');
+        if (s.event === 'return') cur.classList.add('ret');
+        if (s.event === 'exception') cur.classList.add('exc');
+        cur.scrollIntoView({ block: 'nearest' });
+      }
+      framesEl.innerHTML = (s.stack || []).map((fr, idx) => {
+        const isCur = idx === s.stack.length - 1;
+        const keys = Object.keys(fr.locals || {});
+        const rows = keys.length
+          ? keys.map((k) => `<div class="vz-var"><span class="vz-k">${esc(k)}</span><span class="vz-v">${vizVal(fr.locals[k])}</span></div>`).join('')
+          : '<div class="vz-empty">no locals yet</div>';
+        return `<div class="vz-frame${isCur ? ' cur' : ''}"><div class="vz-fh">${esc(fr.func)}<span class="vz-fl">line ${fr.line}</span></div>${rows}</div>`;
+      }).reverse().join('');
+      outEl.textContent = base === 'cpp' ? fullOut : fullOut.slice(0, s.o || 0);
+      slider.value = i;
+      countEl.textContent = `Step ${i + 1} / ${steps.length}${s.event && s.event !== 'line' ? ' · ' + s.event : ''}`;
+    }
+    function go(n) { i = Math.max(0, Math.min(steps.length - 1, n)); render(); }
+    function stop() { if (timer) { clearInterval(timer); timer = null; playBtn.textContent = '▶ Play'; } }
+    function play() {
+      if (timer) { stop(); return; }
+      playBtn.textContent = '⏸ Pause';
+      timer = setInterval(() => { if (i >= steps.length - 1) { stop(); return; } go(i + 1); }, 650);
+    }
+
+    ov.querySelector('.viz-first').onclick = () => { stop(); go(0); };
+    ov.querySelector('.viz-prev').onclick = () => { stop(); go(i - 1); };
+    ov.querySelector('.viz-next').onclick = () => { stop(); go(i + 1); };
+    ov.querySelector('.viz-last').onclick = () => { stop(); go(steps.length - 1); };
+    slider.oninput = () => { stop(); go(parseInt(slider.value, 10) || 0); };
+    playBtn.onclick = play;
+
+    function close() { stop(); document.removeEventListener('keydown', key); ov.remove(); }
+    function key(e) {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft') { stop(); go(i - 1); }
+      else if (e.key === 'ArrowRight') { stop(); go(i + 1); }
+    }
+    ov.querySelector('.viz-x').onclick = close;
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    document.addEventListener('keydown', key);
+    render();
   }
 
   async function toggleItem(sid, itemId, el) {

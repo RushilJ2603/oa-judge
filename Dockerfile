@@ -3,8 +3,10 @@
 FROM python:3.12-slim
 
 # Toolchain for judging + git (for the problem bank + in-app Sync) + coreutils `timeout` (in base).
+# gdb powers the C++ step visualizer (drives the debugger to single-step user code); it also pulls
+# the libstdc++ pretty-printers so vector/string/map render legibly.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends g++ git ca-certificates \
+    && apt-get install -y --no-install-recommends g++ gdb git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir flask waitress
