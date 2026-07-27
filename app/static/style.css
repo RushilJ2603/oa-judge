@@ -94,8 +94,13 @@ body {
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
 }
-.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.app-name { font-weight: 700; letter-spacing: .2px; }
+.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto;
+    overflow-x: auto; scrollbar-width: none; }
+.header-left::-webkit-scrollbar { display: none; }
+/* The right-hand judge controls must NEVER shrink or be overlapped by the section nav — the left
+   cluster scrolls instead. (Half-window / mid widths used to let the nav spill over Sync/Add.) */
+.header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.app-name { font-weight: 700; letter-spacing: .2px; flex-shrink: 0; }
 .breadcrumb { color: var(--text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -854,7 +859,7 @@ select option { background: var(--bg-elev); color: var(--text); }
 
 /* ============================ standalone compiler ============================ */
 .compiler-view { overflow: auto; }
-.compiler-inner { max-width: 1200px; margin: 0 auto; padding: 26px 28px 40px; width: 100%; box-sizing: border-box; }
+.compiler-inner { max-width: 1500px; margin: 0 auto; padding: 26px 28px 40px; width: 100%; box-sizing: border-box; }
 .cc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .cc-head-main { min-width: 0; }
 .cc-title { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
@@ -879,8 +884,10 @@ select option { background: var(--bg-elev); color: var(--text); }
 .cc-run[data-busy="1"] { opacity: .7; cursor: progress; }
 .cc-lang:focus-visible, .cc-clear:focus-visible, .cc-copy:focus-visible, .cc-run:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
-.cc-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px; margin-top: 20px; align-items: stretch; }
-.cc-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* Editor stretches full width on top; custom input + output sit side-by-side BELOW it. */
+.cc-grid { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+.cc-pane-code { width: 100%; }
+.cc-side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-width: 0; align-items: stretch; }
 .cc-pane { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px;
     background: var(--bg-elev); overflow: hidden; min-width: 0; }
 .cc-pane-h { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
@@ -892,18 +899,18 @@ select option { background: var(--bg-elev); color: var(--text); }
 .cc-code { flex: 1; min-height: 480px; box-sizing: border-box; resize: vertical; border: 0; outline: 0;
     padding: 14px 16px; background: var(--bg); color: var(--text); font-family: var(--mono);
     font-size: 13.5px; line-height: 1.6; tab-size: 4; white-space: pre; overflow: auto; }
-.cc-stdin { min-height: 150px; box-sizing: border-box; resize: vertical; border: 0; outline: 0;
+.cc-stdin { flex: 1; min-height: 180px; box-sizing: border-box; resize: vertical; border: 0; outline: 0;
     padding: 12px 14px; background: var(--bg); color: var(--text); font-family: var(--mono);
     font-size: 13px; line-height: 1.55; white-space: pre; overflow: auto; }
 .cc-stdin::placeholder { color: var(--text-muted); opacity: .65; }
-.cc-out { flex: 1; min-height: 250px; margin: 0; box-sizing: border-box; padding: 12px 14px;
+.cc-out { flex: 1; min-height: 180px; margin: 0; box-sizing: border-box; padding: 12px 14px;
     background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px;
     line-height: 1.55; white-space: pre; overflow: auto; }
 .cc-out.err { color: var(--error); }
-.cc-editor { height: 520px; width: 100%; }
+.cc-editor { height: 60vh; min-height: 460px; width: 100%; }
 @media (max-width: 860px) {
-    .cc-grid { grid-template-columns: 1fr; }
-    .cc-code, .cc-editor { min-height: 340px; height: 360px; }
+    .cc-side { grid-template-columns: 1fr; }
+    .cc-editor { height: 52vh; min-height: 340px; }
     .cc-head { gap: 12px; }
     .cc-tools { width: 100%; }
     .cc-status { flex: 1; }
@@ -980,6 +987,10 @@ select option { background: var(--bg-elev); color: var(--text); }
 .tk-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .tk-muted { color: var(--text-muted); font-size: 12px; }
 
+/* Give the section nav room before it can crowd the right controls (half-window PC widths). */
+@media (max-width: 1120px) { .breadcrumb { display: none; } }
+@media (max-width: 960px) { .app-name { display: none; } }
+
 @media (max-width: 900px) {
     .topnav-item { padding: 5px 9px; }
     .sheet-body { flex-direction: column; }
@@ -1002,4 +1013,9 @@ select option { background: var(--bg-elev); color: var(--text); }
     .sheet-content { padding: 18px 18px 48px; }
     .roadmap { padding: 12px 18px; }
     .sheet-head { padding: 18px 18px 14px; }
+    /* Stop mobile Safari/Chrome from auto-zooming when a field is focused: any focusable field
+       (native textarea/input/select AND Monaco's hidden input) must be >=16px. Monaco keeps its
+       own visible glyph size, so this only affects the invisible input, not the rendered code. */
+    .cc-stdin, textarea, input, select { font-size: 16px; }
+    .monaco-editor .inputarea { font-size: 16px !important; }
 }
