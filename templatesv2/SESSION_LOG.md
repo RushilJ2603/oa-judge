@@ -19,6 +19,33 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 6 — 2026-07-27 (reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems)
+
+**AI:** Claude (Opus 4.8) via Claude Code. All authoring, gating, deploying, and this write-up were mine — no delegation (the 6 problems were the user's, for their personal section, so the authoring-delegation-boundary applied).
+**Start → End:** 2026-07-27 → 2026-07-27 ~20:00 IST.
+
+### What we set out to do
+The user said "I think some context disappeared, check the current standing of the build," then, once it was clear: "complete the two gaps, then add these questions under iris → microsoft" (six OA problems pasted as text).
+
+### What actually happened
+- **Standing check.** Git showed the app + bank were fully pushed, but at commits *past* what session-5 templatesv2 recorded — a whole cycle of work had happened in the lost context: a **built-in C++/Python compiler + per-problem scratchpad + standalone Compiler tab** (a reusable `OAEditor.create()` Monaco factory; assets v16→v19, editor.js→v14), a **Dockerfile `safe.directory` fix**, and **batch9** (10 gated OA-Helper problems) merged into the bank. Two real gaps: (1) live health reported **123** problems but the pushed bank had **133** — batch9 was never synced to prod; (2) templatesv2 was stale at session 5.
+- **Also answered a cost question.** The user sent a Fly billing screenshot ($0.09 total, $0.01/day). Confirmed it's expected: scale-to-zero means machine time is ~$0.07 and the only non-zero-at-idle line is the volume ($0.01) — well under the "$0 hosting" target.
+- **Gap 1.** Woke the scaled-to-zero machine (curl /api/health), `fly ssh` git-pulled `/data/problems`, rebuilt the index out-of-process against the shared SQLite DB → live **133**.
+- **The 6 Microsoft problems.** Authored each as a full package (reference.cpp + independent Python brute + deterministic generator + ≥5 edges incl. max-scale) and ran `gate_candidate.py` to 100% mutation. Notable:
+  - **q2 dynamic-network-strength** is the user's own problem that TLE'd 8/15. Their DSU was fine; the killer was recomputing the whole strength sum each second. The reference keeps an **incremental** sum (subtract the two old component maxima, add the merged max on each real union) → O((n+m)·α), ~1.1 s at 2·10⁵.
+  - **q3** first failed the gate at 97.1% — a boundary mutant `c<='9' → c<'9'` survived. Added an edge of range-endpoint-only passwords (`999999/000000/ZZZZZZ/…`) to kill it.
+  - **q6 maximize-binary-reverse-append** was the interesting one. The reverse-then-append procedure turns out to be a *fixed position-permutation* of the input, so the maximum final string is just the multiset sorted descending, and the required input permutation is its unique preimage (recovered with the O(n) deque trick). The user's transcribed **sample 1 was wrong** (`00001` is not optimal — `00010` yields `10000`). I verified the whole theory exhaustively against brute-force over *all* permutations for every binary string of length 1..9 (0 failures, optimum always unique) before shipping the corrected sample.
+- **Deploy.** Committed + pushed the 6 problems to oa-problems (`732e6de`), then `fly ssh` pull + reindex → **live 139**.
+- **Gap 2.** This session-6 templatesv2 update.
+
+### Mistakes / friction (honest)
+- The live reindex one-liner failed twice before working: first `import problems` (no such module — it's `runner.problems`), then a dubious-ownership git error (the ad-hoc root ssh session needs `-c safe.directory=/data/problems` inline; the Dockerfile config is for the app user). Both are now in dead_ends.
+- The Q4 random cross-check (6000 subprocess spawns) blew the 120 s foreground limit and had to finish in the background — a reminder to batch subprocess cross-checks or run fewer, larger iterations.
+
+### Files touched
+- `problems/microsoft-q1-valid-parentheses-replacements/`, `…-q2-dynamic-network-strength/`, `…-q3-password-strength/`, `…-q4-compare-flat-json/`, `…-q5-min-abs-diff-pairs/`, `…-q6-maximize-binary-reverse-append/` (all NEW, gated).
+- `templatesv2/PROJECT_STATE.md`, `CHANGELOG.md`, `SESSION_LOG.md`, `.context/dead_ends.md`, `.context/session.json` (+ archived session-5 json to `.context/sessions/2026-07-26T23-30-00+05-30.json`).
+
 ## Session 5 — 2026-07-26 (CP + System Design sheets, per-user contest tracker, Ctrl+' submit, company dedup, +1 problem, sync-infra fix)
 
 **AI:** Claude (Opus 4.8) via Claude Code. Orchestrated a large **Grok 4.5** research fan-out for the sheet content; all synthesis, the app code, the design/QA, and every deploy were mine.

@@ -1,22 +1,28 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-26 23:30 IST (session 5 — CP + System Design sheets, per-user contest tracker, Ctrl+' submit, company dedup, +1 problem, sync-infra fix) | By: Claude (Opus 4.8, via Claude Code)
+# Last Updated: 2026-07-27 20:00 IST (session 6 — reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems; bank 133 → 139 live) | By: Claude (Opus 4.8, via Claude Code)
 
 ## Current Phase
-**Live & multi-user; the judge is stable and the new surface area is learning tooling.** Beyond the
-gated problem bank, the app now hosts a **CP sheet**, a **System Design sheet**, and a **per-user,
-deterministic contest tracker** — all built natively into the same design system (the judge UI itself
-was deliberately not touched). Quality of the bank is still enforced by the same tooling gates.
+**Live & multi-user; the judge + built-in compiler are stable and the newer surface area is learning
+tooling.** Beyond the gated problem bank, the app hosts a **built-in C++/Python compiler + per-problem
+scratchpad**, a **CP sheet**, a **System Design sheet**, and a **per-user, deterministic contest
+tracker** — all in the same design system (the core judge UI was deliberately not touched). Bank
+quality is still enforced by the same tooling gates.
 
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
-  → ~$0/mo). GitHub OAuth. DB + bank on the persistent volume `/data`. Static assets at **v16**.
-- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `ab50adb`) + `RushilJ2603/oa-problems`
-  (bank, HEAD `6e6c47c`). **The live volume bank is now a real git checkout** (session 5 fix), so a
-  bank push → **Sync** (or `fly ssh git pull`) reaches live again.
-- **Bank: 123 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
+  → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
+  persistent volume `/data`. Static assets at **v19** (style.css/sheets.js), **editor.js v14**.
+- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
+  (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
+  (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
+- **Bank: 139 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
   (`oa-helper`)**. Sidebar groups by **source ▸ company**; company names are canonicalized at index
   time (de shaw/DE Shaw → DE Shaw) and unknown/blank companies fall into a single **Practice** company.
+  Iris — Personal now includes a **Microsoft** company (6 gated problems, session 6).
+- **Built-in compiler + per-problem scratchpad + standalone Compiler tab** — a reusable
+  `OAEditor.create()` Monaco factory backs the solve editor, each problem's scratchpad, and a
+  standalone Compiler tab; run C++/Python against custom stdin without submitting.
 - **CP + System Design sheets** (`Judge · CP Sheet · System Design · Tracker` header nav):
   CP = 43 topics / 1513 problems (335 importance-weighted must-do **core** → ~4–5 mo at 2–3/day toward
   Candidate Master; post-Striver, CF-style). SD = 63 HLD/LLD modules, followed **sequentially**.
@@ -29,7 +35,23 @@ was deliberately not touched). Quality of the bank is still enforced by the same
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
-## Shipped this session (session 5, 2026-07-26)
+## Shipped this session (session 6, 2026-07-27)
+- **Reconciled a mid-project context loss.** A standing-check surfaced work past the session-5
+  templatesv2 cutoff (`bd67f36`): the **built-in compiler + scratchpad + Compiler tab** (Monaco
+  `OAEditor.create()` factory; assets v16→v19, editor.js→v14), a **Dockerfile `safe.directory` fix**
+  (dubious-ownership was a Sync risk), and **batch9** (10 gated OA-Helper problems) merged to the bank.
+- **Gap 1 fixed — live was 10 behind (123 vs 133).** batch9 was pushed but never synced to prod;
+  pulled it into the live volume and reindexed → 133.
+- **+6 gated Microsoft problems** under Iris — Personal (all **GATE: PASS, 100% mutation**; reference.cpp
+  + independent Python brute + generator + ≥5 edges): `q1 valid-parentheses-replacements` (greedy),
+  `q2 dynamic-network-strength` (**incremental DSU** — the user's own TLE'd DSU recomputed the sum each
+  second; fix is O((n+m)·α)), `q3 password-strength`, `q4 compare-flat-json` (hand-rolled parser),
+  `q5 min-abs-diff-pairs`, `q6 maximize-binary-reverse-append` (constructive; theory verified over ALL
+  perms n≤9; **corrected the user's wrong sample** `00001`→`00010`). Bank **133 → 139 live**.
+- **Gap 2 fixed** — this templatesv2 update (session 6).
+
+## Shipped in prior sessions
+### Session 5 (2026-07-26)
 - **CP sheet + System Design sheet**, authored via a **106-agent Grok research fan-out** (Grok beat agy
   10/10 vs 7/10 on deep-research-with-link-verification) and synthesized by `synth.py`. CP is
   post-Striver / Codeforces-style with an **importance-weighted 335 core**; SD is explicitly sequential.
@@ -42,7 +64,6 @@ was deliberately not touched). Quality of the bank is still enforced by the same
 - **Sync-infra fix**: the live volume bank wasn't a git checkout, so prior pushes never went live
   (stuck at 122); re-cloned `oa-problems` onto `/data/problems` and restarted → live bank 123.
 
-## Shipped in prior sessions
 ### Session 4 (2026-07-25)
 - **Mutation-testing quality system.** `mutation_test.py` mutates the verified reference (flip
   `<`/`<=`/`==`/`+`/`min`, delete statements) and requires the suite to KILL every non-equivalent
@@ -92,9 +113,12 @@ was deliberately not touched). Quality of the bank is still enforced by the same
 - Python 3.12, `g++` 13.3 (C++17). Fly CLI (`flyctl`) at `~/.fly/bin`, authed. **`fly deploy` runs
   from the app dir with `-a oa123`.** App code needs a deploy; bank/problem changes only need Sync.
 
-## Recent Decisions (this session)
+## Recent Decisions (recent sessions)
 | Decision | Rationale | Date |
 |---|---|---|
+| The 6 Microsoft problems are **authored by Claude directly** (not Grok/agy), fully gated | User handed them for their personal Iris section; authoring-delegation-boundary applies. The gate guarantees quality regardless of author | 2026-07-27 |
+| **Correct a transcribed sample when the reference proves it wrong** (Q6 `00001`→`00010`) | Verification-discipline: reference + exhaustive brute is ground truth, not the OA photo. Shipping a self-inconsistent sample is worse than "matching the source" | 2026-07-27 |
+| Push bank to live headless via **`fly ssh` git pull + out-of-process reindex** (`runner.problems`), not curl/restart | `/api/` writes need OAuth; the app doesn't auto-pull or reindex-on-boot. The DB is a shared SQLite file so an external reindex is picked up | 2026-07-27 |
 | Test-suite strength enforced by **mutation testing**; ship only at 100% killed (non-equivalent) mutants | A bugged solution once passed 17/18 tests; verify_all/audit can't see a weak suite | 2026-07-25 |
 | **Grok may bulk-author** OA-judge questions, gated by `gate_candidate.py` in isolated staging | Author identity is irrelevant to the gate; quality is tooling-enforced. DSA-notes prose stays Claude-only | 2026-07-25 |
 | A mutant **timeout/crash = KILL** (reliable oracle first); adaptive per-mutant timeout | Skipping timeouts hung the gate; a load blip as data flapped the score | 2026-07-25 |
@@ -118,4 +142,5 @@ was deliberately not touched). Quality of the bank is still enforced by the same
 - `SOLUTION.md` (authoritative: architecture + authoring rules + §4 mutation standard + difficulty rubric),
   `problems/FORMAT.md` (package format + test standard). Gates: `verify_all.py`, `audit.py`,
   `mutation_test.py`, `gate_candidate.py`. Compression: `compress_bank.py`.
-- Hosted: `https://oa123.fly.dev` (Fly v10). Repos: `github.com/RushilJ2603/oa-judge`, `.../oa-problems`.
+- Hosted: `https://oa123.fly.dev`. Repos: `github.com/RushilJ2603/oa-judge` (HEAD `f48daf5`),
+  `.../oa-problems` (HEAD `732e6de`). Headless bank→live recipe: see dead_ends 2026-07-27.

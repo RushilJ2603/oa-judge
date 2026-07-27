@@ -1,6 +1,39 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-07-27 20:00 IST] — session 6: reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems (bank 133 → 139 live) | By: Claude (Opus 4.8, Claude Code)
+
+### Done This Session
+- **Reconciled a mid-project context loss.** A standing-check found work had landed past the
+  session-5 templatesv2 cutoff (`bd67f36`): a **built-in C++/Python compiler + per-problem scratchpad
+  + standalone Compiler tab** (reusable `OAEditor.create()` Monaco factory; commits `f0efead`,
+  `f48daf5`; assets **v16 → v19**, editor.js **→ v14**), a **Dockerfile `safe.directory` fix**
+  (`35c33d9`) so git dubious-ownership can't break Sync, and **batch9** (10 gated OA-Helper problems)
+  merged into the bank (`6fceac2`). Both repos were fully pushed.
+- **Gap 1 — live bank was 10 behind (123 vs pushed 133).** batch9 had never been synced to
+  production. Pulled it into the live volume (`fly ssh` git pull) and rebuilt the index → **133**.
+- **+6 gated Microsoft OA problems** under **Iris — Personal** (company `Microsoft`, source `gyan`),
+  authored by Claude, each **GATE: PASS at 100% mutation** (reference.cpp + independent Python brute +
+  deterministic generator + ≥5 edges incl. max-scale):
+  - `microsoft-q1-valid-parentheses-replacements` — greedy count + forced-upgrade check.
+  - `microsoft-q2-dynamic-network-strength` — **incremental DSU**. This is the user's own problem that
+    TLE'd 8/15; their DSU recomputed the whole sum each second — the fix is O((n+m)·α) with an
+    incremental running sum (max-scale 2·10⁵ runs ~1.1 s).
+  - `microsoft-q3-password-strength` — weak/strong classifier (needed a range-endpoint edge to kill a
+    `c<='9'` boundary mutant).
+  - `microsoft-q4-compare-flat-json` — hand-rolled quote-scanning parser (no JSON lib), tolerant of
+    `:`/`,`/`{`/`}` inside values.
+  - `microsoft-q5-min-abs-diff-pairs` — sort + dedup, adjacent gaps.
+  - `microsoft-q6-maximize-binary-reverse-append` — constructive: the reverse-append procedure is a
+    **fixed position-permutation**, so the max final string is the multiset sorted descending and the
+    input permutation is its **unique preimage** (built with the O(n) deque trick). **Theory verified
+    exhaustively** against brute-force over all binary strings of length 1..9 (0 theory failures,
+    optimum always unique). **The user's transcribed sample 1 was wrong** (claimed `00001` optimal; the
+    true optimum is `00010` → `10000`) — shipped the corrected sample.
+- **Pushed** oa-problems (`732e6de`), **pulled + reindexed** the live volume → **bank 139 live**.
+- **Gap 2 — updated templatesv2 to session 6** (this file, PROJECT_STATE, SESSION_LOG, dead_ends,
+  session.json archived + regenerated).
+
 ## [2026-07-26 23:30 IST] — session 5: CP + System Design sheets, per-user contest tracker, Ctrl+' submit, company dedup, +1 gated problem, sync-infra fix | By: Claude (Opus 4.8, Claude Code)
 
 ### Done This Session
