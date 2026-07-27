@@ -179,7 +179,28 @@ async function init() {
     }
     setupEventListeners();
     setupDrawerResize();
+    setupPotd();
     fetchProblemsAndHistory();
+}
+
+/* ---- Problem of the Day: one deterministic problem per calendar day (IST), same for everyone.
+   Server-computed (no storage, $0); the card just opens it. ---- */
+async function setupPotd() {
+    const el = document.getElementById('potd');
+    if (!el) return;
+    let p;
+    try { p = await api('/api/potd'); } catch (e) { return; }
+    if (!p || !p.ok || !p.id) return;
+    const diff = (p.difficulty || '').toLowerCase();
+    el.innerHTML =
+        `<span class="potd-tag">★ Problem of the Day</span>` +
+        `<span class="potd-title">${escapeHTML(p.title || p.id)}</span>` +
+        `<span class="potd-meta">` +
+            (p.difficulty ? `<span class="potd-diff ${diff}">${escapeHTML(p.difficulty)}</span>` : '') +
+            (p.company ? `<span class="potd-co">${escapeHTML(p.company)}</span>` : '') +
+        `</span>`;
+    el.style.display = 'flex';
+    el.onclick = () => loadProblem(p.id);
 }
 
 /* ---- Presence: best-effort "who's online", $0. We never poll on a timer (that would keep the
@@ -217,20 +238,36 @@ async function refreshPresence() {
 }
 
 function showPresenceList() {
-    const users = _presence.users || [];
-    if (!users.length) { toast('No one is online right now', 'ok'); return; }
-    const rows = users.map(u => {
+    const online = _presence.users || [];
+    const recent = _presence.recent || [];
+    const onlineIds = new Set(online.map(u => u.id));
+    // "Recently active" = seen in the last 30 days but not online right now (online is its own section).
+    const earlier = recent.filter(u => !onlineIds.has(u.id));
+    if (!online.length && !earlier.length) { toast('No activity yet', 'ok'); return; }
+
+    const row = (u, live) => {
         const av = u.avatar_url
             ? `<img class="pl-av" src="${escapeHTML(u.avatar_url)}" alt="">`
             : `<span class="pl-av pl-fallback">${escapeHTML((u.login || '?')[0].toUpperCase())}</span>`;
-        const when = timeAgo(u.last_seen);
-        return `<div class="pl-row">${av}<span class="pl-name">${escapeHTML(u.name || u.login)}` +
+        return `<div class="pl-row">` +
+            `<span class="pl-avwrap">${av}${live ? '<span class="pl-live"></span>' : ''}</span>` +
+            `<span class="pl-name">${escapeHTML(u.name || u.login)}` +
             `${u.is_me ? ' <span class="pl-you">you</span>' : ''}</span>` +
-            `<span class="pl-seen">${when}</span></div>`;
-    }).join('');
-    openModal('Online now', `<div class="presence-list">${rows}</div>` +
-        `<p class="pl-note">“Online” means active in the last 5 minutes. An idle tab with no activity ` +
-        `drops off — we don't run a background heartbeat, so this stays free.</p>`, '');
+            `<span class="pl-seen">${live ? 'online now' : timeAgo(u.last_seen)}</span></div>`;
+    };
+
+    let body = '';
+    if (online.length) {
+        body += `<div class="pl-h">Online now <span class="pl-h-n">${online.length}</span></div>` +
+            `<div class="presence-list">${online.map(u => row(u, true)).join('')}</div>`;
+    }
+    if (earlier.length) {
+        body += `<div class="pl-h">Recently active <span class="pl-h-n">${earlier.length}</span></div>` +
+            `<div class="presence-list">${earlier.map(u => row(u, false)).join('')}</div>`;
+    }
+    body += `<p class="pl-note">“Online” means active in the last 5 minutes; “recently active” is the ` +
+        `last 30 days. Everyone sees the same list. We don't run a background heartbeat, so this stays free.</p>`;
+    openModal("Who's around", body, '');
 }
 
 function timeAgo(iso) {

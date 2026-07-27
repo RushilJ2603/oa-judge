@@ -525,8 +525,34 @@ body {
 .pl-name { flex: 1 1 auto; font-size: 13px; color: var(--text); }
 .pl-you { font-size: 10px; color: var(--text-muted); border: 1px solid var(--border);
     border-radius: 4px; padding: 0 4px; margin-left: 4px; }
-.pl-seen { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pl-seen { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pl-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; line-height: 1.45; }
+/* Section headers + live dot for the who's-around history */
+.pl-h { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text-muted); margin: 14px 0 4px; display: flex; align-items: center; gap: 7px; }
+.pl-h:first-child { margin-top: 0; }
+.pl-h-n { font-weight: 600; color: var(--text); background: var(--bg-sunken);
+    border-radius: 999px; padding: 0 7px; font-size: 10px; }
+.pl-avwrap { position: relative; flex: 0 0 auto; display: inline-flex; }
+.pl-live { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%;
+    background: #2ec26a; border: 2px solid var(--bg-elev); }
+
+/* ---- Problem of the Day card (top of the sidebar) ---- */
+.potd { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; width: calc(100% - 20px);
+    margin: 10px 10px 0; padding: 10px 12px; text-align: left; cursor: pointer;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--bg-elev)), var(--bg-elev));
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 10px;
+    transition: border-color .12s, transform .06s; }
+.potd:hover { border-color: var(--accent); }
+.potd:active { transform: translateY(1px); }
+.potd-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+.potd-title { font-size: 13.5px; font-weight: 650; color: var(--text); line-height: 1.25; }
+.potd-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.potd-diff { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+.potd-diff.easy { color: #1a7f52; background: color-mix(in srgb, #2ec26a 18%, transparent); }
+.potd-diff.medium { color: #a86a00; background: color-mix(in srgb, #e0982e 20%, transparent); }
+.potd-diff.hard { color: #b3372e; background: color-mix(in srgb, #e0483e 18%, transparent); }
+.potd-co { font-size: 11px; color: var(--text-muted); }
 
 /* ============================ scalable sidebar (search + source tabs + filters) ============ */
 

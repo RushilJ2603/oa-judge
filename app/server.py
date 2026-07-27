@@ -465,12 +465,32 @@ def api_presence():
     last_seen (bumped by real traffic) and never triggers a heartbeat, so it can't keep the machine
     awake. In single-user local mode there's no roster to show."""
     if not config.AUTH_ENABLED:
-        return jsonify({"enabled": False, "users": []})
+        return jsonify({"enabled": False, "users": [], "recent": []})
     me = getattr(g, "user_id", None)
     users = store.online_users(within_seconds=300)
+    recent = store.presence_recent(within_seconds=30 * 86400, limit=60)
     for u in users:
         u["is_me"] = (u["id"] == me)
-    return jsonify({"enabled": True, "users": users, "me": me})
+    for u in recent:
+        u["is_me"] = (u["id"] == me)
+    return jsonify({"enabled": True, "users": users, "recent": recent, "me": me})
+
+
+# ----------------------------------------------------------------- problem of the day
+@app.route("/api/potd")
+def api_potd():
+    """A deterministic Problem of the Day — same for everyone, rotates through the whole bank by
+    calendar day (IST). No storage, no cron, $0: index = ordinal(today) mod N over the id-sorted
+    bank."""
+    metas = sorted(problems.all_meta(), key=lambda m: m.get("id", ""))
+    if not metas:
+        return jsonify({"ok": False})
+    ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    today = datetime.datetime.now(ist).date()
+    m = metas[today.toordinal() % len(metas)]
+    return jsonify({"ok": True, "date": today.isoformat(), "id": m.get("id"),
+                    "title": m.get("title"), "difficulty": m.get("difficulty"),
+                    "company": store.canon_company(m.get("company", "")), "topic": m.get("topic")})
 
 
 # ----------------------------------------------------------------- sharing (Phase 5)

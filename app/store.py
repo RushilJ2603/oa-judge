@@ -551,6 +551,19 @@ def online_users(within_seconds: int = 300) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def presence_recent(within_seconds: int = 30 * 86400, limit: int = 60) -> list[dict]:
+    """The shared 'who's been around' history — every user seen within the window (default 30 days),
+    most-recent first. Visible to all users. Same cheap read as online_users (no heartbeat), just a
+    wider window + a cap so the modal stays bounded."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=within_seconds)).isoformat(timespec="seconds")
+    rows = db.connect().execute(
+        "SELECT id, login, name, avatar_url, last_seen FROM \"user\""
+        " WHERE last_seen IS NOT NULL AND last_seen >= ? ORDER BY last_seen DESC LIMIT ?",
+        (cutoff, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
 # ============================================================ CP + System Design sheets
 # Data access for the two "sheets", the per-user checklist that rides them, linked CP handles,
 # cached stats, cached upcoming contests, and the rating goal. Network fetchers and the
