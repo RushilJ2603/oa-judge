@@ -89,17 +89,18 @@ body {
 /* ===== header ===== */
 .app-header {
     display: flex; align-items: center; justify-content: space-between;
-    height: 48px; padding: 0 14px;
+    /* Wrap to a second row rather than clip or overlap: when the section nav + judge controls can't
+       share one line, the right-hand cluster drops below — nothing is ever hidden or overlapped. */
+    flex-wrap: wrap; row-gap: 6px; min-height: 48px; padding: 5px 14px;
     background: var(--bg-elev);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
 }
-.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto;
-    overflow-x: auto; scrollbar-width: none; }
-.header-left::-webkit-scrollbar { display: none; }
-/* The right-hand judge controls must NEVER shrink or be overlapped by the section nav — the left
-   cluster scrolls instead. (Half-window / mid widths used to let the nav spill over Sync/Add.) */
+/* The section nav must stay fully visible (all items) and the judge controls must never shrink;
+   if they can't fit on one line the header wraps (above) instead. */
+.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
 .header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.topnav { flex-shrink: 0; }
 .app-name { font-weight: 700; letter-spacing: .2px; flex-shrink: 0; }
 .breadcrumb { color: var(--text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn {
