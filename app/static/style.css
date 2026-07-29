@@ -324,10 +324,29 @@ body {
 .note { color: var(--text-muted); font-size: 13px; margin: 6px 0; }
 .spinner { color: var(--text-muted); font-size: 13px; }
 
+/* ---- Mobile / narrow: the 3-pane desktop layout (sidebar | statement | editor) has min-widths
+   summing to ~920px, so below this it must become a single column. The sidebar turns into an
+   off-canvas drawer (JS collapses it by default here and closes it after you pick a problem), and
+   the statement + editor stack. This is the difference between a usable phone app and a page that
+   scrolls sideways into nothing. ---- */
 @media (max-width: 900px) {
-    .statement-pane { flex-basis: 50%; }
+    .workspace { flex-direction: column; overflow-x: hidden; }
+    .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+        width: 86%; max-width: 330px; padding: 8px; overflow-y: auto;
+        border-right: 1px solid var(--border); box-shadow: 2px 0 24px rgba(0,0,0,.4);
+        transition: transform .22s ease; }
+    .sidebar.collapsed { transform: translateX(-102%); width: 86%; padding: 8px; overflow-y: auto; }
+    .sidebar:not(.collapsed) { transform: translateX(0); }
+    .statement-pane { flex: none; width: 100%; min-width: 0; height: 42vh;
+        border-right: 0; border-bottom: 1px solid var(--border); }
+    .divider { display: none; }
+    .editor-pane { flex: none; width: 100%; min-width: 0; height: 58vh; }
     .footer-right .btn { padding: 7px 10px; }
 }
+/* Backdrop behind the mobile sidebar drawer; tap to dismiss. */
+.mobile-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 55;
+    opacity: 0; pointer-events: none; transition: opacity .2s; }
+.mobile-scrim.show { opacity: 1; pointer-events: auto; }
 
 /* ============================ Phase 3: data UI ============================ */
 
@@ -911,7 +930,7 @@ select option { background: var(--bg-elev); color: var(--text); }
     border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; }
 .cc-env::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 8px; flex-shrink: 0; }
 .cc-env:empty { display: none; }
-.cc-tools { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.cc-tools { display: flex; align-items: center; gap: 9px; flex-shrink: 0; flex-wrap: wrap; }
 .cc-status { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
 .cc-lang { font-size: 13px; font-weight: 600; font-family: var(--mono); color: var(--text);
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; cursor: pointer; }
@@ -1138,4 +1157,15 @@ select option { background: var(--bg-elev); color: var(--text); }
        own visible glyph size, so this only affects the invisible input, not the rendered code. */
     .cc-stdin, textarea, input, select { font-size: 16px; }
     .monaco-editor .inputarea { font-size: 16px !important; }
+    /* Statement tabs: keep all on one row — tighten padding, drop the "Report" word to its icon,
+       and let the strip scroll rather than clip if a long Attempts count makes it wide. */
+    .tabs { padding: 6px 10px 0; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { padding: 6px 7px; flex-shrink: 0; }
+    .tab-report { flex-shrink: 0; padding: 4px 7px; }
+    .tr-label { display: none; }
+    /* A touch more breathing room in the stacked panes. */
+    .statement-pane { height: 44vh; }
+    .editor-pane { height: 56vh; }
+    .compiler-inner, .tracker-inner, .sheet-content { padding-left: 16px; padding-right: 16px; }
 }

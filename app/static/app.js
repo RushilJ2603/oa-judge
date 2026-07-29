@@ -409,7 +409,20 @@ function setupEventListeners() {
     document.getElementById('drawer-close-custom').addEventListener('click', () => els.customInputDrawer.classList.remove('open'));
     document.getElementById('drawer-close-result').addEventListener('click', () => els.resultDrawer.classList.remove('open'));
 
-    els.sidebarToggle.addEventListener('click', () => els.sidebar.classList.toggle('collapsed'));
+    // Sidebar: a plain collapse on desktop; on mobile (<=900px) an off-canvas drawer with a scrim.
+    const MOBILE_Q = window.matchMedia('(max-width: 900px)');
+    const scrim = document.createElement('div');
+    scrim.className = 'mobile-scrim';
+    document.body.appendChild(scrim);
+    const setSidebar = (open) => {
+        els.sidebar.classList.toggle('collapsed', !open);
+        scrim.classList.toggle('show', open && MOBILE_Q.matches);
+    };
+    els.sidebarToggle.addEventListener('click', () => setSidebar(els.sidebar.classList.contains('collapsed')));
+    scrim.addEventListener('click', () => setSidebar(false));
+    if (MOBILE_Q.matches) els.sidebar.classList.add('collapsed');   // start closed on phones
+    MOBILE_Q.addEventListener('change', (e) => { els.sidebar.classList.toggle('collapsed', e.matches); scrim.classList.remove('show'); });
+    window._closeSidebarOnMobile = () => { if (MOBILE_Q.matches) setSidebar(false); };
 
     // divider drag
     let dragging = false;
@@ -595,6 +608,8 @@ function refreshSidebarSolved() {
 }
 
 async function loadProblem(id) {
+    // On phones the sidebar is a drawer over the content — close it once a problem is chosen.
+    if (window._closeSidebarOnMobile) window._closeSidebarOnMobile();
     if (state.currentProblemId === id) return;
     // Flush the outgoing problem's draft before switching away from it.
     if (state.currentProblemId) saveDraftNow();

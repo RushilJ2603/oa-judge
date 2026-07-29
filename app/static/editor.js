@@ -18,6 +18,21 @@
     let monacoLoading = null;   // shared promise so init() + create() load Monaco exactly once
     let lastDark = true;        // last theme applied; new instances adopt it (Monaco theme is global)
     let changeHandler = null;
+
+    // On phones, Monaco's no-wrap horizontal touch-scroll fights the cursor-reveal and snaps back;
+    // wrapping long lines removes sideways scrolling entirely (the frictionless choice on mobile).
+    const _editors = new Set();     // every live Monaco instance, so resize can re-wrap them all
+    const _isMobile = () => (typeof window !== 'undefined' && window.innerWidth <= 760);
+    if (typeof window !== 'undefined') {
+        let _rt = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(_rt);
+            _rt = setTimeout(() => {
+                const w = _isMobile() ? 'on' : 'off';
+                _editors.forEach((e) => { try { e.updateOptions({ wordWrap: w }); } catch (_) {} });
+            }, 200);
+        });
+    }
     // Set while the app writes the buffer itself (loading a draft, switching language,
     // resetting to the stub). Without this, merely opening a problem would look like an
     // edit and save the untouched stub as a draft.
@@ -310,6 +325,7 @@
             minimap: { enabled: false },
             scrollBeyondLastLine: false,
             automaticLayout: true,
+            wordWrap: _isMobile() ? 'on' : 'off',
             tabSize: 4,
             insertSpaces: true,
             renderWhitespace: 'selection',
@@ -341,6 +357,7 @@
             lastDark = opts.dark !== false;
             ensureMonaco().then((monaco) => {
                 editor = monaco.editor.create(container, baseOptions(opts));
+                _editors.add(editor);
                 editor.onDidChangeModelContent(() => {
                     if (programmatic) return;
                     if (changeHandler) changeHandler(editor.getValue());
@@ -359,6 +376,7 @@
             h.ready = ensureMonaco().then((monaco) => {
                 const ed = monaco.editor.create(container, baseOptions(opts));
                 h._ed = ed;
+                _editors.add(ed);
                 ed.onDidChangeModelContent(() => { if (h._onChange) h._onChange(ed.getValue()); });
                 if (opts.onRun) {
                     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, opts.onRun);
@@ -372,7 +390,7 @@
             h.onChange = (cb) => { h._onChange = cb; };
             h.focus = () => { if (h._ed) h._ed.focus(); };
             h.layout = () => { if (h._ed) h._ed.layout(); };
-            h.dispose = () => { if (h._ed) { h._ed.dispose(); h._ed = null; } };
+            h.dispose = () => { if (h._ed) { _editors.delete(h._ed); h._ed.dispose(); h._ed = null; } };
             return h;
         },
 
