@@ -329,18 +329,31 @@ body {
    off-canvas drawer (JS collapses it by default here and closes it after you pick a problem), and
    the statement + editor stack. This is the difference between a usable phone app and a page that
    scrolls sideways into nothing. ---- */
+/* Mobile-only Problem/Code segmented switch (base = hidden; the media query below reveals it, so it
+   must be declared BEFORE that query or source order would keep it hidden). */
+.pane-switch { display: none; gap: 6px; padding: 6px 10px; background: var(--bg-elev);
+    border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+.pane-switch button { flex: 1; padding: 9px; font-size: 13px; font-weight: 600; font-family: var(--sans);
+    color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; cursor: pointer; }
+.pane-switch button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 @media (max-width: 900px) {
     .workspace { flex-direction: column; overflow-x: hidden; }
+    .pane-switch { display: flex; }
     .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
         width: 86%; max-width: 330px; padding: 8px; overflow-y: auto;
         border-right: 1px solid var(--border); box-shadow: 2px 0 24px rgba(0,0,0,.4);
         transition: transform .22s ease; }
     .sidebar.collapsed { transform: translateX(-102%); width: 86%; padding: 8px; overflow-y: auto; }
     .sidebar:not(.collapsed) { transform: translateX(0); }
-    .statement-pane { flex: none; width: 100%; min-width: 0; height: 42vh;
-        border-right: 0; border-bottom: 1px solid var(--border); }
+    /* Statement and editor each take the FULL remaining height; only one shows at a time (toggle).
+       This is what kills the dead-space + stranded Run bar: Monaco fills the pane, footer at bottom. */
+    .statement-pane, .editor-pane { flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0;
+        height: auto; border-right: 0; }
     .divider { display: none; }
-    .editor-pane { flex: none; width: 100%; min-width: 0; height: 58vh; }
+    .workspace.show-code .statement-pane { display: none; }
+    .workspace:not(.show-code) .editor-pane { display: none; }
     .footer-right .btn { padding: 7px 10px; }
 }
 /* Backdrop behind the mobile sidebar drawer; tap to dismiss. */
@@ -1132,8 +1145,17 @@ select option { background: var(--bg-elev); color: var(--text); }
 
 @media (max-width: 900px) {
     .topnav-item { padding: 5px 9px; }
-    .sheet-body { flex-direction: column; }
-    .sheet-rail { width: auto; border-right: 0; border-bottom: 1px solid var(--border); max-height: 168px; }
+    /* Sheets: ONE natural scroll instead of three stacked scroll-boxes (roadmap / rail / content).
+       The whole sheet-view scrolls; the roadmap stacks; the rail and content flow inside it. No more
+       cramped black-bordered boxes. Tapping a section scrolls the page to its problems (JS). */
+    .sheet-view { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .sheet-body { flex-direction: column; overflow: visible; }
+    .sheet-rail { width: auto; max-height: none; overflow: visible;
+        border-right: 0; border-bottom: 1px solid var(--border); }
+    .sheet-content { overflow: visible; height: auto; }
+    .roadmap { flex-direction: column; gap: 10px; overflow-x: visible; }
+    .rm-phase { flex: none; width: auto; padding: 8px 0; }
+    .rm-phase:not(:last-child)::after { display: none; }
     .tk-grid { grid-template-columns: 1fr; }
     .sheet-head { flex-direction: column; align-items: flex-start; gap: 12px; }
     .sheet-meter { text-align: left; }
@@ -1164,8 +1186,5 @@ select option { background: var(--bg-elev); color: var(--text); }
     .tab-btn { padding: 6px 7px; flex-shrink: 0; }
     .tab-report { flex-shrink: 0; padding: 4px 7px; }
     .tr-label { display: none; }
-    /* A touch more breathing room in the stacked panes. */
-    .statement-pane { height: 44vh; }
-    .editor-pane { height: 56vh; }
     .compiler-inner, .tracker-inner, .sheet-content { padding-left: 16px; padding-right: 16px; }
 }

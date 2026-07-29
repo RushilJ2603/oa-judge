@@ -424,6 +424,22 @@ function setupEventListeners() {
     MOBILE_Q.addEventListener('change', (e) => { els.sidebar.classList.toggle('collapsed', e.matches); scrim.classList.remove('show'); });
     window._closeSidebarOnMobile = () => { if (MOBILE_Q.matches) setSidebar(false); };
 
+    // Mobile Problem/Code toggle: show one full-screen pane at a time (desktop shows both).
+    const paneSwitch = document.getElementById('pane-switch');
+    const workspaceEl = document.querySelector('.workspace');
+    if (paneSwitch && workspaceEl) {
+        paneSwitch.addEventListener('click', (e) => {
+            const b = e.target.closest('button'); if (!b) return;
+            const code = b.dataset.pane === 'code';
+            workspaceEl.classList.toggle('show-code', code);
+            paneSwitch.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+            if (code && window.OAEditor && OAEditor.layout) requestAnimationFrame(() => OAEditor.layout());
+        });
+    }
+    // Opening a problem on mobile lands you on the statement first.
+    window._showProblemPane = () => { if (workspaceEl) { workspaceEl.classList.remove('show-code');
+        if (paneSwitch) paneSwitch.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x.dataset.pane === 'problem')); } };
+
     // divider drag
     let dragging = false;
     els.divider.addEventListener('mousedown', () => { dragging = true; document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; });
@@ -608,8 +624,10 @@ function refreshSidebarSolved() {
 }
 
 async function loadProblem(id) {
-    // On phones the sidebar is a drawer over the content — close it once a problem is chosen.
+    // On phones the sidebar is a drawer over the content — close it once a problem is chosen,
+    // and land on the statement pane (they can flip to Code when ready).
     if (window._closeSidebarOnMobile) window._closeSidebarOnMobile();
+    if (window._showProblemPane) window._showProblemPane();
     if (state.currentProblemId === id) return;
     // Flush the outgoing problem's draft before switching away from it.
     if (state.currentProblemId) saveDraftNow();

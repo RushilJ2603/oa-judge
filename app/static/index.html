@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=1">
-    <link rel="stylesheet" href="/static/style.css?v=26">
+    <link rel="stylesheet" href="/static/style.css?v=27">
 </head>
 <body>
     <header class="app-header">
@@ -36,6 +36,12 @@
     </header>
 
     <div class="workspace">
+        <!-- Mobile-only: switch the single visible pane between the statement and the editor so each
+             gets the full screen (no dead space, no tiny editor). Hidden on desktop. -->
+        <div class="pane-switch" id="pane-switch" role="group" aria-label="View">
+            <button data-pane="problem" class="active" type="button">Problem</button>
+            <button data-pane="code" type="button">Code</button>
+        </div>
         <!-- Problem list -->
         <aside class="sidebar" id="sidebar">
             <button class="potd" id="potd" style="display:none" title="Today's featured problem"></button>
@@ -187,8 +193,8 @@
         </div>
     </div>
 
-    <script src="/static/editor.js?v=15"></script>
-    <script src="/static/app.js?v=14"></script>
-    <script src="/static/sheets.js?v=22"></script>
+    <script src="/static/editor.js?v=16"></script>
+    <script src="/static/app.js?v=15"></script>
+    <script src="/static/sheets.js?v=23"></script>
 </body>
 </html>

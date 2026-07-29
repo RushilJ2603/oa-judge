@@ -75,7 +75,14 @@
     });
     $('sheet-rail').innerHTML = railHtml;
     $('sheet-rail').querySelectorAll('.rail-topic').forEach((el) =>
-      el.addEventListener('click', () => { S.activeSection[sid] = +el.dataset.idx; renderSheet(sid); }));
+      el.addEventListener('click', () => {
+        S.activeSection[sid] = +el.dataset.idx;
+        renderSheet(sid);
+        // On phones the rail and content share one scroll — jump to the chosen section's problems.
+        if (window.matchMedia('(max-width: 900px)').matches) {
+          requestAnimationFrame(() => { const c = $('sheet-content'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+        }
+      }));
     renderSection(sid);
   }
 

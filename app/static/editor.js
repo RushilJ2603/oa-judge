@@ -397,6 +397,9 @@
         whenReady() { return ready; },
         isReady() { return editor !== null; },
 
+        /** Force a re-measure — needed when the editor's pane un-hides (mobile Problem/Code toggle). */
+        layout() { if (editor) editor.layout(); },
+
         getValue() { return editor ? editor.getValue() : ''; },
 
         /** Replace the buffer. `keepUndo` false pushes a clean undo stop (problem/language switch). */
