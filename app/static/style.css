@@ -1119,14 +1119,14 @@ select option { background: var(--bg-elev); color: var(--text); }
     .sheet-head { flex-direction: column; align-items: flex-start; gap: 12px; }
     .sheet-meter { text-align: left; }
 }
-/* Narrow header: the added section nav must never collide with the judge's own controls. Let the
-   left cluster scroll horizontally and drop the wordmark, keeping the brand dot via the toggle. */
+/* Narrow header: the section nav must stay fully reachable. Instead of a hidden horizontal scroll
+   (which pushed CP/SD/Tracker/Compiler off-screen with no visible way to get to them), the left
+   cluster takes a full row and the nav WRAPS onto as many rows as it needs — every tab tappable. */
 @media (max-width: 760px) {
     .app-header { gap: 8px; }
-    .header-left { min-width: 0; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
-    .header-left::-webkit-scrollbar { display: none; }
+    .header-left { min-width: 0; flex: 1 1 100%; flex-wrap: wrap; overflow: visible; }
     .header-right { flex-shrink: 0; }
-    .topnav { flex-shrink: 0; }
+    .topnav { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
     .app-name { display: none; }
     .breadcrumb { display: none; }
     .tracker-inner { padding: 18px; }

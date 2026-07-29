@@ -201,8 +201,6 @@
     const meta = pad.querySelector('.pad-run-meta');
     const clr = pad.querySelector('.pad-clear'), dl = pad.querySelector('.pad-dl');
     const vizBtn = pad.querySelector('.pad-viz'), env = pad.querySelector('.pad-env');
-    const clr = pad.querySelector('.pad-clear'), dl = pad.querySelector('.pad-dl');
-    const vizBtn = pad.querySelector('.pad-viz'), env = pad.querySelector('.pad-env');
     let initCode = '', initLang = 'cpp';
     try {
       const d = await jget('/api/sheet-code?item=' + encodeURIComponent(itemId));
