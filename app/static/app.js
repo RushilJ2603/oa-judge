@@ -370,6 +370,22 @@ function setupEventListeners() {
     els.btnSync.addEventListener('click', syncBank);
     els.btnAddProblem.addEventListener('click', openAuthoring);
     els.btnHistory.addEventListener('click', openDraftScrubber);
+    // One-tap "copy all code" — reliable on mobile, where selecting inside Monaco is fiddly.
+    const btnCopyCode = document.getElementById('btn-copy-code');
+    if (btnCopyCode) btnCopyCode.addEventListener('click', async () => {
+        const code = (window.OAEditor && OAEditor.getValue) ? OAEditor.getValue() : '';
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch (e) {
+            const ta = document.createElement('textarea');
+            ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            try { document.execCommand('copy'); } catch (_) { /* best effort */ }
+            ta.remove();
+        }
+        btnCopyCode.textContent = 'Copied ✓'; btnCopyCode.classList.add('ok');
+        setTimeout(() => { btnCopyCode.textContent = 'Copy'; btnCopyCode.classList.remove('ok'); }, 1400);
+    });
     els.modalClose.addEventListener('click', closeModal);
     els.modalOverlay.addEventListener('click', (e) => { if (e.target === els.modalOverlay) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });

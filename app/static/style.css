@@ -111,6 +111,7 @@ body {
     cursor: pointer; font-size: 15px;
 }
 .icon-btn:hover { background: var(--bg-sunken); color: var(--text); border-color: var(--border); }
+.icon-btn.ok { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 
 /* ===== workspace layout ===== */
 .workspace { flex: 1; display: flex; min-height: 0; }

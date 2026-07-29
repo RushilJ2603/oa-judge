@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=1">
-    <link rel="stylesheet" href="/static/style.css?v=27">
+    <link rel="stylesheet" href="/static/style.css?v=28">
 </head>
 <body>
     <header class="app-header">
@@ -92,6 +92,7 @@
                 <select id="lang-select" class="lang-select" title="Language"></select>
                 <span class="save-status" id="save-status" title="Drafts autosave to the local database"></span>
                 <div class="toolbar-spacer"></div>
+                <button class="icon-btn" id="btn-copy-code" title="Copy all code (reliable on mobile, where selecting inside the editor is fiddly)">Copy</button>
                 <button class="icon-btn" id="btn-history" title="Replay your saved drafts for this problem">History</button>
                 <button class="icon-btn" id="btn-reset-stub" title="Reset editor to the starter code">↺ Reset</button>
             </div>
@@ -194,7 +195,7 @@
     </div>
 
     <script src="/static/editor.js?v=17"></script>
-    <script src="/static/app.js?v=15"></script>
+    <script src="/static/app.js?v=16"></script>
     <script src="/static/sheets.js?v=23"></script>
 </body>
 </html>
