@@ -326,6 +326,10 @@
             scrollBeyondLastLine: false,
             automaticLayout: true,
             wordWrap: _isMobile() ? 'on' : 'off',
+            // Wrapped continuations sit flush-left (not aligned to the line's indent), so a wrap never
+            // looks like it inserted leading spaces. Word wrap is view-only — the model text is
+            // unchanged, so Copy/Run/Submit/Download always get exactly what was typed.
+            wrappingIndent: 'none',
             tabSize: 4,
             insertSpaces: true,
             renderWhitespace: 'selection',
