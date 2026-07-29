@@ -545,7 +545,13 @@ body {
     transition: border-color .12s, transform .06s; }
 .potd:hover { border-color: var(--accent); }
 .potd:active { transform: translateY(1px); }
-.potd-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+.potd-tag { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+.potd-streak { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 700; color: #d9822b; }
+.potd-solved { border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--bg-elev)), var(--bg-elev)); }
+.potd-solved .potd-lbl { color: var(--accent); }
+.potd-solved .potd-title { opacity: .9; }
 .potd-title { font-size: 13.5px; font-weight: 650; color: var(--text); line-height: 1.25; }
 .potd-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .potd-diff { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
@@ -833,12 +839,21 @@ select option { background: var(--bg-elev); color: var(--text); }
 
 .prob-pad { margin: 2px 0 12px 33px; border: 1px solid var(--border); border-radius: 10px;
     background: var(--bg-elev); overflow: hidden; }
-.pad-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+.pad-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px;
     border-bottom: 1px solid var(--border); background: var(--bg-sunken); }
 .pad-lang { font-size: 12px; font-weight: 600; font-family: var(--mono); color: var(--text);
     background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
 .pad-lang:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
-.pad-status { flex: 1; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pad-status { flex: 1 1 60px; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pad-clear, .pad-dl { font-size: 12px; font-weight: 600; color: var(--text); background: var(--bg-elev);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.pad-clear:hover, .pad-dl:hover { border-color: var(--accent); color: var(--accent); }
+.pad-dl.ok, .pad-clear.ok { border-color: var(--accent); color: var(--accent); }
+.pad-viz { font-size: 12px; font-weight: 700; color: var(--accent); background: transparent;
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.pad-viz:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pad-viz:disabled { opacity: .45; cursor: not-allowed; }
+.pad-env { font-size: 11px; color: var(--text-muted); font-family: var(--mono); white-space: nowrap; }
 .pad-copy { font-size: 12px; font-weight: 600; color: #fff; background: var(--accent);
     border: 0; border-radius: 6px; padding: 4px 14px; cursor: pointer; transition: background .12s; }
 .pad-copy:hover { background: var(--accent-hover); }
@@ -900,11 +915,11 @@ select option { background: var(--bg-elev); color: var(--text); }
 .cc-status { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
 .cc-lang { font-size: 13px; font-weight: 600; font-family: var(--mono); color: var(--text);
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; cursor: pointer; }
-.cc-clear, .cc-copy { font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--bg-elev);
+.cc-clear, .cc-copy, .cc-dl { font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--bg-elev);
     border: 1px solid var(--border-strong); border-radius: 7px; padding: 6px 13px; cursor: pointer;
     transition: border-color .12s, color .12s; }
-.cc-clear:hover, .cc-copy:hover { border-color: var(--accent); color: var(--accent); }
-.cc-copy.ok { border-color: var(--accent); color: var(--accent); }
+.cc-clear:hover, .cc-copy:hover, .cc-dl:hover { border-color: var(--accent); color: var(--accent); }
+.cc-copy.ok, .cc-dl.ok { border-color: var(--accent); color: var(--accent); }
 .cc-run { font-size: 12.5px; font-weight: 700; color: #fff; background: var(--accent); border: 1px solid var(--accent);
     border-radius: 7px; padding: 6px 18px; cursor: pointer; transition: background .12s; }
 .cc-run:hover { background: var(--accent-hover); border-color: var(--accent-hover); }

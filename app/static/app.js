@@ -184,16 +184,24 @@ async function init() {
 }
 
 /* ---- Problem of the Day: one deterministic problem per calendar day (IST), same for everyone.
-   Server-computed (no storage, $0); the card just opens it. ---- */
+   Server-computed (no storage, $0). Tracks a solve streak; the card flips to a "solved" state and
+   shows a 🔥 streak once you AC today's POTD. ---- */
+let _potdId = null;
 async function setupPotd() {
     const el = document.getElementById('potd');
     if (!el) return;
     let p;
     try { p = await api('/api/potd'); } catch (e) { return; }
     if (!p || !p.ok || !p.id) return;
+    _potdId = p.id;
     const diff = (p.difficulty || '').toLowerCase();
+    const streak = p.streak || 0;
+    const flame = streak > 0
+        ? `<span class="potd-streak" title="${streak}-day streak${p.best ? ' · best ' + p.best : ''}">🔥 ${streak}</span>`
+        : '';
+    el.className = 'potd' + (p.solved ? ' potd-solved' : '');
     el.innerHTML =
-        `<span class="potd-tag">★ Problem of the Day</span>` +
+        `<span class="potd-tag"><span class="potd-lbl">${p.solved ? '✓ Solved today' : '★ Problem of the Day'}</span>${flame}</span>` +
         `<span class="potd-title">${escapeHTML(p.title || p.id)}</span>` +
         `<span class="potd-meta">` +
             (p.difficulty ? `<span class="potd-diff ${diff}">${escapeHTML(p.difficulty)}</span>` : '') +
@@ -837,6 +845,8 @@ async function handleSubmit() {
         fetchProblemsAndHistory();
         refreshPresence();
         updateAttemptsCount();
+        // Solving today's POTD flips the card to solved + bumps the streak.
+        if (r.verdict === 'AC' && _potdId && state.currentProblemId === _potdId) setupPotd();
         // If the Attempts tab is open, refresh it so the new submission appears immediately.
         if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
     } catch (e) {

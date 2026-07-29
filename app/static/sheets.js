@@ -175,8 +175,12 @@
       `<div class="pad-bar">
          <select class="pad-lang" title="Language">${PAD_LANGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
          <span class="pad-status" aria-live="polite"></span>
-         <button class="pad-run" type="button" title="Compile & run with the input below (Ctrl/Cmd+Enter)">Run ▸</button>
+         <button class="pad-clear" type="button" title="Reset to a blank template">Reset</button>
          <button class="pad-copy" type="button" title="Copy code to clipboard">Copy</button>
+         <button class="pad-dl" type="button" title="Download this code as a file">Download</button>
+         <button class="pad-viz" type="button" title="Step through your code line-by-line (Python &amp; C++)">◆ Visualize</button>
+         <button class="pad-run" type="button" title="Compile & run with the input below (Ctrl/Cmd+Enter)">Run ▸</button>
+         <span class="pad-env" title="The exact toolchain your code runs on"></span>
        </div>
        <div class="pad-editor"></div>
        <div class="pad-io" hidden>
@@ -195,6 +199,10 @@
     const run = pad.querySelector('.pad-run'), io = pad.querySelector('.pad-io');
     const stdin = pad.querySelector('.pad-stdin'), out = pad.querySelector('.pad-out');
     const meta = pad.querySelector('.pad-run-meta');
+    const clr = pad.querySelector('.pad-clear'), dl = pad.querySelector('.pad-dl');
+    const vizBtn = pad.querySelector('.pad-viz'), env = pad.querySelector('.pad-env');
+    const clr = pad.querySelector('.pad-clear'), dl = pad.querySelector('.pad-dl');
+    const vizBtn = pad.querySelector('.pad-viz'), env = pad.querySelector('.pad-env');
     let initCode = '', initLang = 'cpp';
     try {
       const d = await jget('/api/sheet-code?item=' + encodeURIComponent(itemId));
@@ -209,8 +217,18 @@
       const ok = !!RUNNABLE[sel.value];
       run.disabled = !ok;
       run.title = ok ? 'Compile & run with the input below (Ctrl/Cmd+Enter)' : 'Built-in Run supports C++ & Python';
+      vizBtn.disabled = !ok;
+      vizBtn.title = ok ? 'Step through your code line-by-line (Python & C++)' : 'Visualize supports C++ & Python';
     };
     syncRunnable();
+    const showPadEnv = async () => {
+      if (!RUNNABLE[sel.value]) { env.textContent = ''; return; }
+      if (!S.env) { try { S.env = await jget('/api/scratch-env'); } catch (e) { return; } }
+      const e = S.env[langBase(sel.value)];
+      if (!e) { env.textContent = ''; return; }
+      env.textContent = e.std ? e.label + ' · ' + e.std : e.label;
+      if (e.full) env.title = e.full;
+    };
     let timer = null;
     const save = () => {
       status.textContent = 'Saving…';
@@ -220,7 +238,7 @@
     };
     const queue = () => { clearTimeout(timer); status.textContent = 'Editing…'; timer = setTimeout(save, 700); };
     pcc.onChange(queue);
-    sel.addEventListener('change', () => { syncRunnable(); pcc.setLanguage(langBase(sel.value)); save(); });
+    sel.addEventListener('change', () => { syncRunnable(); pcc.setLanguage(langBase(sel.value)); save(); showPadEnv(); });
     stdin.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
       if (e.key === 'Tab') { e.preventDefault(); const s = stdin.selectionStart, en = stdin.selectionEnd; stdin.value = stdin.value.slice(0, s) + '    ' + stdin.value.slice(en); stdin.selectionStart = stdin.selectionEnd = s + 4; }
@@ -230,10 +248,48 @@
       copy.textContent = 'Copied ✓'; copy.classList.add('ok');
       setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
     });
+    clr.addEventListener('click', () => {
+      pcc.setValue(CC_STARTER[langBase(sel.value)] || '');
+      stdin.value = ''; io.hidden = true;
+      out.className = 'pad-out'; out.textContent = ''; meta.textContent = '';
+      save(); pcc.focus();
+    });
+    dl.addEventListener('click', () => {
+      const ext = langBase(sel.value) === 'py' ? 'py' : 'cpp';
+      const blob = new Blob([pcc.getValue()], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'main.' + ext;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      dl.textContent = 'Downloaded ✓'; dl.classList.add('ok');
+      setTimeout(() => { dl.textContent = 'Download'; dl.classList.remove('ok'); }, 1400);
+    });
+    async function doVisualize() {
+      if (vizBtn.disabled || vizBtn.dataset.busy) return;
+      const base = langBase(sel.value);
+      vizBtn.dataset.busy = '1';
+      const prev = vizBtn.textContent;
+      vizBtn.textContent = 'Tracing…';
+      save();   // persist the exact code we trace
+      try {
+        const r = await jpost('/api/visualize', { lang: base, source: pcc.getValue(), stdin: stdin.value });
+        if (!r || !r.ok) { openVizError((r && r.error) || 'Could not build a trace.', r); return; }
+        if (!r.steps || !r.steps.length) { openVizError('No steps were traced — did the program execute any of your lines?', r); return; }
+        openViz(pcc.getValue(), base, r);
+      } catch (e) {
+        openVizError('Could not reach the visualizer.');
+      } finally {
+        vizBtn.dataset.busy = ''; vizBtn.textContent = prev;
+      }
+    }
+    vizBtn.addEventListener('click', doVisualize);
+    showPadEnv();
     pcc.ready.then(() => pcc.focus());
 
     async function doRun() {
       if (run.disabled || run.dataset.busy) return;
+      save();   // running saves the current code under this question (for revision later)
       io.hidden = false;
       run.dataset.busy = '1'; run.textContent = 'Running…';
       out.className = 'pad-out'; out.textContent = ''; meta.textContent = 'compiling…';
@@ -304,6 +360,7 @@
            <span class="cc-status" aria-live="polite"></span>
            <button class="cc-clear" type="button" title="Reset to a blank template">Reset</button>
            <button class="cc-copy" type="button" title="Copy code to clipboard">Copy</button>
+           <button class="cc-dl" type="button" title="Download this code as a file">Download</button>
            <button class="cc-viz" type="button" title="Step through your code line-by-line (Python &amp; C++)">◆ Visualize</button>
            <button class="cc-run" type="button" title="Compile &amp; run (Ctrl/Cmd+Enter)">Run ▸</button>
          </div>
@@ -362,6 +419,18 @@
       await copyText(cc.getValue());
       copy.textContent = 'Copied ✓'; copy.classList.add('ok');
       setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
+    });
+    const dl = host.querySelector('.cc-dl');
+    dl.addEventListener('click', () => {
+      const ext = langBase(lang.value) === 'py' ? 'py' : 'cpp';
+      const blob = new Blob([cc.getValue()], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'main.' + ext;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      dl.textContent = 'Downloaded ✓'; dl.classList.add('ok');
+      setTimeout(() => { dl.textContent = 'Download'; dl.classList.remove('ok'); }, 1400);
     });
     clr.addEventListener('click', () => {
       cc.setValue(CC_STARTER[langBase(lang.value)] || ''); stdin.value = '';

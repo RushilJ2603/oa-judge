@@ -257,6 +257,12 @@ def api_submit():
         first_fail_idx=first_fail_idx,
         stdout_snippet=fail_got, stderr_snippet=fail_stderr)
 
+    # Problem of the Day: an AC on today's POTD (on the day itself) extends the user's streak.
+    if overall == "AC":
+        pm = _potd_meta()
+        if pm and pm.get("id") == p["meta"]["id"]:
+            store.potd_mark_solved(_ist_today().isoformat(), pm["id"])
+
     # Close an OA session if the frontend opened one, so time-per-problem is real data
     # rather than the NULL every v1 row carried.
     sid = body.get("oa_session_id")
@@ -478,20 +484,63 @@ def api_presence():
 
 
 # ----------------------------------------------------------------- problem of the day
-@app.route("/api/potd")
-def api_potd():
-    """A deterministic Problem of the Day — same for everyone, rotates through the whole bank by
-    calendar day (IST). No storage, no cron, $0: index = ordinal(today) mod N over the id-sorted
-    bank."""
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+
+def _ist_today():
+    return datetime.datetime.now(_IST).date()
+
+
+def _potd_meta(day=None):
+    """The deterministic POTD meta for `day` (default today, IST): index = ordinal mod N over the
+    id-sorted bank. Same for everyone, no storage."""
     metas = sorted(problems.all_meta(), key=lambda m: m.get("id", ""))
     if not metas:
+        return None
+    d = day or _ist_today()
+    return metas[d.toordinal() % len(metas)]
+
+
+def _potd_streak(days: set, today) -> int:
+    """Consecutive-day streak ending today or (if today isn't solved yet) yesterday — GitHub-style,
+    so an unsolved-but-still-open today doesn't zero a live streak."""
+    one = datetime.timedelta(days=1)
+    if today.isoformat() in days:
+        anchor = today
+    elif (today - one).isoformat() in days:
+        anchor = today - one
+    else:
+        return 0
+    n, d = 0, anchor
+    while d.isoformat() in days:
+        n += 1
+        d -= one
+    return n
+
+
+def _potd_best(days: set) -> int:
+    if not days:
+        return 0
+    ds = sorted(datetime.date.fromisoformat(x) for x in days)
+    best = run = 1
+    for i in range(1, len(ds)):
+        run = run + 1 if (ds[i] - ds[i - 1]).days == 1 else 1
+        best = max(best, run)
+    return best
+
+
+@app.route("/api/potd")
+def api_potd():
+    m = _potd_meta()
+    if not m:
         return jsonify({"ok": False})
-    ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-    today = datetime.datetime.now(ist).date()
-    m = metas[today.toordinal() % len(metas)]
+    today = _ist_today()
+    days = store.potd_solved_days()
     return jsonify({"ok": True, "date": today.isoformat(), "id": m.get("id"),
                     "title": m.get("title"), "difficulty": m.get("difficulty"),
-                    "company": store.canon_company(m.get("company", "")), "topic": m.get("topic")})
+                    "company": store.canon_company(m.get("company", "")), "topic": m.get("topic"),
+                    "solved": today.isoformat() in days,
+                    "streak": _potd_streak(days, today), "best": _potd_best(days)})
 
 
 # ----------------------------------------------------------------- sharing (Phase 5)

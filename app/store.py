@@ -551,6 +551,23 @@ def online_users(within_seconds: int = 300) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def potd_mark_solved(day: str, problem_id: str) -> None:
+    """Record that the current user solved the POTD for `day` (first solve wins; idempotent)."""
+    conn = db.connect()
+    conn.execute(
+        "INSERT INTO potd_solve (user_id, day, problem_id, solved_at) VALUES (?,?,?,?)"
+        " ON CONFLICT (user_id, day) DO NOTHING",
+        (_uid(), day, problem_id, _now()))
+    conn.commit()
+
+
+def potd_solved_days() -> set:
+    """Set of IST day-strings on which the current user solved that day's POTD."""
+    rows = db.connect().execute(
+        "SELECT day FROM potd_solve WHERE user_id = ?", (_uid(),)).fetchall()
+    return {r["day"] for r in rows}
+
+
 def presence_recent(within_seconds: int = 30 * 86400, limit: int = 60) -> list[dict]:
     """The shared 'who's been around' history — every user seen within the window (default 30 days),
     most-recent first. Visible to all users. Same cheap read as online_users (no heartbeat), just a
