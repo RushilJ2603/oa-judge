@@ -55,15 +55,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1374c",
-     "title": "Move Brackets",
-     "url": "https://codeforces.com/problemset/problem/1374/C",
-     "platform": "Codeforces",
-     "rating": 1000,
-     "tag": "greedy / constructive",
-     "tier": "core"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem514a",
      "title": "Chewbacca and Number",
      "url": "https://codeforces.com/problemset/problem/514/A",
@@ -88,15 +79,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "constructive",
-     "tier": "core"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1355d",
-     "title": "Game With Array",
-     "url": "https://codeforces.com/problemset/problem/1355/D",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "constructive / subset-sum dodge",
      "tier": "core"
     },
     {
@@ -127,30 +109,12 @@
      "tier": "core"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1515c",
-     "title": "Phoenix and Towers",
-     "url": "https://codeforces.com/problemset/problem/1515/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "greedy constructive",
-     "tier": "core"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1372c",
      "title": "Omkar and Baseball",
      "url": "https://codeforces.com/problemset/problem/1372/C",
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "constructive / segments",
-     "tier": "core"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1352f",
-     "title": "Binary String Reconstruction",
-     "url": "https://codeforces.com/problemset/problem/1352/F",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "constructive",
      "tier": "core"
     },
     {
@@ -172,15 +136,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1352g",
-     "title": "Special Permutation",
-     "url": "https://codeforces.com/problemset/problem/1352/G",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "constructive permutation",
-     "tier": "core"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1364c",
      "title": "Ehab and Prefix MEXs",
      "url": "https://codeforces.com/problemset/problem/1364/C",
@@ -188,15 +143,6 @@
      "rating": 1600,
      "tag": "MEX constructive",
      "tier": "core"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1503a",
-     "title": "Balance the Bits",
-     "url": "https://codeforces.com/problemset/problem/1503/A",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "double RBS",
-     "tier": "extended"
     },
     {
      "id": "cp:implementation_adhoc_constructive:csesproblemsettask1068",
@@ -241,7 +187,7 @@
      "platform": "Codeforces",
      "rating": 1100,
      "tag": "greedy",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1363a",
@@ -250,16 +196,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "parity / math",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1506d",
-     "title": "Epic Transformation",
-     "url": "https://codeforces.com/problemset/problem/1506/D",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "greedy / constructive",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1368b",
@@ -268,16 +205,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "constructive",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1325c",
-     "title": "Ehab and Path-etic MEXs",
-     "url": "https://codeforces.com/problemset/problem/1325/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "tree labeling",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1497c2",
@@ -286,7 +214,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "constructive math",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1373d",
@@ -295,7 +223,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "ad-hoc / dp",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1371d",
@@ -307,30 +235,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1365d",
-     "title": "Solve The Maze",
-     "url": "https://codeforces.com/problemset/problem/1365/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "constructive / bfs",
-     "tier": "extended"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1381a2",
      "title": "Prefix Flip (Hard Version)",
      "url": "https://codeforces.com/problemset/problem/1381/A2",
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "constructive",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1325d",
-     "title": "Ehab the Xorcist",
-     "url": "https://codeforces.com/problemset/problem/1325/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "XOR constructive",
      "tier": "extended"
     },
     {
@@ -361,33 +271,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1442a",
-     "title": "Extreme Subtraction",
-     "url": "https://codeforces.com/problemset/problem/1442/A",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "diff-array / invariant",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1554d",
-     "title": "Diane",
-     "url": "https://codeforces.com/problemset/problem/1554/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "string constructive",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1338b",
-     "title": "Edge Weight Assignment",
-     "url": "https://codeforces.com/problemset/problem/1338/B",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "tree XOR constructive",
-     "tier": "extended"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1348d",
      "title": "Phoenix and Science",
      "url": "https://codeforces.com/problemset/problem/1348/D",
@@ -397,48 +280,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1360g",
-     "title": "A/B Matrix",
-     "url": "https://codeforces.com/problemset/problem/1360/G",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "matrix constructive",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1375d",
-     "title": "Replace by MEX",
-     "url": "https://codeforces.com/problemset/problem/1375/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "MEX operations",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1385e",
-     "title": "Directing Edges",
-     "url": "https://codeforces.com/problemset/problem/1385/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "constructive / toposort",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1416b",
      "title": "Make Them Equal",
      "url": "https://codeforces.com/problemset/problem/1416/B",
      "platform": "Codeforces",
      "rating": 2000,
      "tag": "constructive ops",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:implementation_adhoc_constructive:codeforcesproblemsetproblem1217d",
-     "title": "Coloring Edges",
-     "url": "https://codeforces.com/problemset/problem/1217/D",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "graph constructive",
      "tier": "stretch"
     },
     {
@@ -497,15 +344,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:greedy:codeforcesproblemsetproblem230a",
-     "title": "Dragons",
-     "url": "https://codeforces.com/problemset/problem/230/A",
-     "platform": "Codeforces",
-     "rating": 1000,
-     "tag": "sort by strength, fight in order",
-     "tier": "core"
-    },
-    {
      "id": "cp:greedy:codeforcesproblemsetproblem545d",
      "title": "Queue",
      "url": "https://codeforces.com/problemset/problem/545/D",
@@ -521,33 +359,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "cover points with k segments / drop largest gaps",
-     "tier": "core"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem994b",
-     "title": "Knights of a Polygonal Table",
-     "url": "https://codeforces.com/problemset/problem/994/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "sort by power, take top-k loot via heap",
-     "tier": "core"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem1443c",
-     "title": "The Delivery Dilemma",
-     "url": "https://codeforces.com/problemset/problem/1443/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "binary-search finish time + greedy courier vs pickup",
-     "tier": "core"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem1701c",
-     "title": "Schedule Management",
-     "url": "https://codeforces.com/problemset/problem/1701/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "binary-search hours, reassign overloaded workers",
      "tier": "core"
     },
     {
@@ -578,39 +389,12 @@
      "tier": "core"
     },
     {
-     "id": "cp:greedy:codeforcesproblemsetproblem1539d",
-     "title": "PriceFixed",
-     "url": "https://codeforces.com/problemset/problem/1539/D",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "2-for-1 threshold buy order",
-     "tier": "core"
-    },
-    {
      "id": "cp:greedy:csesproblemsettask1090",
      "title": "Ferris Wheel",
      "url": "https://cses.fi/problemset/task/1090",
      "platform": "CSES",
      "rating": null,
      "tag": "two-pointer weight pairing",
-     "tier": "core"
-    },
-    {
-     "id": "cp:greedy:csesproblemsettask1629",
-     "title": "Movie Festival",
-     "url": "https://cses.fi/problemset/task/1629",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "earliest-ending interval scheduling",
-     "tier": "core"
-    },
-    {
-     "id": "cp:greedy:csesproblemsettask1630",
-     "title": "Tasks and Deadlines",
-     "url": "https://cses.fi/problemset/task/1630",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sort by duration (exchange)",
      "tier": "core"
     },
     {
@@ -641,40 +425,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:greedy:atcodercontestsabc325tasksabc325d",
-     "title": "Printing Machine",
-     "url": "https://atcoder.jp/contests/abc325/tasks/abc325_d",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "earliest-exit among available jobs + PQ",
-     "tier": "extended"
-    },
-    {
      "id": "cp:greedy:codeforcesproblemsetproblem588a",
      "title": "Duff and Meat",
      "url": "https://codeforces.com/problemset/problem/588/A",
      "platform": "Codeforces",
      "rating": 900,
      "tag": "running-minimum buy price",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem489b",
-     "title": "BerSU Ball",
-     "url": "https://codeforces.com/problemset/problem/489/B",
-     "platform": "Codeforces",
-     "rating": 1200,
-     "tag": "sort + greedy matching",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem762b",
-     "title": "USB vs. PS/2",
-     "url": "https://codeforces.com/problemset/problem/762/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "sort mice by cost, fill ports",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem492c",
@@ -683,7 +440,7 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "raise grades with min essays",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem1203e",
@@ -692,7 +449,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "sort weights, ±1 uniqueness",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem1296d",
@@ -701,25 +458,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "sort leftover HP after full rounds",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem1526c2",
-     "title": "Potions (Hard Version)",
-     "url": "https://codeforces.com/problemset/problem/1526/C2",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "take all positive, dump worst via heap",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem372a",
-     "title": "Counting Kangaroos is Fun",
-     "url": "https://codeforces.com/problemset/problem/372/A",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "nest smaller into larger",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem822c",
@@ -728,7 +467,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "best voucher per duration, match complements",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem978g",
@@ -737,7 +476,7 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "prepare latest-possible before each exam",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem1783c",
@@ -746,16 +485,7 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "sort + binary-search wins",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem732d",
-     "title": "Exams",
-     "url": "https://codeforces.com/problemset/problem/732/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "binary-search last day + greedy subject prep",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem1282c",
@@ -765,15 +495,6 @@
      "rating": 1800,
      "tag": "solve all easy then hard under time",
      "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:codeforcesproblemsetproblem1251d",
-     "title": "Salary Changing",
-     "url": "https://codeforces.com/problemset/problem/1251/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "binary-search median salary + greedy assign",
-     "tier": "stretch"
     },
     {
      "id": "cp:greedy:codeforcesproblemsetproblem555b",
@@ -846,24 +567,6 @@
      "rating": null,
      "tag": "sort requests by right end, cut bridge",
      "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:csesproblemsettask1164",
-     "title": "Room Allocation",
-     "url": "https://cses.fi/problemset/task/1164",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sweep + assign free room",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:greedy:csesproblemsettask1632",
-     "title": "Movie Festival II",
-     "url": "https://cses.fi/problemset/task/1632",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "k people, earliest-ending + multiset",
-     "tier": "extended"
     }
    ],
    "placement_value": "High",
@@ -894,15 +597,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem279b",
-     "title": "Books",
-     "url": "https://codeforces.com/problemset/problem/279/B",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "sliding window",
-     "tier": "core"
-    },
-    {
      "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1538c",
      "title": "Number of Pairs",
      "url": "https://codeforces.com/problemset/problem/1538/C",
@@ -918,15 +612,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "sort + two pointers",
-     "tier": "core"
-    },
-    {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1324d",
-     "title": "Pair of Topics",
-     "url": "https://codeforces.com/problemset/problem/1324/D",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "transform + pair count",
      "tier": "core"
     },
     {
@@ -954,15 +639,6 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "shortest exactly-k distinct",
-     "tier": "core"
-    },
-    {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1462e1",
-     "title": "Close Tuples (easy version)",
-     "url": "https://codeforces.com/problemset/problem/1462/E1",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "sort + combinations",
      "tier": "core"
     },
     {
@@ -1026,7 +702,7 @@
      "platform": "Codeforces",
      "rating": 800,
      "tag": "opposite ends pointers",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1093c",
@@ -1035,7 +711,7 @@
      "platform": "Codeforces",
      "rating": 1100,
      "tag": "opposite ends pointers",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1692e",
@@ -1044,7 +720,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "sliding window",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1793c",
@@ -1071,15 +747,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "window / alternating",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem702c",
-     "title": "Cellular Network",
-     "url": "https://codeforces.com/problemset/problem/702/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "two arrays pointers",
      "tier": "extended"
     },
     {
@@ -1134,15 +801,6 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "exactly k ones",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem446a",
-     "title": "DZY Loves Sequences",
-     "url": "https://codeforces.com/problemset/problem/446/A",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "one edit + runs",
      "tier": "extended"
     },
     {
@@ -1245,15 +903,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:two_pointers_sliding_window:codeforcesproblemsetproblem1516d",
-     "title": "Cut",
-     "url": "https://codeforces.com/problemset/problem/1516/D",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "TP + binary lifting",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:two_pointers_sliding_window:csesproblemsettask1640",
      "title": "Sum of Two Values",
      "url": "https://cses.fi/problemset/task/1640",
@@ -1281,15 +930,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:two_pointers_sliding_window:csesproblemsettask1077",
-     "title": "Sliding Window Cost",
-     "url": "https://cses.fi/problemset/task/1077",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sliding window + two sets",
-     "tier": "extended"
-    },
-    {
      "id": "cp:two_pointers_sliding_window:csesproblemsettask1644",
      "title": "Maximum Subarray Sum II",
      "url": "https://cses.fi/problemset/task/1644",
@@ -1308,15 +948,6 @@
    "title": "Prefix sums, 2D prefix sums & difference arrays",
    "kind": "topic",
    "items": [
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1807d",
-     "title": "Odd Queries",
-     "url": "https://codeforces.com/problemset/problem/1807/D",
-     "platform": "Codeforces",
-     "rating": 900,
-     "tag": "parity via prefix",
-     "tier": "core"
-    },
     {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem363b",
      "title": "Fence",
@@ -1354,15 +985,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem295a",
-     "title": "Greg and Array",
-     "url": "https://codeforces.com/problemset/problem/295/A",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "nested difference arrays",
-     "tier": "core"
-    },
-    {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1520e",
      "title": "Arranging The Sheep",
      "url": "https://codeforces.com/problemset/problem/1520/E",
@@ -1378,15 +1000,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "prefix of points + window",
-     "tier": "core"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem276c",
-     "title": "Little Girl and Maximum Sum",
-     "url": "https://codeforces.com/problemset/problem/276/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "diff frequency + greedy assign",
      "tier": "core"
     },
     {
@@ -1453,24 +1066,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1843e",
-     "title": "Tracking Segments",
-     "url": "https://codeforces.com/problemset/problem/1843/E",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "binary search + difference",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1000c",
-     "title": "Covered Points Count",
-     "url": "https://codeforces.com/problemset/problem/1000/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "sweep difference + compression",
-     "tier": "extended"
-    },
-    {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1132c",
      "title": "Painting the Fence",
      "url": "https://codeforces.com/problemset/problem/1132/C",
@@ -1486,15 +1081,6 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "pref/suf of",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:csesproblemsettask1646",
-     "title": "Static Range Sum Queries",
-     "url": "https://cses.fi/problemset/task/1646",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "1D prefix template",
      "tier": "extended"
     },
     {
@@ -1516,15 +1102,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:prefix_sums_difference_arrays:csesproblemsettask1652",
-     "title": "Forest Queries",
-     "url": "https://cses.fi/problemset/task/1652",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "2D prefix sums",
-     "tier": "extended"
-    },
-    {
      "id": "cp:prefix_sums_difference_arrays:csesproblemsettask1661",
      "title": "Subarray Sums II",
      "url": "https://cses.fi/problemset/task/1661",
@@ -1543,31 +1120,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:prefix_sums_difference_arrays:csesproblemsettask1650",
-     "title": "Range XOR Queries",
-     "url": "https://cses.fi/problemset/task/1650",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "prefix XOR",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:atcodercontestsabc221tasksabc221d",
-     "title": "Online games",
-     "url": "https://atcoder.jp/contests/abc221/tasks/abc221_d",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "imos / difference on days",
-     "tier": "extended"
-    },
-    {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1341b",
      "title": "Nastya and Door",
      "url": "https://codeforces.com/problemset/problem/1341/B",
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "prefix of peaks",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem873b",
@@ -1576,7 +1135,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "0/1 -> ±1 prefix map",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1141c",
@@ -1585,7 +1144,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "prefix of adjacent diffs",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1809c",
@@ -1603,24 +1162,6 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "2D rectangle paint",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1473d",
-     "title": "Program",
-     "url": "https://codeforces.com/problemset/problem/1473/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "prefix/suffix min·max",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem466c",
-     "title": "Number of Ways",
-     "url": "https://codeforces.com/problemset/problem/466/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "prefix thirds + suffix counts",
      "tier": "extended"
     },
     {
@@ -1642,15 +1183,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem245h",
-     "title": "Queries for Number of Palindromes",
-     "url": "https://codeforces.com/problemset/problem/245/H",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "2D prefix on palindrome DP",
-     "tier": "extended"
-    },
-    {
      "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1005e1",
      "title": "Median on Segments (Permutations Edition)",
      "url": "https://codeforces.com/problemset/problem/1005/E1",
@@ -1666,15 +1198,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "prefix of prefix sums",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:prefix_sums_difference_arrays:codeforcesproblemsetproblem1486d",
-     "title": "Max Median",
-     "url": "https://codeforces.com/problemset/problem/1486/D",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "BS + ±1 prefix minima",
      "tier": "stretch"
     },
     {
@@ -1832,15 +1355,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:binary_search:codeforcesproblemsetproblem780b",
-     "title": "The Meeting Place Cannot Be Changed",
-     "url": "https://codeforces.com/problemset/problem/780/B",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "floating-point BS",
-     "tier": "core"
-    },
-    {
      "id": "cp:binary_search:codeforcesproblemsetproblem1610c",
      "title": "Keshi Is Throwing a Party",
      "url": "https://codeforces.com/problemset/problem/1610/C",
@@ -1904,22 +1418,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:binary_search:codeforcesproblemsetproblem492b",
-     "title": "Vanya and Lanterns",
-     "url": "https://codeforces.com/problemset/problem/492/B",
-     "platform": "Codeforces",
-     "rating": 1200,
-     "tag": "floating-point binary search",
-     "tier": "extended"
-    },
-    {
      "id": "cp:binary_search:codeforcesproblemsetproblem279b",
      "title": "Books",
      "url": "https://codeforces.com/problemset/problem/279/B",
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "binary search / two pointers",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:binary_search:codeforcesproblemsetproblem1701c",
@@ -2021,15 +1526,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:binary_search:codeforcesproblemsetproblem1257d",
-     "title": "Yet Another Monster Killing Problem",
-     "url": "https://codeforces.com/problemset/problem/1257/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "BS days + sparse max",
-     "tier": "extended"
-    },
-    {
      "id": "cp:binary_search:codeforcesproblemsetproblem1475d",
      "title": "Cleaning the Phone",
      "url": "https://codeforces.com/problemset/problem/1475/D",
@@ -2090,15 +1586,6 @@
      "platform": "Codeforces",
      "rating": 2000,
      "tag": "min-max binary search",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:binary_search:codeforcesproblemsetproblem1288d",
-     "title": "Minimax Problem",
-     "url": "https://codeforces.com/problemset/problem/1288/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "binary search on answer + bitmasks",
      "tier": "stretch"
     },
     {
@@ -2202,15 +1689,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem994b",
-     "title": "Knights of a Polygonal Table",
-     "url": "https://codeforces.com/problemset/problem/994/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "sort + multiset top-k",
-     "tier": "core"
-    },
-    {
      "id": "cp:sorting_techniques:codeforcesproblemsetproblem1324d",
      "title": "Pair of Topics",
      "url": "https://codeforces.com/problemset/problem/1324/D",
@@ -2218,15 +1696,6 @@
      "rating": 1400,
      "tag": "rewrite then sort",
      "tier": "core"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem1547e",
-     "title": "Air Conditioners",
-     "url": "https://codeforces.com/problemset/problem/1547/E",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "sort coords + dual scan",
-     "tier": "extended"
     },
     {
      "id": "cp:sorting_techniques:codeforcesproblemsetproblem1566d2",
@@ -2301,24 +1770,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:sorting_techniques:csesproblemsettask1164",
-     "title": "Room Allocation",
-     "url": "https://cses.fi/problemset/task/1164",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "event sort + pool",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:csesproblemsettask1632",
-     "title": "Movie Festival II",
-     "url": "https://cses.fi/problemset/task/1632",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sort by end + multiset",
-     "tier": "extended"
-    },
-    {
      "id": "cp:sorting_techniques:atcodercontestsabc218tasksabc218d",
      "title": "Rectangles",
      "url": "https://atcoder.jp/contests/abc218/tasks/abc218_d",
@@ -2334,7 +1785,7 @@
      "platform": "Codeforces",
      "rating": 800,
      "tag": "sortability check",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:sorting_techniques:codeforcesproblemsetproblem456a",
@@ -2343,15 +1794,6 @@
      "platform": "Codeforces",
      "rating": 1100,
      "tag": "sort pairs + scan",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem988b",
-     "title": "Substrings Sort",
-     "url": "https://codeforces.com/problemset/problem/988/B",
-     "platform": "Codeforces",
-     "rating": 1100,
-     "tag": "custom string order",
      "tier": "extended"
     },
     {
@@ -2370,24 +1812,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "sort adjacent gaps",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem276c",
-     "title": "Little Girl and Maximum Sum",
-     "url": "https://codeforces.com/problemset/problem/276/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "sort rearrange",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem545c",
-     "title": "Woodcutters",
-     "url": "https://codeforces.com/problemset/problem/545/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "positional greedy",
      "tier": "extended"
     },
     {
@@ -2445,15 +1869,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem459d",
-     "title": "Pashmak and Parmida's problem",
-     "url": "https://codeforces.com/problemset/problem/459/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "compression + Fenwick",
-     "tier": "extended"
-    },
-    {
      "id": "cp:sorting_techniques:codeforcesproblemsetproblem1249d2",
      "title": "Too Many Segments (hard version)",
      "url": "https://codeforces.com/problemset/problem/1249/D2",
@@ -2461,24 +1876,6 @@
      "rating": 1800,
      "tag": "sweep + multiset drop",
      "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem1042d",
-     "title": "Petya and Array",
-     "url": "https://codeforces.com/problemset/problem/1042/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "compress prefixes + Fenwick",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sorting_techniques:codeforcesproblemsetproblem61e",
-     "title": "Enemy is weak",
-     "url": "https://codeforces.com/problemset/problem/61/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "compression + Fenwick",
-     "tier": "stretch"
     },
     {
      "id": "cp:sorting_techniques:codeforcesproblemsetproblem1932f",
@@ -2535,15 +1932,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:sorting_techniques:csesproblemsettask2169",
-     "title": "Nested Ranges Count",
-     "url": "https://cses.fi/problemset/task/2169",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sort + Fenwick",
-     "tier": "extended"
-    },
-    {
      "id": "cp:sorting_techniques:atcodercontestsabc325tasksabc325d",
      "title": "Printing Machine",
      "url": "https://atcoder.jp/contests/abc325/tasks/abc325_d",
@@ -2581,15 +1969,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1285c",
-     "title": "Fadi and LCM",
-     "url": "https://codeforces.com/problemset/problem/1285/C",
-     "platform": "Codeforces",
-     "rating": 1200,
-     "tag": "divisors, lcm",
-     "tier": "core"
-    },
-    {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem230b",
      "title": "T-primes",
      "url": "https://codeforces.com/problemset/problem/230/B",
@@ -2608,48 +1987,12 @@
      "tier": "core"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1350b",
-     "title": "Orac and Models",
-     "url": "https://codeforces.com/problemset/problem/1350/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "dp on divisors",
-     "tier": "core"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem762a",
-     "title": "k-th divisor",
-     "url": "https://codeforces.com/problemset/problem/762/A",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "list divisors O(√n)",
-     "tier": "core"
-    },
-    {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem757b",
      "title": "Bash's Big Day",
      "url": "https://codeforces.com/problemset/problem/757/B",
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "max share a prime factor",
-     "tier": "core"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1526b",
-     "title": "I Hate 1111",
-     "url": "https://codeforces.com/problemset/problem/1526/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "11…1 base trick",
-     "tier": "core"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1370c",
-     "title": "Number Game",
-     "url": "https://codeforces.com/problemset/problem/1370/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "game + factorization",
      "tier": "core"
     },
     {
@@ -2725,24 +2068,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1165d",
-     "title": "Almost All Divisors",
-     "url": "https://codeforces.com/problemset/problem/1165/D",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "reconstruct from divisor list",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1542c",
-     "title": "Strange Function",
-     "url": "https://codeforces.com/problemset/problem/1542/C",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "LCM(1..k) jumps",
-     "tier": "extended"
-    },
-    {
      "id": "cp:number_theory_math:csesproblemsettask1095",
      "title": "Exponentiation",
      "url": "https://cses.fi/problemset/task/1095",
@@ -2752,48 +2077,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:number_theory_math:csesproblemsettask1713",
-     "title": "Counting Divisors",
-     "url": "https://cses.fi/problemset/task/1713",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "divisor sieve",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:csesproblemsettask1081",
-     "title": "Common Divisors",
-     "url": "https://cses.fi/problemset/task/1081",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "gcd, frequency array",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:csesproblemsettask1079",
-     "title": "Binomial Coefficients",
-     "url": "https://cses.fi/problemset/task/1079",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "modular inverse, combinatorics",
-     "tier": "extended"
-    },
-    {
      "id": "cp:number_theory_math:atcodercontestsabc280tasksabc280d",
      "title": "D - Factorial and Multiple",
      "url": "https://atcoder.jp/contests/abc280/tasks/abc280_d",
      "platform": "AtCoder",
      "rating": null,
      "tag": "min with",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:csesproblemsettask1082",
-     "title": "Sum of Divisors",
-     "url": "https://cses.fi/problemset/task/1082",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "∑σ(i) for",
      "tier": "extended"
     },
     {
@@ -2812,7 +2101,7 @@
      "platform": "Codeforces",
      "rating": 800,
      "tag": "math, modulo",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem1389a",
@@ -2821,7 +2110,7 @@
      "platform": "Codeforces",
      "rating": 800,
      "tag": "math, LCM",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem742a",
@@ -2830,7 +2119,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "modular exponentiation, period",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem776b",
@@ -2839,7 +2128,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "prime numbers, coloring",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem1982b",
@@ -2848,7 +2137,7 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "math, simulation",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem1980d",
@@ -2878,39 +2167,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1770c",
-     "title": "Koxia and Number Theory",
-     "url": "https://codeforces.com/problemset/problem/1770/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "CRT, pigeonhole principle",
-     "tier": "extended"
-    },
-    {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem1114c",
      "title": "Trailing Loves (or L'oeufs?)",
      "url": "https://codeforces.com/problemset/problem/1114/C",
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "Legendre's formula, base conversion",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1512g",
-     "title": "Short Task",
-     "url": "https://codeforces.com/problemset/problem/1512/G",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "divisor sum sieve",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1295d",
-     "title": "Same GCDs",
-     "url": "https://codeforces.com/problemset/problem/1295/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "Euler's totient function",
      "tier": "extended"
     },
     {
@@ -2932,15 +2194,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1225d",
-     "title": "Power Products",
-     "url": "https://codeforces.com/problemset/problem/1225/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "exponents mod",
-     "tier": "extended"
-    },
-    {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem1548b",
      "title": "Integers Have Friends",
      "url": "https://codeforces.com/problemset/problem/1548/B",
@@ -2950,30 +2203,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1034a",
-     "title": "Enlarge GCD",
-     "url": "https://codeforces.com/problemset/problem/1034/A",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "remove fewest to raise gcd",
-     "tier": "extended"
-    },
-    {
      "id": "cp:number_theory_math:codeforcesproblemsetproblem510d",
      "title": "Fox And Jumping",
      "url": "https://codeforces.com/problemset/problem/510/D",
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "Bezout's identity, shortest path, dp",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:number_theory_math:codeforcesproblemsetproblem1475g",
-     "title": "Strange Beauty",
-     "url": "https://codeforces.com/problemset/problem/1475/G",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "dp on divisors, sieve",
      "tier": "stretch"
     },
     {
@@ -3011,15 +2246,6 @@
      "platform": "Codeforces",
      "rating": 1100,
      "tag": "Hamming via XOR+popcount",
-     "tier": "core"
-    },
-    {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1097b",
-     "title": "Petr and a Combination Lock",
-     "url": "https://codeforces.com/problemset/problem/1097/B",
-     "platform": "Codeforces",
-     "rating": 1200,
-     "tag": "enumerate 2^n",
      "tier": "core"
     },
     {
@@ -3065,15 +2291,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "global AND placement",
-     "tier": "core"
-    },
-    {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1270c",
-     "title": "Make Good",
-     "url": "https://codeforces.com/problemset/problem/1270/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "sum / XOR constructive",
      "tier": "core"
     },
     {
@@ -3131,40 +2348,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1395c",
-     "title": "Boboniu and Bit Operations",
-     "url": "https://codeforces.com/problemset/problem/1395/C",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "minimize OR of pairwise ANDs",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1151b",
-     "title": "Dima and a Bad XOR",
-     "url": "https://codeforces.com/problemset/problem/1151/B",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "force nonzero matrix XOR",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:csesproblemsettask1623",
-     "title": "Apple Division",
-     "url": "https://cses.fi/problemset/task/1623",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "subset partition",
-     "tier": "extended"
-    },
-    {
      "id": "cp:bit_manipulation:codeforcesproblemsetproblem1527a",
      "title": "And Then There Were K",
      "url": "https://codeforces.com/problemset/problem/1527/A",
      "platform": "Codeforces",
      "rating": 800,
      "tag": "clear bits below MSB",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:bit_manipulation:codeforcesproblemsetproblem1559a",
@@ -3173,7 +2363,7 @@
      "platform": "Codeforces",
      "rating": 900,
      "tag": "AND of all",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:bit_manipulation:codeforcesproblemsetproblem1362b",
@@ -3191,15 +2381,6 @@
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "bit-frequency / GCD of counts",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem550b",
-     "title": "Preparing Olympiad",
-     "url": "https://codeforces.com/problemset/problem/550/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "constrained bitmask enum",
      "tier": "extended"
     },
     {
@@ -3266,15 +2447,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem706d",
-     "title": "Vasiliy's Multiset",
-     "url": "https://codeforces.com/problemset/problem/706/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "online XOR trie",
-     "tier": "extended"
-    },
-    {
      "id": "cp:bit_manipulation:codeforcesproblemsetproblem1466e",
      "title": "Apollo versus Pan",
      "url": "https://codeforces.com/problemset/problem/1466/E",
@@ -3282,15 +2454,6 @@
      "rating": 1800,
      "tag": "contribution per bit over all triples",
      "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1285d",
-     "title": "Dr. Evil Underscores",
-     "url": "https://codeforces.com/problemset/problem/1285/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "minimax XOR via bit trie/DnC",
-     "tier": "stretch"
     },
     {
      "id": "cp:bit_manipulation:codeforcesproblemsetproblem959e",
@@ -3302,30 +2465,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:bit_manipulation:codeforcesproblemsetproblem1288d",
-     "title": "Minimax Problem",
-     "url": "https://codeforces.com/problemset/problem/1288/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "binary search + bitmasks",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:bit_manipulation:csesproblemsettask2205",
      "title": "Gray Code",
      "url": "https://cses.fi/problemset/task/2205",
      "platform": "CSES",
      "rating": null,
      "tag": "Gray code",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:csesproblemsettask1650",
-     "title": "Range Xor Queries",
-     "url": "https://cses.fi/problemset/task/1650",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "prefix XOR",
      "tier": "extended"
     },
     {
@@ -3356,48 +2501,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:bit_manipulation:csesproblemsettask1653",
-     "title": "Elevator Rides",
-     "url": "https://cses.fi/problemset/task/1653",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "bitmask DP",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:atcodercontestsdptasksdpo",
-     "title": "Matching",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_o",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "assignment bitmask DP",
-     "tier": "extended"
-    },
-    {
      "id": "cp:bit_manipulation:csesproblemsettask1655",
      "title": "Maximum Xor Subarray",
      "url": "https://cses.fi/problemset/task/1655",
      "platform": "CSES",
      "rating": null,
      "tag": "XOR binary trie",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:csesproblemsettask1654",
-     "title": "SOS Bit Problem",
-     "url": "https://cses.fi/problemset/task/1654",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "SOS DP",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:bit_manipulation:atcodercontestsdptasksdpu",
-     "title": "Grouping",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_u",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "submask DP O(3^n)",
      "tier": "extended"
     },
     {
@@ -3456,39 +2565,12 @@
      "tier": "core"
     },
     {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem244b",
-     "title": "Undoubtedly Lucky Numbers",
-     "url": "https://codeforces.com/problemset/problem/244/B",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "digit DFS generation",
-     "tier": "core"
-    },
-    {
      "id": "cp:recursion_backtracking:codeforcesproblemsetproblem1151b",
      "title": "Dima and a Bad XOR",
      "url": "https://codeforces.com/problemset/problem/1151/B",
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "row-pick search / constructive",
-     "tier": "core"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem1516c",
-     "title": "Baby Ehab Partitions Again",
-     "url": "https://codeforces.com/problemset/problem/1516/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "subset-sum partition",
-     "tier": "core"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem888e",
-     "title": "Maximum Subsequence",
-     "url": "https://codeforces.com/problemset/problem/888/E",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "meet-in-the-middle",
      "tier": "core"
     },
     {
@@ -3570,7 +2652,7 @@
      "platform": "AtCoder",
      "rating": 1100,
      "tag": "Grid state generation with varying tile sizes, a staple pattern in AtCod",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:recursion_backtracking:codeforcesproblemsetproblem1097b",
@@ -3579,16 +2661,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "CF Div2B problem requiring simple 2^N generation to hit a target sum mod",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem550b",
-     "title": "Preparing Olympiad",
-     "url": "https://codeforces.com/problemset/problem/550/B",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "Canonical CF problem testing subset generation with multiple validity co",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:recursion_backtracking:codeforcesproblemsetproblem96b",
@@ -3597,7 +2670,7 @@
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "Excellent DP-less generation task, demonstrating state branching until a",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:recursion_backtracking:codeforcesproblemsetproblem552c",
@@ -3636,42 +2709,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem401d",
-     "title": "Roman and Numbers",
-     "url": "https://codeforces.com/problemset/problem/401/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "digit-perm / bitmask DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem525e",
-     "title": "Anya and Cubes",
-     "url": "https://codeforces.com/problemset/problem/525/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "MITM + factorials",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem1006f",
-     "title": "Xor-Paths",
-     "url": "https://codeforces.com/problemset/problem/1006/F",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "grid path MITM",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:recursion_backtracking:codeforcesproblemsetproblem1560f2",
-     "title": "Nearest Beautiful Number (hard version)",
-     "url": "https://codeforces.com/problemset/problem/1560/F2",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "digit BT hardened",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:recursion_backtracking:atcodercontestsabc322tasksabc322d",
      "title": "D - Polyomino",
      "url": "https://atcoder.jp/contests/abc322/tasks/abc322_d",
@@ -3688,15 +2725,6 @@
      "rating": null,
      "tag": "Famous 7 x 7 path counting; demands extreme pruning heuristics (e.g. wal",
      "tier": "extended"
-    },
-    {
-     "id": "cp:recursion_backtracking:csesproblemsettask1690",
-     "title": "Hamiltonian Flights",
-     "url": "https://cses.fi/problemset/task/1690",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Hamiltonian paths bitmask",
-     "tier": "extended"
     }
    ],
    "placement_value": "High",
@@ -3709,39 +2737,12 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem189a",
-     "title": "Cut Ribbon",
-     "url": "https://codeforces.com/problemset/problem/189/A",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "unbounded max pieces",
-     "tier": "core"
-    },
-    {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem1195c",
-     "title": "Basketball Exercise",
-     "url": "https://codeforces.com/problemset/problem/1195/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "2-row Vacation / take-skip",
-     "tier": "core"
-    },
-    {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem1245c",
      "title": "Constanze's Machine",
      "url": "https://codeforces.com/problemset/problem/1245/C",
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "fib / decode-ways on runs",
-     "tier": "core"
-    },
-    {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem1350b",
-     "title": "Orac and Models",
-     "url": "https://codeforces.com/problemset/problem/1350/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "LIS on multiples",
      "tier": "core"
     },
     {
@@ -3808,15 +2809,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem166e",
-     "title": "Tetrahedron",
-     "url": "https://codeforces.com/problemset/problem/166/E",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "ways on 4 states",
-     "tier": "core"
-    },
-    {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem431c",
      "title": "k-Tree",
      "url": "https://codeforces.com/problemset/problem/431/C",
@@ -3835,15 +2827,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem1633d",
-     "title": "Make Them Equal",
-     "url": "https://codeforces.com/problemset/problem/1633/D",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "BFS distance + 0/1 knapsack",
-     "tier": "core"
-    },
-    {
      "id": "cp:dp_linear_1d:csesproblemsettask1633",
      "title": "Dice Combinations",
      "url": "https://cses.fi/problemset/task/1633",
@@ -3851,24 +2834,6 @@
      "rating": null,
      "tag": "ways with faces 1..6",
      "tier": "core"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1634",
-     "title": "Minimizing Coins",
-     "url": "https://cses.fi/problemset/task/1634",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "unbounded min coins",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1158",
-     "title": "Book Shop",
-     "url": "https://cses.fi/problemset/task/1158",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "0/1 knapsack",
-     "tier": "extended"
     },
     {
      "id": "cp:dp_linear_1d:csesproblemsettask1145",
@@ -3895,16 +2860,7 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "rest/contest/gym conflicts",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem340d",
-     "title": "Bubble Sort Graph",
-     "url": "https://codeforces.com/problemset/problem/340/D",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "LIS as DAG width",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem446a",
@@ -3913,7 +2869,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "LIS with one edit",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem474d",
@@ -3922,7 +2878,7 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "linear ways + prefix",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem977f",
@@ -3931,7 +2887,7 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "map-DP LIS variant",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem466c",
@@ -3940,7 +2896,7 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "3 equal-sum cuts",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem118d",
@@ -3979,33 +2935,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem687c",
-     "title": "The Values You Can Make",
-     "url": "https://codeforces.com/problemset/problem/687/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "2D knapsack reachability",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem597c",
-     "title": "Subsequences",
-     "url": "https://codeforces.com/problemset/problem/597/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "count LIS of length k",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_linear_1d:codeforcesproblemsetproblem577b",
-     "title": "Modulo Sum",
-     "url": "https://codeforces.com/problemset/problem/577/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "subset sum mod m",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:dp_linear_1d:codeforcesproblemsetproblem478d",
      "title": "Red-Green Towers",
      "url": "https://codeforces.com/problemset/problem/478/D",
@@ -4039,60 +2968,6 @@
      "platform": "AtCoder",
      "rating": null,
      "tag": "3-choice daily max",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1635",
-     "title": "Coin Combinations I",
-     "url": "https://cses.fi/problemset/task/1635",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "unordered ways",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1636",
-     "title": "Coin Combinations II",
-     "url": "https://cses.fi/problemset/task/1636",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "ordered ways",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:atcodercontestsdptasksdpd",
-     "title": "Knapsack 1",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_d",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "classic 0/1 knapsack",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1745",
-     "title": "Money Sums",
-     "url": "https://cses.fi/problemset/task/1745",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "all achievable sums",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:csesproblemsettask1093",
-     "title": "Two Sets II",
-     "url": "https://cses.fi/problemset/task/1093",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "count partitions",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_linear_1d:atcodercontestsdptasksdpe",
-     "title": "Knapsack 2",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_e",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "value-dimension knapsack",
      "tier": "extended"
     },
     {
@@ -4166,15 +3041,6 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "2×n coloring DP",
-     "tier": "core"
-    },
-    {
-     "id": "cp:dp_grid_interval:codeforcesproblemsetproblem1525d",
-     "title": "Armchairs",
-     "url": "https://codeforces.com/problemset/problem/1525/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "ordered matching DP",
      "tier": "core"
     },
     {
@@ -4286,22 +3152,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:dp_grid_interval:csesproblemsettask1639",
-     "title": "Edit Distance",
-     "url": "https://cses.fi/problemset/task/1639",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "classic 2D string table",
-     "tier": "extended"
-    },
-    {
      "id": "cp:dp_grid_interval:codeforcesproblemsetproblem1990d",
      "title": "Grid Puzzle",
      "url": "https://codeforces.com/problemset/problem/1990/D",
      "platform": "Codeforces",
      "rating": 1800,
      "tag": "strip covering DP",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_grid_interval:codeforcesproblemsetproblem1398d",
@@ -4328,15 +3185,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "recursive horizontal/vertical",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_grid_interval:codeforcesproblemsetproblem835d",
-     "title": "Palindromic characteristics",
-     "url": "https://codeforces.com/problemset/problem/835/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "k-palindrome DP",
      "tier": "stretch"
     },
     {
@@ -4391,15 +3239,6 @@
      "platform": "Codeforces",
      "rating": null,
      "tag": "Codeforces 1700",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_grid_interval:codeforcesproblemsetproblem245h",
-     "title": "Queries for Number of Palindromes",
-     "url": "https://codeforces.com/problemset/problem/245/H",
-     "platform": "Codeforces",
-     "rating": null,
-     "tag": "Codeforces 1800",
      "tier": "extended"
     },
     {
@@ -4611,30 +3450,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:dp_knapsack_subsequence:atcodercontestsabc184tasksabc184f",
-     "title": "Programming Contest",
-     "url": "https://atcoder.jp/contests/abc184/tasks/abc184_f",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "meet-in-the-middle knapsack",
-     "tier": "extended"
-    },
-    {
      "id": "cp:dp_knapsack_subsequence:atcodercontestsabc060tasksarc073b",
      "title": "Simple Knapsack",
      "url": "https://atcoder.jp/contests/abc060/tasks/arc073_b",
      "platform": "AtCoder",
      "rating": null,
      "tag": "few weight classes",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_knapsack_subsequence:atcodercontestsabc169tasksabc169f",
-     "title": "Knapsack for All Subsets",
-     "url": "https://atcoder.jp/contests/abc169/tasks/abc169_f",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "contribution over subsets",
      "tier": "extended"
     },
     {
@@ -4737,15 +3558,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:dp_knapsack_subsequence:codeforcesproblemsetproblem981d",
-     "title": "Bookshelves",
-     "url": "https://codeforces.com/problemset/problem/981/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "bitwise OR knapsack",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:dp_knapsack_subsequence:codeforcesproblemsetproblem864e",
      "title": "Fire",
      "url": "https://codeforces.com/problemset/problem/864/E",
@@ -4761,15 +3573,6 @@
      "platform": "Codeforces",
      "rating": 2000,
      "tag": "subsequences with",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_knapsack_subsequence:codeforcesproblemsetproblem346b",
-     "title": "Lucky Common Subsequence",
-     "url": "https://codeforces.com/problemset/problem/346/B",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "LCS + KMP virus",
      "tier": "stretch"
     },
     {
@@ -4837,15 +3640,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem476b",
-     "title": "Dreamoon and WiFi",
-     "url": "https://codeforces.com/problemset/problem/476/B",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "bitmask / ways over ± choices",
-     "tier": "core"
-    },
-    {
      "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem550b",
      "title": "Preparing Olympiad",
      "url": "https://codeforces.com/problemset/problem/550/B",
@@ -4879,24 +3673,6 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "feasibility over OR candidates",
-     "tier": "core"
-    },
-    {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem1051d",
-     "title": "Bicolorings",
-     "url": "https://codeforces.com/problemset/problem/1051/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "DP on last-column color pair",
-     "tier": "core"
-    },
-    {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem225c",
-     "title": "Barcode",
-     "url": "https://codeforces.com/problemset/problem/225/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "column-run DP",
      "tier": "core"
     },
     {
@@ -5026,15 +3802,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:dp_bitmask_digit:atcodercontestsdptasksdpu",
-     "title": "Grouping",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_u",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "submask enumeration",
-     "tier": "extended"
-    },
-    {
      "id": "cp:dp_bitmask_digit:atcodercontestsabc215tasksabc215e",
      "title": "Chain Contestant",
      "url": "https://atcoder.jp/contests/abc215/tasks/abc215_e",
@@ -5086,7 +3853,7 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "digit construction",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem868c",
@@ -5095,16 +3862,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "subset masks of topics",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem1513c",
-     "title": "Add One",
-     "url": "https://codeforces.com/problemset/problem/1513/C",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "digit evolution DP",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem1567c",
@@ -5113,7 +3871,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "independent digit DP",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem1340b",
@@ -5123,15 +3881,6 @@
      "rating": 1700,
      "tag": "digit display + leftover sticks",
      "tier": "extended"
-    },
-    {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem16e",
-     "title": "Fish",
-     "url": "https://codeforces.com/problemset/problem/16/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "probability over remaining set",
-     "tier": "stretch"
     },
     {
      "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem981d",
@@ -5149,15 +3898,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "Hamiltonian path on songs",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_bitmask_digit:codeforcesproblemsetproblem1846g",
-     "title": "Rudolf and CodeVid-23",
-     "url": "https://codeforces.com/problemset/problem/1846/G",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "shortest path on disease mask",
      "tier": "stretch"
     },
     {
@@ -5297,33 +4037,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem277a",
-     "title": "Learning Languages",
-     "url": "https://codeforces.com/problemset/problem/277/A",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "CC via shared attrs",
-     "tier": "core"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1130c",
-     "title": "Connect",
-     "url": "https://codeforces.com/problemset/problem/1130/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "flood fill + bridge",
-     "tier": "core"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1627c",
-     "title": "Not Assigning",
-     "url": "https://codeforces.com/problemset/problem/1627/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "tree edge 2-color",
-     "tier": "core"
-    },
-    {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1761c",
      "title": "Set Construction",
      "url": "https://codeforces.com/problemset/problem/1761/C",
@@ -5339,24 +4052,6 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "grid cycle >=4",
-     "tier": "core"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem771a",
-     "title": "Bear and Friendship Condition",
-     "url": "https://codeforces.com/problemset/problem/771/A",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "CC must be clique",
-     "tier": "core"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem329b",
-     "title": "Biridian Forest",
-     "url": "https://codeforces.com/problemset/problem/329/B",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "BFS race count",
      "tier": "core"
     },
     {
@@ -5492,25 +4187,7 @@
      "platform": "Codeforces",
      "rating": 900,
      "tag": "DFS / tree depth",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem217a",
-     "title": "Ice Skating",
-     "url": "https://codeforces.com/problemset/problem/217/A",
-     "platform": "Codeforces",
-     "rating": 1200,
-     "tag": "connected components",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem893c",
-     "title": "Rumor",
-     "url": "https://codeforces.com/problemset/problem/893/C",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "CC + greedy",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem862b",
@@ -5519,7 +4196,7 @@
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "bipartite coloring",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem580c",
@@ -5528,7 +4205,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "DFS on trees",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem977e",
@@ -5537,7 +4214,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "CC + cycle shape",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem377a",
@@ -5546,25 +4223,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "flood fill / DFS",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem601a",
-     "title": "The Two Routes",
-     "url": "https://codeforces.com/problemset/problem/601/A",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "BFS on G and G",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem793b",
-     "title": "Igor and his way to work",
-     "url": "https://codeforces.com/problemset/problem/793/B",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "state BFS (<=2 turns)",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1027d",
@@ -5585,15 +4244,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1037d",
-     "title": "Valid BFS?",
-     "url": "https://codeforces.com/problemset/problem/1037/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "BFS order check",
-     "tier": "extended"
-    },
-    {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem919d",
      "title": "Substring",
      "url": "https://codeforces.com/problemset/problem/919/D",
@@ -5601,24 +4251,6 @@
      "rating": 1700,
      "tag": "topo + DP",
      "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1283d",
-     "title": "Christmas Trees",
-     "url": "https://codeforces.com/problemset/problem/1283/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "multi-source expand",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1272e",
-     "title": "Nearest Opposite Parity",
-     "url": "https://codeforces.com/problemset/problem/1272/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "reverse multi-source BFS",
-     "tier": "stretch"
     },
     {
      "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem463d",
@@ -5636,15 +4268,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "dual-queue Kahn",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1242b",
-     "title": "0-1 MST",
-     "url": "https://codeforces.com/problemset/problem/1242/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "complement CC",
      "tier": "stretch"
     },
     {
@@ -5672,15 +4295,6 @@
      "platform": "Codeforces",
      "rating": 2100,
      "tag": "CC in complement",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:graphs_traversal_topo:codeforcesproblemsetproblem1217d",
-     "title": "Coloring Edges",
-     "url": "https://codeforces.com/problemset/problem/1217/D",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "DFS back-edge colors",
      "tier": "stretch"
     },
     {
@@ -6532,15 +5146,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:dsu_union_find_mst:codeforcesproblemsetproblem609e",
-     "title": "Minimum spanning tree for each edge",
-     "url": "https://codeforces.com/problemset/problem/609/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "MST + max-on-path",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:dsu_union_find_mst:codeforcesproblemsetproblem1108f",
      "title": "MST Unification",
      "url": "https://codeforces.com/problemset/problem/1108/F",
@@ -6641,15 +5246,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:trees:codeforcesproblemsetproblem1406c",
-     "title": "Link Cut Centroids",
-     "url": "https://codeforces.com/problemset/problem/1406/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "find/move centroid",
-     "tier": "core"
-    },
-    {
      "id": "cp:trees:codeforcesproblemsetproblem1324f",
      "title": "Maximum White Subtree",
      "url": "https://codeforces.com/problemset/problem/1324/F",
@@ -6668,33 +5264,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:trees:codeforcesproblemsetproblem1328e",
-     "title": "Tree Queries",
-     "url": "https://codeforces.com/problemset/problem/1328/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "LCA / ancestor check",
-     "tier": "core"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem191c",
-     "title": "Fools and Roads",
-     "url": "https://codeforces.com/problemset/problem/191/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "LCA path difference array",
-     "tier": "core"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem1076e",
-     "title": "Vasya and a Tree",
-     "url": "https://codeforces.com/problemset/problem/1076/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "Euler + depth-limited subtree adds",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:trees:codeforcesproblemsetproblem832d",
      "title": "Misha, Grisha and Underground",
      "url": "https://codeforces.com/problemset/problem/832/D",
@@ -6702,15 +5271,6 @@
      "rating": 1900,
      "tag": "triple-path LCA meeting point",
      "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:atcodercontestsabc138tasksabc138d",
-     "title": "Ki",
-     "url": "https://atcoder.jp/contests/abc138/tasks/abc138_d",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "subtree add / push-down",
-     "tier": "extended"
     },
     {
      "id": "cp:trees:csesproblemsettask1133",
@@ -6728,60 +5288,6 @@
      "platform": "CSES",
      "rating": null,
      "tag": "k-th ancestor binary lifting",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1688",
-     "title": "Company Queries II",
-     "url": "https://cses.fi/problemset/task/1688",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "LCA via binary lifting",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1135",
-     "title": "Distance Queries",
-     "url": "https://cses.fi/problemset/task/1135",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "LCA distances",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1137",
-     "title": "Subtree Queries",
-     "url": "https://cses.fi/problemset/task/1137",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Euler tour + Fenwick",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1138",
-     "title": "Path Queries",
-     "url": "https://cses.fi/problemset/task/1138",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Euler + path-to-root BIT",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1136",
-     "title": "Counting Paths",
-     "url": "https://cses.fi/problemset/task/1136",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "tree difference + LCA",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask1139",
-     "title": "Distinct Colors",
-     "url": "https://cses.fi/problemset/task/1139",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "small-to-large merge",
      "tier": "extended"
     },
     {
@@ -6803,15 +5309,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:trees:atcodercontestsabc202tasksabc202e",
-     "title": "E - Count Descendants",
-     "url": "https://atcoder.jp/contests/abc202/tasks/abc202_e",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "Euler + depth buckets",
-     "tier": "extended"
-    },
-    {
      "id": "cp:trees:atcodercontestsabc220tasksabc220f",
      "title": "F - Distance Sums 2",
      "url": "https://atcoder.jp/contests/abc220/tasks/abc220_f",
@@ -6827,16 +5324,7 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "tree DFS / respect",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem839c",
-     "title": "Journey",
-     "url": "https://codeforces.com/problemset/problem/839/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "tree expected length",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:trees:codeforcesproblemsetproblem682c",
@@ -6845,7 +5333,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "path-max DFS prune",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:trees:codeforcesproblemsetproblem369c",
@@ -6854,7 +5342,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "mark edges toward root",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:trees:codeforcesproblemsetproblem979c",
@@ -6872,15 +5360,6 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "rerooting / eccentricity + edge bonus",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem161d",
-     "title": "Distance in Tree",
-     "url": "https://codeforces.com/problemset/problem/161/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "tree DP k-paths",
      "tier": "extended"
     },
     {
@@ -6902,57 +5381,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:trees:codeforcesproblemsetproblem739b",
-     "title": "Alyona and a tree",
-     "url": "https://codeforces.com/problemset/problem/739/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "binary lifting + fenwick on tree",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:trees:codeforcesproblemsetproblem1882d",
      "title": "Tree XOR",
      "url": "https://codeforces.com/problemset/problem/1882/D",
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "rerooting XOR costs",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem383c",
-     "title": "Propagating tree",
-     "url": "https://codeforces.com/problemset/problem/383/C",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "Euler + parity Fenwick",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem877e",
-     "title": "Danil and a Part-time Job",
-     "url": "https://codeforces.com/problemset/problem/877/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "Euler + lazy segtree",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem1304e",
-     "title": "1-Trees and Queries",
-     "url": "https://codeforces.com/problemset/problem/1304/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "LCA + extra edge",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem1702g2",
-     "title": "Passable Paths (hard version)",
-     "url": "https://codeforces.com/problemset/problem/1702/G2",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "multi-path LCA",
      "tier": "stretch"
     },
     {
@@ -6965,57 +5399,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:trees:codeforcesproblemsetproblem208e",
-     "title": "Blood Cousins",
-     "url": "https://codeforces.com/problemset/problem/208/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "k-th ancestor + depth bags",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem519e",
-     "title": "A and B and Lecture Rooms",
-     "url": "https://codeforces.com/problemset/problem/519/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "LCA midpoint counting",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:trees:codeforcesproblemsetproblem1187e",
      "title": "Tree Painting",
      "url": "https://codeforces.com/problemset/problem/1187/E",
      "platform": "Codeforces",
      "rating": 2100,
      "tag": "rerooting s",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem620e",
-     "title": "New Year Tree",
-     "url": "https://codeforces.com/problemset/problem/620/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "Euler + bitset / lazy colors",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem609e",
-     "title": "Minimum spanning tree for each edge",
-     "url": "https://codeforces.com/problemset/problem/609/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "MST + LCA path-max",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:trees:codeforcesproblemsetproblem321c",
-     "title": "Ciel the Commander",
-     "url": "https://codeforces.com/problemset/problem/321/C",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "centroid decomposition constructive",
      "tier": "stretch"
     },
     {
@@ -7043,15 +5432,6 @@
      "platform": "AtCoder",
      "rating": null,
      "tag": "rerooting max path",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:trees:csesproblemsettask2080",
-     "title": "Fixed-Length Paths I",
-     "url": "https://cses.fi/problemset/task/2080",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "centroid / sack path counts",
      "tier": "extended"
     }
    ],
@@ -7083,39 +5463,12 @@
      "tier": "core"
     },
     {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1326d1",
-     "title": "Prefix-Suffix Palindrome (Easy version)",
-     "url": "https://codeforces.com/problemset/problem/1326/D1",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "hashing / KMP palindrome",
-     "tier": "core"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem39j",
-     "title": "Spelling Check",
-     "url": "https://codeforces.com/problemset/problem/39/J",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "hash + one deletion",
-     "tier": "core"
-    },
-    {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1950e",
      "title": "Nearly Shortest Repeating Substring",
      "url": "https://codeforces.com/problemset/problem/1950/E",
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "period divisors",
-     "tier": "core"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1537e1",
-     "title": "Erase and Extend (Easy Version)",
-     "url": "https://codeforces.com/problemset/problem/1537/E1",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "Z / lex-smallest cyclic build",
      "tier": "core"
     },
     {
@@ -7134,15 +5487,6 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "cover string by dictionary",
-     "tier": "core"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem559b",
-     "title": "Equivalent Strings",
-     "url": "https://codeforces.com/problemset/problem/559/B",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "D&C hash equality",
      "tier": "core"
     },
     {
@@ -7209,40 +5553,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:strings_hashing_kmp_trie:csesproblemsettask1731",
-     "title": "Word Combinations",
-     "url": "https://cses.fi/problemset/task/1731",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "trie + DP",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:csesproblemsettask1112",
-     "title": "Required Substring",
-     "url": "https://cses.fi/problemset/task/1112",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "KMP automaton + DP",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:atcodercontestsabc284tasksabc284f",
-     "title": "ABCBAC",
-     "url": "https://atcoder.jp/contests/abc284/tasks/abc284_f",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "Z on A+B and B+A",
-     "tier": "extended"
-    },
-    {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem988b",
      "title": "Substrings Sort",
      "url": "https://codeforces.com/problemset/problem/988/B",
      "platform": "Codeforces",
      "rating": 1100,
      "tag": "substring containment",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem625b",
@@ -7251,7 +5568,7 @@
      "platform": "Codeforces",
      "rating": 1200,
      "tag": "pattern matching",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem4c",
@@ -7260,16 +5577,7 @@
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "string map / hashing",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem182d",
-     "title": "Common Divisors",
-     "url": "https://codeforces.com/problemset/problem/182/D",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "string periods + hashing",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1137b",
@@ -7278,16 +5586,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "KMP greedy reconstruct",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem126b",
-     "title": "Password",
-     "url": "https://codeforces.com/problemset/problem/126/B",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "Z-function (or hash + BS)",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem271d",
@@ -7317,75 +5616,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1326d2",
-     "title": "Prefix-Suffix Palindrome (Hard version)",
-     "url": "https://codeforces.com/problemset/problem/1326/D2",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "Manacher / hash / KMP",
-     "tier": "extended"
-    },
-    {
      "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem535d",
      "title": "Tavas and Malekas",
      "url": "https://codeforces.com/problemset/problem/535/D",
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "forced placements +",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem633c",
-     "title": "Spy Syndrome 2",
-     "url": "https://codeforces.com/problemset/problem/633/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "reverse trie + DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem835d",
-     "title": "Palindromic characteristics",
-     "url": "https://codeforces.com/problemset/problem/835/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "hash palindrome DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem455b",
-     "title": "A Lot of Games",
-     "url": "https://codeforces.com/problemset/problem/455/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "trie game theory",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem1200e",
-     "title": "Compress Words",
-     "url": "https://codeforces.com/problemset/problem/1200/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "KMP / hashing merge",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem432d",
-     "title": "Prefixes and Suffixes",
-     "url": "https://codeforces.com/problemset/problem/432/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "Z / + occurrence counts",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:codeforcesproblemsetproblem514c",
-     "title": "Watto and Mechanism",
-     "url": "https://codeforces.com/problemset/problem/514/C",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "trie / hash, exactly one mismatch",
      "tier": "stretch"
     },
     {
@@ -7450,24 +5686,6 @@
      "rating": 2100,
      "tag": "hash + BS deleted middle",
      "tier": "stretch"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:atcodercontestsabc141tasksabc141e",
-     "title": "Who Says a Pun?",
-     "url": "https://atcoder.jp/contests/abc141/tasks/abc141_e",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "hashing / Z + binary search on length",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:strings_hashing_kmp_trie:csesproblemsettask2102",
-     "title": "Finding Patterns",
-     "url": "https://cses.fi/problemset/task/2102",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "suffix array / automaton",
-     "tier": "extended"
     }
    ],
    "placement_value": "High",
@@ -7522,24 +5740,6 @@
      "platform": "Codeforces",
      "rating": 1400,
      "tag": "frequency max-heap",
-     "tier": "core"
-    },
-    {
-     "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem1353d",
-     "title": "Constructing the Array",
-     "url": "https://codeforces.com/problemset/problem/1353/D",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "Priority Queue",
-     "tier": "core"
-    },
-    {
-     "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem1399d",
-     "title": "Binary String To Subsequences",
-     "url": "https://codeforces.com/problemset/problem/1399/D",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "two queues of IDs",
      "tier": "core"
     },
     {
@@ -7666,7 +5866,7 @@
      "platform": "Codeforces",
      "rating": 1500,
      "tag": "max-heap residuals",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem923b",
@@ -7675,7 +5875,7 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "Priority Queue",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem940e",
@@ -7732,15 +5932,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem1691d",
-     "title": "Max GEQ Sum",
-     "url": "https://codeforces.com/problemset/problem/1691/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "mono stack + prefix",
-     "tier": "extended"
-    },
-    {
      "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem5c",
      "title": "Longest Regular Bracket Sequence",
      "url": "https://codeforces.com/problemset/problem/5/C",
@@ -7750,30 +5941,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem514d",
-     "title": "R2D2 and Droid Army",
-     "url": "https://codeforces.com/problemset/problem/514/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "Monotonic Deque / Sparse Table",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem547b",
      "title": "Mike and Feet",
      "url": "https://codeforces.com/problemset/problem/547/B",
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "nearest-smaller ranges",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:stacks_queues_monotonic_heaps:codeforcesproblemsetproblem1313c2",
-     "title": "Skyscrapers (Hard Version)",
-     "url": "https://codeforces.com/problemset/problem/1313/C2",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "mono stack both sides",
      "tier": "stretch"
     },
     {
@@ -7850,15 +6023,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:range_queries:codeforcesproblemsetproblem340d",
-     "title": "Bubble Sort Graph",
-     "url": "https://codeforces.com/problemset/problem/340/D",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "LIS via Fenwick",
-     "tier": "core"
-    },
-    {
      "id": "cp:range_queries:codeforcesproblemsetproblem1791f",
      "title": "Range Update Point Query",
      "url": "https://codeforces.com/problemset/problem/1791/F",
@@ -7901,34 +6065,7 @@
      "platform": "Codeforces",
      "rating": 1800,
      "tag": "Fenwick on prefix sums",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1691d",
-     "title": "Max GEQ Sum",
-     "url": "https://codeforces.com/problemset/problem/1691/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "sparse max + next-greater",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem597c",
-     "title": "Subsequences",
-     "url": "https://codeforces.com/problemset/problem/597/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "k-layer Fenwick DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem961e",
-     "title": "Tufurama",
-     "url": "https://codeforces.com/problemset/problem/961/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "offline Fenwick on capped values",
-     "tier": "stretch"
+     "tier": "core"
     },
     {
      "id": "cp:range_queries:codeforcesproblemsetproblem914d",
@@ -7937,15 +6074,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "GCD segtree with prune",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1208d",
-     "title": "Restore Permutation",
-     "url": "https://codeforces.com/problemset/problem/1208/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "Fenwick find-by-prefix-sum",
      "tier": "stretch"
     },
     {
@@ -7958,30 +6086,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:range_queries:csesproblemsettask1647",
-     "title": "Static Range Minimum Queries",
-     "url": "https://cses.fi/problemset/task/1647",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "sparse table RMQ",
-     "tier": "extended"
-    },
-    {
      "id": "cp:range_queries:csesproblemsettask1650",
      "title": "Range Xor Queries",
      "url": "https://cses.fi/problemset/task/1650",
      "platform": "CSES",
      "rating": null,
      "tag": "prefix XOR",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask1648",
-     "title": "Dynamic Range Sum Queries",
-     "url": "https://cses.fi/problemset/task/1648",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Fenwick / segtree PURS",
      "tier": "extended"
     },
     {
@@ -8003,24 +6113,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:range_queries:csesproblemsettask1651",
-     "title": "Range Update Queries",
-     "url": "https://cses.fi/problemset/task/1651",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "range add + point query",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask2169",
-     "title": "Nested Ranges Count",
-     "url": "https://cses.fi/problemset/task/2169",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Fenwick + sort",
-     "tier": "extended"
-    },
-    {
      "id": "cp:range_queries:csesproblemsettask1143",
      "title": "Hotel Queries",
      "url": "https://cses.fi/problemset/task/1143",
@@ -8030,39 +6122,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:range_queries:csesproblemsettask1749",
-     "title": "List Removals",
-     "url": "https://cses.fi/problemset/task/1749",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "order-statistic BIT",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask1144",
-     "title": "Salary Queries",
-     "url": "https://cses.fi/problemset/task/1144",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "compress + Fenwick freq",
-     "tier": "extended"
-    },
-    {
      "id": "cp:range_queries:csesproblemsettask1190",
      "title": "Subarray Sum Queries",
      "url": "https://cses.fi/problemset/task/1190",
      "platform": "CSES",
      "rating": null,
      "tag": "max-subarray merge node",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask1734",
-     "title": "Distinct Values Queries",
-     "url": "https://cses.fi/problemset/task/1734",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "offline last-occurrence Fenwick",
      "tier": "extended"
     },
     {
@@ -8093,69 +6158,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1709d",
-     "title": "Rorororobot",
-     "url": "https://codeforces.com/problemset/problem/1709/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "sparse max + binsearch",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem652d",
-     "title": "Nested Segments",
-     "url": "https://codeforces.com/problemset/problem/652/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "Fenwick containment",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem459d",
-     "title": "Pashmak and Parmida's problem",
-     "url": "https://codeforces.com/problemset/problem/459/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "Fenwick on frequencies",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1547f",
-     "title": "Array Stabilization (GCD version)",
-     "url": "https://codeforces.com/problemset/problem/1547/F",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "sparse GCD + two pointers",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1354d",
-     "title": "Multiset",
-     "url": "https://codeforces.com/problemset/problem/1354/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "BIT find-k-th",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem61e",
-     "title": "Enemy is weak",
-     "url": "https://codeforces.com/problemset/problem/61/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "3-way inversions",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem292e",
-     "title": "Copying Data",
-     "url": "https://codeforces.com/problemset/problem/292/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "lazy assign of copy-maps",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:range_queries:codeforcesproblemsetproblem380c",
      "title": "Sereja and Brackets",
      "url": "https://codeforces.com/problemset/problem/380/C",
@@ -8165,48 +6167,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:range_queries:codeforcesproblemsetproblem242e",
-     "title": "XOR on Segment",
-     "url": "https://codeforces.com/problemset/problem/242/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "lazy XOR per bit",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem920f",
-     "title": "SUM and REPLACE",
-     "url": "https://codeforces.com/problemset/problem/920/F",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "D(n) until small + segtree",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem1632d",
-     "title": "New Year Concert",
-     "url": "https://codeforces.com/problemset/problem/1632/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "sparse GCD + greedy cuts",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:range_queries:codeforcesproblemsetproblem474e",
      "title": "Pillars",
      "url": "https://codeforces.com/problemset/problem/474/E",
      "platform": "Codeforces",
      "rating": 2000,
      "tag": "segtree max DP on compressed heights",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:range_queries:codeforcesproblemsetproblem474f",
-     "title": "Ant colony",
-     "url": "https://codeforces.com/problemset/problem/474/F",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "GCD RMQ + count",
      "tier": "stretch"
     },
     {
@@ -8234,33 +6200,6 @@
      "platform": "AtCoder",
      "rating": null,
      "tag": "point update + range max",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:atcodercontestsdptasksdpq",
-     "title": "Flowers",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_q",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "BIT for LIS-style DP",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask1735",
-     "title": "Range Updates and Sums",
-     "url": "https://cses.fi/problemset/task/1735",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "lazy add + assign",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:range_queries:csesproblemsettask1739",
-     "title": "Forest Queries II",
-     "url": "https://cses.fi/problemset/task/1739",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "2D Fenwick point flip",
      "tier": "extended"
     },
     {
@@ -8391,15 +6330,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem453a",
-     "title": "Little Pony and Expected Maximum",
-     "url": "https://codeforces.com/problemset/problem/453/A",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "E[max] closed form",
-     "tier": "extended"
-    },
-    {
      "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem1284c",
      "title": "New Year and Permutation",
      "url": "https://codeforces.com/problemset/problem/1284/C",
@@ -8490,15 +6420,6 @@
      "tier": "extended"
     },
     {
-     "id": "cp:combinatorics_modular_math:csesproblemsettask2185",
-     "title": "Prime Multiples",
-     "url": "https://cses.fi/problemset/task/2185",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "inclusion-exclusion",
-     "tier": "extended"
-    },
-    {
      "id": "cp:combinatorics_modular_math:atcodercontestsabc167tasksabc167e",
      "title": "E - Colorful Blocks",
      "url": "https://atcoder.jp/contests/abc167/tasks/abc167_e",
@@ -8535,30 +6456,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem476b",
-     "title": "Dreamoon and WiFi",
-     "url": "https://codeforces.com/problemset/problem/476/B",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "counting, probability",
-     "tier": "extended"
-    },
-    {
      "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem1328b",
      "title": "K-th Beautiful String",
      "url": "https://codeforces.com/problemset/problem/1328/B",
      "platform": "Codeforces",
      "rating": 1300,
      "tag": "combinatorial construction",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem839c",
-     "title": "Journey",
-     "url": "https://codeforces.com/problemset/problem/839/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "expectation on tree",
      "tier": "extended"
     },
     {
@@ -8577,15 +6480,6 @@
      "platform": "Codeforces",
      "rating": 1600,
      "tag": "units / Euler totient",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem518d",
-     "title": "Ilya and Escalator",
-     "url": "https://codeforces.com/problemset/problem/518/D",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "probability DP",
      "tier": "extended"
     },
     {
@@ -8625,30 +6519,12 @@
      "tier": "extended"
     },
     {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem148d",
-     "title": "Bag of mice",
-     "url": "https://codeforces.com/problemset/problem/148/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "probability DP",
-     "tier": "extended"
-    },
-    {
      "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem687b",
      "title": "Remainders Game",
      "url": "https://codeforces.com/problemset/problem/687/B",
      "platform": "Codeforces",
      "rating": 1800,
      "tag": "CRT / LCM",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem1295d",
-     "title": "Same GCDs",
-     "url": "https://codeforces.com/problemset/problem/1295/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "Euler totient",
      "tier": "extended"
     },
     {
@@ -8695,24 +6571,6 @@
      "rating": 1800,
      "tag": "sweep +",
      "tier": "extended"
-    },
-    {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem1750d",
-     "title": "Count GCD",
-     "url": "https://codeforces.com/problemset/problem/1750/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "gcd-forced array fill",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem540d",
-     "title": "Bad Luck Island",
-     "url": "https://codeforces.com/problemset/problem/540/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "3-type probability DP",
-     "tier": "stretch"
     },
     {
      "id": "cp:combinatorics_modular_math:codeforcesproblemsetproblem294c",
@@ -8848,15 +6706,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "string transition matrix",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:advanced_techniques:codeforcesproblemsetproblem2014h",
-     "title": "Robin Hood Archery",
-     "url": "https://codeforces.com/problemset/problem/2014/H",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "Mo / even frequencies",
      "tier": "stretch"
     },
     {
@@ -9398,15 +7247,6 @@
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "array with given XOR and sum",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:constructive_algorithms:codeforcesproblemsetproblem1406c",
-     "title": "Link Cut Centroids",
-     "url": "https://codeforces.com/problemset/problem/1406/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "one edge move -> unique centroid",
      "tier": "extended"
     },
     {
@@ -9980,15 +7820,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem459d",
-     "title": "Pashmak and Parmida's problem",
-     "url": "https://codeforces.com/problemset/problem/459/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "count f(prefix) > f(suffix)",
-     "tier": "core"
-    },
-    {
      "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem292e",
      "title": "Copying Data",
      "url": "https://codeforces.com/problemset/problem/292/E",
@@ -10005,24 +7836,6 @@
      "rating": 1900,
      "tag": "recover perm from prefix sums",
      "tier": "core"
-    },
-    {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem61e",
-     "title": "Enemy is weak",
-     "url": "https://codeforces.com/problemset/problem/61/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "count 3-way inversions",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem961e",
-     "title": "Tufurama",
-     "url": "https://codeforces.com/problemset/problem/961/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "count pairs with index/value bounds",
-     "tier": "stretch"
     },
     {
      "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem242e",
@@ -10043,22 +7856,13 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:advanced_segment_tree:csesproblemsettask1651",
-     "title": "Range Update Queries",
-     "url": "https://cses.fi/problemset/task/1651",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "range add + point query",
-     "tier": "extended"
-    },
-    {
      "id": "cp:advanced_segment_tree:atcoderconteststypical90taskstypical9",
      "title": "029 - Long Bricks（★5）",
      "url": "https://atcoder.jp/contests/typical90/tasks/typical90_ac",
      "platform": "AtCoder",
      "rating": null,
      "tag": "range assign / chmax + point max",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:advanced_segment_tree:csesproblemsettask1735",
@@ -10104,33 +7908,6 @@
      "rating": null,
      "tag": "max prefix on subarray",
      "tier": "extended"
-    },
-    {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem877e",
-     "title": "Danil and a Part-time Job",
-     "url": "https://codeforces.com/problemset/problem/877/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "subtree flip + count 1s",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem540e",
-     "title": "Infinite Inversions",
-     "url": "https://codeforces.com/problemset/problem/540/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "inversions after sparse swaps",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem620e",
-     "title": "New Year Tree",
-     "url": "https://codeforces.com/problemset/problem/620/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "subtree color assign + distinct colors",
-     "tier": "stretch"
     },
     {
      "id": "cp:advanced_segment_tree:codeforcesproblemsetproblem52c",
@@ -10486,15 +8263,6 @@
      "tier": "core"
     },
     {
-     "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem1328e",
-     "title": "Tree Queries",
-     "url": "https://codeforces.com/problemset/problem/1328/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "LCA / ancestor checks",
-     "tier": "core"
-    },
-    {
      "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem475d",
      "title": "CGCDSSQ",
      "url": "https://codeforces.com/problemset/problem/475/D",
@@ -10540,31 +8308,13 @@
      "tier": "extended"
     },
     {
-     "id": "cp:sparse_table_rmq:csesproblemsettask1688",
-     "title": "Company Queries II",
-     "url": "https://cses.fi/problemset/task/1688",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "LCA (Euler+RMQ or binlift)",
-     "tier": "extended"
-    },
-    {
-     "id": "cp:sparse_table_rmq:csesproblemsettask1135",
-     "title": "Distance Queries",
-     "url": "https://cses.fi/problemset/task/1135",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "LCA distances",
-     "tier": "extended"
-    },
-    {
      "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem1691d",
      "title": "Max GEQ Sum",
      "url": "https://codeforces.com/problemset/problem/1691/D",
      "platform": "Codeforces",
      "rating": 1800,
      "tag": "sparse max + expand",
-     "tier": "extended"
+     "tier": "core"
     },
     {
      "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem1313c2",
@@ -10573,15 +8323,6 @@
      "platform": "Codeforces",
      "rating": 1900,
      "tag": "range max / “peak”",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem191c",
-     "title": "Fools and Roads",
-     "url": "https://codeforces.com/problemset/problem/191/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "path +1 via LCA",
      "tier": "stretch"
     },
     {
@@ -10648,15 +8389,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem208e",
-     "title": "Blood Cousins",
-     "url": "https://codeforces.com/problemset/problem/208/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "k-th ancestor + depth bags",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:sparse_table_rmq:codeforcesproblemsetproblem519e",
      "title": "A and B and Lecture Rooms",
      "url": "https://codeforces.com/problemset/problem/519/E",
@@ -10684,24 +8416,6 @@
    "title": "String Suffix Structures: Suffix Array, Suffix Automaton, Aho–Corasick",
    "kind": "topic",
    "items": [
-    {
-     "id": "cp:string_suffix_structures:codeforcesproblemsetproblem1537e1",
-     "title": "Erase and Extend (Easy Version)",
-     "url": "https://codeforces.com/problemset/problem/1537/E1",
-     "platform": "Codeforces",
-     "rating": 1600,
-     "tag": "lex-smallest via SA / dueling",
-     "tier": "core"
-    },
-    {
-     "id": "cp:string_suffix_structures:codeforcesproblemsetproblem1968g1",
-     "title": "Division + LCP (easy version)",
-     "url": "https://codeforces.com/problemset/problem/1968/G1",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "LCP / Z periods",
-     "tier": "core"
-    },
     {
      "id": "cp:string_suffix_structures:atcodercontestspractice2taskspractice",
      "title": "Number of Substrings",
@@ -11345,15 +9059,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem191c",
-     "title": "Fools and Roads",
-     "url": "https://codeforces.com/problemset/problem/191/C",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "path mark via LCA diff",
-     "tier": "core"
-    },
-    {
      "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem276e",
      "title": "Little Girl and Problem on Trees",
      "url": "https://codeforces.com/problemset/problem/276/E",
@@ -11361,15 +9066,6 @@
      "rating": 2100,
      "tag": "path add + path query",
      "tier": "core"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem343d",
-     "title": "Water Tree",
-     "url": "https://codeforces.com/problemset/problem/343/D",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "subtree fill + path empty",
-     "tier": "stretch"
     },
     {
      "id": "cp:heavy_light_decomposition:csesproblemsettask1688",
@@ -11381,48 +9077,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:heavy_light_decomposition:csesproblemsettask1137",
-     "title": "Subtree Queries",
-     "url": "https://cses.fi/problemset/task/1137",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Euler + Fenwick",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:csesproblemsettask1138",
-     "title": "Path Queries",
-     "url": "https://cses.fi/problemset/task/1138",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "Euler path-to-root",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:csesproblemsettask2134",
-     "title": "Path Queries II",
-     "url": "https://cses.fi/problemset/task/2134",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "HLD + path max",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:heavy_light_decomposition:judgeproblemvertexaddpathsum",
      "title": "Vertex Add Path Sum",
      "url": "https://judge.yosupo.jp/problem/vertex_add_path_sum",
      "platform": "Library Checker",
      "rating": null,
      "tag": "path sum template",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:atcodercontestsabc294tasksabc294g",
-     "title": "Distance Queries on a Tree",
-     "url": "https://atcoder.jp/contests/abc294/tasks/abc294_g",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "edge update + path distance",
      "tier": "stretch"
     },
     {
@@ -11441,42 +9101,6 @@
      "platform": "Codeforces",
      "rating": null,
      "tag": "path/subtree weighted updates",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem1328e",
-     "title": "Tree Queries",
-     "url": "https://codeforces.com/problemset/problem/1328/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "ancestor / path cover",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem1076e",
-     "title": "Vasya and a Tree",
-     "url": "https://codeforces.com/problemset/problem/1076/E",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "depth-capped subtree add",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem383c",
-     "title": "Propagating tree",
-     "url": "https://codeforces.com/problemset/problem/383/C",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "Euler + parity Fenwick",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:codeforcesproblemsetproblem877e",
-     "title": "Danil and a Part-time Job",
-     "url": "https://codeforces.com/problemset/problem/877/E",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "Euler + lazy flip",
      "tier": "stretch"
     },
     {
@@ -11513,15 +9137,6 @@
      "platform": "CSES",
      "rating": null,
      "tag": "path length via LCA",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:heavy_light_decomposition:csesproblemsettask1136",
-     "title": "Counting Paths",
-     "url": "https://cses.fi/problemset/task/1136",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "tree difference + LCA",
      "tier": "stretch"
     },
     {
@@ -12204,15 +9819,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:dp_optimization_cht_dc_knuth:codeforcesproblemsetproblem1114d",
-     "title": "Flood Fill",
-     "url": "https://codeforces.com/problemset/problem/1114/D",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "interval DP on compressed runs",
-     "tier": "core"
-    },
-    {
      "id": "cp:dp_optimization_cht_dc_knuth:codeforcesproblemsetproblem1077f1",
      "title": "Pictures with Kittens (easy version)",
      "url": "https://codeforces.com/problemset/problem/1077/F1",
@@ -12276,15 +9882,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:dp_optimization_cht_dc_knuth:atcodercontestsdptasksdpn",
-     "title": "Slimes",
-     "url": "https://atcoder.jp/contests/dp/tasks/dp_n",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "interval DP / Knuth form",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:dp_optimization_cht_dc_knuth:atcodercontestsdptasksdpz",
      "title": "Frog 3",
      "url": "https://atcoder.jp/contests/dp/tasks/dp_z",
@@ -12309,24 +9906,6 @@
      "platform": "AtCoder",
      "rating": null,
      "tag": "D&C DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_optimization_cht_dc_knuth:codeforcesproblemsetproblem607b",
-     "title": "Zuma",
-     "url": "https://codeforces.com/problemset/problem/607/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "interval DP",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:dp_optimization_cht_dc_knuth:codeforcesproblemsetproblem1132f",
-     "title": "Clear the String",
-     "url": "https://codeforces.com/problemset/problem/1132/F",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "interval DP",
      "tier": "stretch"
     },
     {
@@ -12430,39 +10009,12 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem550b",
-     "title": "Preparing Olympiad",
-     "url": "https://codeforces.com/problemset/problem/550/B",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "enumerate all subsets",
-     "tier": "core"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem868c",
-     "title": "Qualification Rounds",
-     "url": "https://codeforces.com/problemset/problem/868/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "topic masks / pairwise cover",
-     "tier": "core"
-    },
-    {
      "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1554b",
      "title": "Cobb",
      "url": "https://codeforces.com/problemset/problem/1554/B",
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "submask enum for max s",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1288d",
-     "title": "Minimax Problem",
-     "url": "https://codeforces.com/problemset/problem/1288/D",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "binary search + mask of “>= mid” bits",
      "tier": "stretch"
     },
     {
@@ -12547,48 +10099,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1362c",
-     "title": "Johnny and Another Rating Drop",
-     "url": "https://codeforces.com/problemset/problem/1362/C",
-     "platform": "Codeforces",
-     "rating": 1400,
-     "tag": "bit contribution",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1742g",
-     "title": "Orray",
-     "url": "https://codeforces.com/problemset/problem/1742/G",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "greedy OR construction",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1879d",
      "title": "Sum of XOR Functions",
      "url": "https://codeforces.com/problemset/problem/1879/D",
      "platform": "Codeforces",
      "rating": 1700,
      "tag": "XOR contribution / bits",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem1466e",
-     "title": "Apollo versus Pan",
-     "url": "https://codeforces.com/problemset/problem/1466/E",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "AND/OR bit contribution",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:codeforcesproblemsetproblem895c",
-     "title": "Square Subsets",
-     "url": "https://codeforces.com/problemset/problem/895/C",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "prime-exponent parity mask",
      "tier": "stretch"
     },
     {
@@ -12634,15 +10150,6 @@
      "platform": "Codeforces",
      "rating": 2600,
      "tag": "SOS reachability for",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:sos_dp_submask_sum:atcodercontestsabc142tasksabc142e",
-     "title": "Get Everything",
-     "url": "https://atcoder.jp/contests/abc142/tasks/abc142_e",
-     "platform": "AtCoder",
-     "rating": null,
-     "tag": "collect-keys bitmask DP",
      "tier": "stretch"
     }
    ],
@@ -12909,24 +10416,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:bitset_optimization:codeforcesproblemsetproblem1516c",
-     "title": "Baby Ehab Partitions Again",
-     "url": "https://codeforces.com/problemset/problem/1516/C",
-     "platform": "Codeforces",
-     "rating": 1700,
-     "tag": "partition + bitset",
-     "tier": "core"
-    },
-    {
-     "id": "cp:bitset_optimization:codeforcesproblemsetproblem1381b",
-     "title": "Unmerge",
-     "url": "https://codeforces.com/problemset/problem/1381/B",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "segment-length bitset",
-     "tier": "core"
-    },
-    {
      "id": "cp:bitset_optimization:codeforcesproblemsetproblem1856e1",
      "title": "PermuTree (easy version)",
      "url": "https://codeforces.com/problemset/problem/1856/E1",
@@ -12936,39 +10425,12 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:bitset_optimization:codeforcesproblemsetproblem577b",
-     "title": "Modulo Sum",
-     "url": "https://codeforces.com/problemset/problem/577/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "pigeonhole + mod bitset",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:bitset_optimization:codeforcesproblemsetproblem1242b",
-     "title": "0-1 MST",
-     "url": "https://codeforces.com/problemset/problem/1242/B",
-     "platform": "Codeforces",
-     "rating": 1900,
-     "tag": "complement components",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:bitset_optimization:atcodercontestsabc344tasksabc344c",
      "title": "A+B+C",
      "url": "https://atcoder.jp/contests/abc344/tasks/abc344_c",
      "platform": "AtCoder",
      "rating": null,
      "tag": "bitset as packed bool[]",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:bitset_optimization:csesproblemsettask1745",
-     "title": "Money Sums",
-     "url": "https://cses.fi/problemset/task/1745",
-     "platform": "CSES",
-     "rating": null,
-     "tag": "knapsack shift",
      "tier": "stretch"
     },
     {
@@ -13044,15 +10506,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:bitset_optimization:codeforcesproblemsetproblem920e",
-     "title": "Connected Components?",
-     "url": "https://codeforces.com/problemset/problem/920/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "complement CC sizes",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:bitset_optimization:codeforcesproblemsetproblem993c",
      "title": "Careful Maneuvering",
      "url": "https://codeforces.com/problemset/problem/993/C",
@@ -13117,15 +10570,6 @@
    "kind": "topic",
    "items": [
     {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem4c",
-     "title": "Registration System",
-     "url": "https://codeforces.com/problemset/problem/4/C",
-     "platform": "Codeforces",
-     "rating": 1300,
-     "tag": "hash map",
-     "tier": "core"
-    },
-    {
      "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem1005c",
      "title": "Summarize to the Power of Two",
      "url": "https://codeforces.com/problemset/problem/1005/C",
@@ -13189,15 +10633,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem514c",
-     "title": "Watto and Mechanism",
-     "url": "https://codeforces.com/problemset/problem/514/C",
-     "platform": "Codeforces",
-     "rating": 2000,
-     "tag": "polyhash set + 1-edit",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:randomized_hashing_tricks:atcodercontestsabc250tasksabc250e",
      "title": "Prefix Equality",
      "url": "https://atcoder.jp/contests/abc250/tasks/abc250_e",
@@ -13225,24 +10660,6 @@
      "tier": "stretch"
     },
     {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem1536c",
-     "title": "Diluc and Kaeya",
-     "url": "https://codeforces.com/problemset/problem/1536/C",
-     "platform": "Codeforces",
-     "rating": 1500,
-     "tag": "hash of reduced ratios",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem1225d",
-     "title": "Power Products",
-     "url": "https://codeforces.com/problemset/problem/1225/D",
-     "platform": "Codeforces",
-     "rating": 1800,
-     "tag": "hash of prime-exponent signature",
-     "tier": "stretch"
-    },
-    {
      "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem870d",
      "title": "Something with XOR Queries",
      "url": "https://codeforces.com/problemset/problem/870/D",
@@ -13258,24 +10675,6 @@
      "platform": "Codeforces",
      "rating": 2000,
      "tag": "random / candidate lines",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem1056e",
-     "title": "Check Transcription",
-     "url": "https://codeforces.com/problemset/problem/1056/E",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "hash + birthday-safe compare",
-     "tier": "stretch"
-    },
-    {
-     "id": "cp:randomized_hashing_tricks:codeforcesproblemsetproblem1039b",
-     "title": "Subway Pursuit",
-     "url": "https://codeforces.com/problemset/problem/1039/B",
-     "platform": "Codeforces",
-     "rating": 2100,
-     "tag": "randomized shrinking search",
      "tier": "stretch"
     },
     {
