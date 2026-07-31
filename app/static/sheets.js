@@ -182,7 +182,7 @@
       `<div class="pad-bar">
          <select class="pad-lang" title="Language">${PAD_LANGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
          <span class="pad-status" aria-live="polite"></span>
-         <button class="pad-clear" type="button" title="Reset to a blank template">Reset</button>
+         <button class="pad-clear" type="button" title="Reset to the starter template">Reset</button>
          <button class="pad-copy" type="button" title="Copy code to clipboard">Copy</button>
          <button class="pad-dl" type="button" title="Download this code as a file">Download</button>
          <button class="pad-viz" type="button" title="Step through your code line-by-line (Python &amp; C++)">◆ Visualize</button>
@@ -208,14 +208,17 @@
     const meta = pad.querySelector('.pad-run-meta');
     const clr = pad.querySelector('.pad-clear'), dl = pad.querySelector('.pad-dl');
     const vizBtn = pad.querySelector('.pad-viz'), env = pad.querySelector('.pad-env');
-    let initCode = '', initLang = 'cpp';
+    let savedCode = null, initLang = 'cpp';
     try {
       const d = await jget('/api/sheet-code?item=' + encodeURIComponent(itemId));
-      if (d.ok) { initCode = d.code || ''; if (d.lang) initLang = d.lang; }
+      if (d.ok) { if (d.code != null) savedCode = d.code; if (d.lang) initLang = d.lang; }
     } catch (e) { /* start blank */ }
     if (PAD_LANGS.some(([v]) => v === initLang)) sel.value = initLang;
+    // Nothing saved for this question yet -> seed the same starter scaffold the standalone compiler
+    // uses, so the code section opens ready to fill in rather than as an empty box.
+    const seed = savedCode ? savedCode : ccStarter(sel.value);
     const pcc = window.OAEditor.create(editorHost, {
-      value: initCode, language: langBase(sel.value), onRun: () => doRun(),
+      value: seed, language: langBase(sel.value), onRun: () => doRun(),
     });
     pad._cc = pcc;
     const syncRunnable = () => {
@@ -243,7 +246,11 @@
     };
     const queue = () => { clearTimeout(timer); status.textContent = 'Editing…'; timer = setTimeout(save, 700); };
     pcc.onChange(queue);
-    sel.addEventListener('change', () => { syncRunnable(); pcc.setLanguage(langBase(sel.value)); save(); showPadEnv(); });
+    sel.addEventListener('change', () => {
+      syncRunnable(); pcc.setLanguage(langBase(sel.value));
+      if (!pcc.getValue().trim()) pcc.setValue(ccStarter(sel.value));   // seed the new language's scaffold if empty
+      save(); showPadEnv();
+    });
     stdin.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); return; }
       if (e.key === 'Tab') { e.preventDefault(); const s = stdin.selectionStart, en = stdin.selectionEnd; stdin.value = stdin.value.slice(0, s) + '    ' + stdin.value.slice(en); stdin.selectionStart = stdin.selectionEnd = s + 4; }
@@ -254,7 +261,7 @@
       setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('ok'); }, 1400);
     });
     clr.addEventListener('click', () => {
-      pcc.setValue(CC_STARTER[langBase(sel.value)] || '');
+      pcc.setValue(ccStarter(sel.value));
       stdin.value = ''; io.hidden = true;
       out.className = 'pad-out'; out.textContent = ''; meta.textContent = '';
       save(); pcc.focus();
@@ -340,8 +347,22 @@
   const CC_LANGS = [['cpp', 'C++'], ['python', 'Python']];
   const CC_STARTER = {
     cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    \n    return 0;\n}\n',
-    py: '',
+    c: '#include <stdio.h>\n\nint main(void) {\n    \n    return 0;\n}\n',
+    py: 'import sys\ninput = sys.stdin.readline\n\ndef main():\n    pass\n\nmain()\n',
+    java: 'import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        \n    }\n}\n',
+    kotlin: 'import java.io.*\nimport java.util.*\n\nfun main() {\n    val br = BufferedReader(InputStreamReader(System.`in`))\n    \n}\n',
   };
+  // The starter scaffold for a given pad/compiler language value. Keyed by the exact language so
+  // every language the pad offers opens ready to fill in — not just the two the standalone compiler
+  // exposes. Unknown languages fall back to blank.
+  function ccStarter(lang) {
+    if (lang === 'cpp') return CC_STARTER.cpp;
+    if (lang === 'c') return CC_STARTER.c;
+    if (lang === 'java') return CC_STARTER.java;
+    if (lang === 'kotlin') return CC_STARTER.kotlin;
+    if (lang === 'python' || lang === 'py' || lang === 'py3') return CC_STARTER.py;
+    return '';
+  }
   let ccBuilt = false;
   const langBase = (v) => (v === 'cpp' || v === 'c' ? 'cpp' : 'py');
 
@@ -363,7 +384,7 @@
          <div class="cc-tools">
            <select class="cc-lang" title="Language">${CC_LANGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
            <span class="cc-status" aria-live="polite"></span>
-           <button class="cc-clear" type="button" title="Reset to a blank template">Reset</button>
+           <button class="cc-clear" type="button" title="Reset to the starter template">Reset</button>
            <button class="cc-copy" type="button" title="Copy code to clipboard">Copy</button>
            <button class="cc-dl" type="button" title="Download this code as a file">Download</button>
            <button class="cc-viz" type="button" title="Step through your code line-by-line (Python &amp; C++)">◆ Visualize</button>
@@ -401,7 +422,7 @@
       if (e.full) env.title = e.full;
     };
     const cc = window.OAEditor.create(editorHost, {
-      value: saved.code != null ? saved.code : (CC_STARTER[langBase(lang.value)] || ''),
+      value: saved.code != null ? saved.code : ccStarter(lang.value),
       language: langBase(lang.value),
       onRun: () => doRun(),
     });
@@ -417,7 +438,7 @@
     });
     lang.addEventListener('change', () => {
       cc.setLanguage(langBase(lang.value));
-      if (!cc.getValue().trim()) cc.setValue(CC_STARTER[langBase(lang.value)] || '');
+      if (!cc.getValue().trim()) cc.setValue(ccStarter(lang.value));
       persist(); showEnv();
     });
     copy.addEventListener('click', async () => {
@@ -438,7 +459,7 @@
       setTimeout(() => { dl.textContent = 'Download'; dl.classList.remove('ok'); }, 1400);
     });
     clr.addEventListener('click', () => {
-      cc.setValue(CC_STARTER[langBase(lang.value)] || ''); stdin.value = '';
+      cc.setValue(ccStarter(lang.value)); stdin.value = '';
       out.className = 'cc-out'; out.textContent = 'Run your code to see output here.'; meta.textContent = '';
       persist(); cc.focus();
     });
