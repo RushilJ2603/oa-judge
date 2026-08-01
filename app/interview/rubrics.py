@@ -19,6 +19,7 @@ PHASE_ORDER = {
     "LLD": ["requirements", "entities", "class_design", "implementation", "extensibility", "concurrency"],
     "CONCEPT": ["fundamentals", "mechanics", "tradeoffs", "application"],
     "CP": ["recognition", "approach", "implementation", "complexity", "pitfalls"],
+    "FUND": ["fundamentals", "mechanics", "tradeoffs", "application"],
 }
 
 

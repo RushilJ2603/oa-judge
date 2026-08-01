@@ -21,7 +21,9 @@
   }
 
   const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '' };
-  const TYPE_LABEL = { HLD: 'System Design', LLD: 'Low-Level Design', CONCEPT: 'Fundamentals', CP: 'DSA / CP' };
+  const TYPE_LABEL = { FUND: 'CS Fundamentals', CP: 'DSA & Algorithms', HLD: 'System Design',
+                       LLD: 'Low-Level Design', CONCEPT: 'System Design Foundations' };
+  const TYPE_ORDER = ['FUND', 'CP', 'HLD', 'LLD', 'CONCEPT'];
 
   // ------------------------------------------------------------------ entry
   async function render() {
@@ -29,10 +31,13 @@
     if (!host) return;
     if (S.session) { renderSession(); return; }
     host.innerHTML = '<p class="spinner">Loading…</p>';
-    let status = { online: false, rubrics: 0 }, cat = { items: [] };
-    try { [status, cat] = await Promise.all([jget('/api/interview/status'), jget('/api/interview/catalog')]); }
-    catch (e) { host.innerHTML = '<p class="placeholder">Could not load interviews.</p>'; return; }
+    let status = { online: false, rubrics: 0 }, cat = { items: [] }, shapes = { shapes: [] };
+    try {
+      [status, cat, shapes] = await Promise.all([
+        jget('/api/interview/status'), jget('/api/interview/catalog'), jget('/api/interview/shapes')]);
+    } catch (e) { host.innerHTML = '<p class="placeholder">Could not load interviews.</p>'; return; }
     S.catalog = cat.items || [];
+    S.shapes = shapes.shapes || [];
     renderCatalog(status);
   }
 
@@ -49,8 +54,30 @@
       `<div class="iv-offline">The interviewer runs on a host machine that is not currently up.
        You can still browse the list — start a session once it is online.</div>`;
 
+    // Loop shapes first: a full round is what you actually sit in an onsite, and the preview shows
+    // the exact subjects picked for YOU (weakest-first from your dossier), not a generic blurb.
+    const SHAPE_LABEL = {
+      mixed_full: ['Full loop', 'Fundamentals → DSA → System design'],
+      mixed_short: ['Short mixed', 'Fundamentals → DSA'],
+      cs_round: ['CS fundamentals', 'OS · DBMS · C++ · networks'],
+      dsa_round: ['DSA round', 'Explain your approach, get critiqued'],
+      design_round: ['Design round', 'One system, end to end'],
+    };
+    let shapesHtml = '';
+    if (S.shapes && S.shapes.length && !q) {
+      shapesHtml = '<h2 class="iv-group">Interview loops <span class="iv-count">picked from your weak areas</span></h2><div class="iv-cards">' +
+        S.shapes.map((s) => {
+          const [label, sub] = SHAPE_LABEL[s.shape] || [s.shape, ''];
+          return `<button class="iv-card iv-loop" data-shape="${esc(s.shape)}">
+                    <span class="iv-card-t">${esc(label)}</span>
+                    <span class="iv-loop-sub">${esc(sub)}</span>
+                    <span class="iv-loop-prev">${esc(s.preview)}</span>
+                  </button>`;
+        }).join('') + '</div>';
+    }
+
     let body = '';
-    ['HLD', 'LLD', 'CONCEPT', 'CP'].forEach((t) => {
+    TYPE_ORDER.forEach((t) => {
       const items = (groups[t] || []).filter((i) =>
         !q || i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q));
       if (!items.length) return;
@@ -78,6 +105,7 @@
        ${offlineNote}
        <input class="iv-search" id="iv-search" type="text" placeholder="Search interviews…"
               autocomplete="off" spellcheck="false" value="${esc(S.filter)}">
+       ${shapesHtml}
        ${body}`;
 
     const search = $('iv-search');
@@ -88,14 +116,15 @@
       const s2 = $('iv-search'); s2.focus(); s2.setSelectionRange(pos, pos);
     });
     host.querySelectorAll('.iv-card').forEach((el) =>
-      el.addEventListener('click', () => start(el.dataset.id)));
+      el.addEventListener('click', () => start(el.dataset.id, el.dataset.shape)));
   }
 
   // ------------------------------------------------------------------ session
-  async function start(rubricId) {
+  async function start(rubricId, shape) {
     const host = $('interview-inner');
     host.innerHTML = '<p class="spinner">Starting the interview…</p>';
-    const r = await jpost('/api/interview/start', { rubric_id: rubricId });
+    const r = await jpost('/api/interview/start',
+      shape ? { shape } : { rubric_id: rubricId });
     if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
     S.session = { id: r.session_id, title: r.title, type: r.type, phases: r.phases,
                   phase: r.phase, turns: [], thinking: true, hintTier: 0, done: false };

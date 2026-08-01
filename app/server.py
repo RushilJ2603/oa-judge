@@ -918,13 +918,29 @@ def api_interview_catalog():
     return jsonify({"items": rubrics.summaries()})
 
 
+@app.route("/api/interview/shapes")
+def api_interview_shapes():
+    """Loop shapes for mixed rounds, with a preview of what this candidate would actually get."""
+    from interview import mixed
+    uid = g.get("user_id") or 1
+    out = []
+    for name in mixed.SHAPES:
+        plan = mixed.compose(uid, name)
+        if plan:
+            out.append({"shape": name, "preview": mixed.describe(plan), "segments": len(plan)})
+    return jsonify({"shapes": out})
+
+
 @app.route("/api/interview/start", methods=["POST"])
 def api_interview_start():
-    from interview import jobs
+    from interview import jobs, mixed
     from interview import session as iv
     b = request.get_json(force=True) or {}
     uid = g.get("user_id") or 1
-    s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"))
+    # A shape composes a multi-subject loop weakness-first from the dossier; a rubric_id is a
+    # single-subject session. Both land in the same session machinery.
+    plan = mixed.compose(uid, b["shape"]) if b.get("shape") else None
+    s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"), plan=plan)
     if not s:
         return jsonify({"error": "unknown rubric"}), 404
     j = jobs.enqueue(uid, s["session_id"], iv.build_prompt(uid, s["session_id"]), "turn")
