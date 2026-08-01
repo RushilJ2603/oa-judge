@@ -32,6 +32,9 @@ store.set_user_provider(auth.current_user_id)
 
 # Endpoints reachable without a login (everything else requires one when AUTH is on).
 _PUBLIC_PATHS = {"/", "/api/health", "/api/me"}
+# The worker authenticates with X-Worker-Token, not a user session, so these two bypass the login
+# guard and do their own check (_worker_authed). They are the only such endpoints.
+_WORKER_PATHS = {"/api/interview/worker/lease", "/api/interview/worker/result"}
 
 
 # Presence: throttle last_seen writes to at most once per user per this many seconds, so a burst of
@@ -60,7 +63,7 @@ def _resolve_user():
     p = request.path
     if g.user_id and p.startswith("/api/"):
         _touch_presence(g.user_id)   # piggyback presence on real traffic; no heartbeat
-    if p in _PUBLIC_PATHS or p.startswith("/static/") or p.startswith("/auth/"):
+    if p in _PUBLIC_PATHS or p in _WORKER_PATHS or p.startswith("/static/") or p.startswith("/auth/"):
         return None
     if not g.user_id:
         # API calls get a clean 401 (the frontend shows the login screen); anything else
@@ -886,6 +889,120 @@ def api_cp_goal():
                           pace_per_day=b.get("pace_per_day"))
         return jsonify({"ok": True, "goal": store.cp_goal()})
     return jsonify({"goal": store.cp_goal()})
+
+
+# ----------------------------------------------------------------- mock interview
+# Quality lives in app/interview/: the app owns question choice, hint release, advancement and
+# scoring; the model only supplies language and reports rubric point ids.
+def _worker_authed() -> bool:
+    """Workers authenticate with their own shared secret, never with a user session.
+
+    Two separate identities on purpose: a logged-in friend can never lease jobs (so never sees
+    another user's answers), and a worker can never act as a user.
+    """
+    tok = config.WORKER_TOKEN
+    return bool(tok) and secrets.compare_digest(request.headers.get("X-Worker-Token", ""), tok)
+
+
+@app.route("/api/interview/status")
+def api_interview_status():
+    from interview import jobs, rubrics
+    return jsonify({"online": jobs.online(), "rubrics": len(rubrics.list_ids()),
+                    "used_today": jobs.used_today(g.get("user_id") or 1),
+                    "daily_limit": jobs.DAILY_PER_USER})
+
+
+@app.route("/api/interview/catalog")
+def api_interview_catalog():
+    from interview import rubrics
+    return jsonify({"items": rubrics.summaries()})
+
+
+@app.route("/api/interview/start", methods=["POST"])
+def api_interview_start():
+    from interview import jobs
+    from interview import session as iv
+    b = request.get_json(force=True) or {}
+    uid = g.get("user_id") or 1
+    s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"))
+    if not s:
+        return jsonify({"error": "unknown rubric"}), 404
+    j = jobs.enqueue(uid, s["session_id"], iv.build_prompt(uid, s["session_id"]), "turn")
+    if "error" in j:
+        return jsonify(j), 429
+    return jsonify({**s, "job_id": j["job_id"], "online": jobs.online()})
+
+
+@app.route("/api/interview/answer", methods=["POST"])
+def api_interview_answer():
+    from interview import jobs
+    from interview import session as iv
+    b = request.get_json(force=True) or {}
+    uid = g.get("user_id") or 1
+    sid = int(b.get("session_id") or 0)
+    s = iv.get(uid, sid)
+    if not s:
+        return jsonify({"error": "unknown session"}), 404
+    if s["status"] != "active":
+        return jsonify({"error": "session already finished"}), 409
+    iv.add_turn(sid, uid, "candidate", str(b.get("answer", ""))[:8000], s["current_phase"])
+    j = jobs.enqueue(uid, sid, iv.build_prompt(uid, sid), "turn")
+    if "error" in j:
+        return jsonify(j), 429
+    return jsonify({"job_id": j["job_id"]})
+
+
+@app.route("/api/interview/poll/<int:job_id>")
+def api_interview_poll(job_id):
+    """Browser polls its own job. Model output is folded into session state HERE, server-side, so a
+    browser can never submit a hand-crafted 'model response' and score itself."""
+    from interview import jobs
+    from interview import session as iv
+    uid = g.get("user_id") or 1
+    st = jobs.poll(uid, job_id)
+    if st.get("status") != "done" or not st.get("output"):
+        return jsonify(st)
+    owner = jobs.job_owner(job_id)
+    if not owner or owner[0] != uid:
+        return jsonify({"status": "unknown"}), 404
+    return jsonify({"status": "done", **iv.apply_turn(uid, owner[1], st["output"])})
+
+
+@app.route("/api/interview/session/<int:sid>")
+def api_interview_session(sid):
+    from interview import session as iv
+    uid = g.get("user_id") or 1
+    s = iv.get(uid, sid)
+    if not s:
+        return jsonify({"error": "unknown session"}), 404
+    return jsonify({"session": s, "turns": iv.turns(sid)})
+
+
+@app.route("/api/interview/report/<int:sid>")
+def api_interview_report(sid):
+    from interview import session as iv
+    rep = iv.report(g.get("user_id") or 1, sid)
+    return jsonify(rep or {"error": "unknown session"}), (200 if rep else 404)
+
+
+@app.route("/api/interview/worker/lease", methods=["POST"])
+def api_interview_worker_lease():
+    if not _worker_authed():
+        return jsonify({"error": "bad worker token"}), 401
+    from interview import jobs
+    b = request.get_json(force=True) or {}
+    return jsonify(jobs.lease(str(b.get("worker_id", ""))[:80],
+                              str(b.get("version", ""))[:20]) or {})
+
+
+@app.route("/api/interview/worker/result", methods=["POST"])
+def api_interview_worker_result():
+    if not _worker_authed():
+        return jsonify({"error": "bad worker token"}), 401
+    from interview import jobs
+    b = request.get_json(force=True) or {}
+    jobs.complete(int(b.get("job_id") or 0), str(b.get("output", "")), str(b.get("error", "")))
+    return jsonify({"ok": True})
 
 
 def _already_running(port: int) -> bool:

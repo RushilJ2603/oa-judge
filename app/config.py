@@ -76,6 +76,14 @@ AUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
 GITHUB_ALLOWED = {s.strip().lower() for s in (get("github_allowed", "") or "").split(",") if s.strip()}
 
 
+# --- mock interview worker -----------------------------------------------------
+# Shared secret the local agy worker presents to lease interview jobs. A SEPARATE identity from user
+# login on purpose: a signed-in friend must never be able to lease jobs (that would let them read
+# other people's answers), and a worker must never be able to act as a user.
+# Unset => the worker endpoints reject everything, so interviews simply stay offline.
+WORKER_TOKEN = get("worker_token", "")
+
+
 # --- execution backend (Phase 6: hosting) --------------------------------------
 # "local"  — run submissions as a subprocess under rlimits on this machine. Correct for
 #            single-user local use, where the code is your own.
