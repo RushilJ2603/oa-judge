@@ -8,14 +8,20 @@ Quotas live here too. Friends share the host's Gemini subscription, so a per-use
 small concurrency limit keep one person from draining it or fork-bombing the laptop.
 """
 import datetime
+import os
 import json
 
 import db
 
 LEASE_SECONDS = 300
 MAX_ATTEMPTS = 3
-MAX_CONCURRENT = 2            # simultaneous agy spawns on one laptop
+# Simultaneous agy spawns. Sized for a shared host: with ~15s per turn, N=6 clears roughly 24
+# turns/minute, so a room of 10-16 people each answering every 30-60s never queues. Raise via
+# OAJ_INTERVIEW_CONCURRENCY if the host machine has headroom; each spawn is a CLI + network wait,
+# not CPU-bound, so it scales further than core count suggests.
+MAX_CONCURRENT = int(os.environ.get("OAJ_INTERVIEW_CONCURRENCY", "6"))
 DAILY_PER_USER = 120          # turns/day/user
+MAX_QUEUE = 200               # backstop; well above 16 users' in-flight turns
 ONLINE_WINDOW_S = 60          # a beat newer than this means "Interviewer online"
 
 
@@ -33,7 +39,7 @@ def enqueue(user_id: int, session_id: int, prompt: str, kind: str = "turn") -> d
     if used_today(user_id) >= DAILY_PER_USER:
         return {"error": "daily interview limit reached"}
     n = conn.execute("SELECT COUNT(*) AS n FROM interview_job WHERE status='queued'").fetchone()["n"]
-    if n > 50:
+    if n > MAX_QUEUE:
         return {"error": "queue is busy, try again shortly"}
     cur = conn.execute(
         "INSERT INTO interview_job (session_id, user_id, kind, payload_json, status, created_at, "
@@ -69,34 +75,46 @@ def used_today(user_id: int) -> int:
 
 # ------------------------------------------------------------------ lease / result (worker side)
 def lease(worker_id: str, version: str = "") -> dict | None:
-    """Hand the worker one job and mark it leased. Also records the heartbeat."""
+    """Hand the caller one job and mark it leased. Also records the heartbeat.
+
+    Safe under concurrency: a multi-threaded worker (needed to serve 10-16 people at once) issues
+    several leases simultaneously. Selecting a row and then updating it would let two threads claim
+    the SAME turn and run it twice, so the claim is a single conditional UPDATE and only the thread
+    whose rowcount is 1 gets the job.
+    """
     conn = db.connect()
     beat(worker_id, version)
+    now = _iso()
+    # Reclaim anything whose lease expired (worker died mid-turn) before counting or taking work.
+    conn.execute("UPDATE interview_job SET status='queued' WHERE status='leased' AND lease_until <= ?",
+                 (now,))
+    conn.commit()
     busy = conn.execute(
         "SELECT COUNT(*) AS n FROM interview_job WHERE status='leased' AND lease_until > ?",
-        (_iso(),)).fetchone()["n"]
+        (now,)).fetchone()["n"]
     if busy >= MAX_CONCURRENT:
         return None
-    # Reclaim anything whose lease expired (worker died mid-turn) before taking new work.
-    conn.execute("UPDATE interview_job SET status='queued' WHERE status='leased' AND lease_until <= ?",
-                 (_iso(),))
-    conn.commit()
-    row = conn.execute(
-        "SELECT id, payload_json, attempts FROM interview_job WHERE status='queued' "
-        "ORDER BY created_at LIMIT 1").fetchone()
-    if not row:
-        return None
-    if row["attempts"] >= MAX_ATTEMPTS:
-        conn.execute("UPDATE interview_job SET status='failed', error='max attempts', updated_at=? "
-                     "WHERE id=?", (_iso(), row["id"]))
-        conn.commit()
-        return None
+
     until = _iso(_now() + datetime.timedelta(seconds=LEASE_SECONDS))
-    conn.execute("UPDATE interview_job SET status='leased', attempts=attempts+1, lease_until=?, "
-                 "updated_at=? WHERE id=?", (until, _iso(), row["id"]))
-    conn.commit()
-    payload = json.loads(row["payload_json"])
-    return {"job_id": row["id"], "prompt": payload.get("prompt", "")}
+    for _ in range(8):                       # a few tries in case peers claim rows under us
+        row = conn.execute(
+            "SELECT id, payload_json, attempts FROM interview_job WHERE status='queued' "
+            "ORDER BY created_at LIMIT 1").fetchone()
+        if not row:
+            return None
+        if row["attempts"] >= MAX_ATTEMPTS:
+            conn.execute("UPDATE interview_job SET status='failed', error='max attempts', "
+                         "updated_at=? WHERE id=? AND status='queued'", (now, row["id"]))
+            conn.commit()
+            continue
+        cur = conn.execute(
+            "UPDATE interview_job SET status='leased', attempts=attempts+1, lease_until=?, "
+            "updated_at=? WHERE id=? AND status='queued'", (until, now, row["id"]))
+        conn.commit()
+        if cur.rowcount == 1:                # we won the claim
+            payload = json.loads(row["payload_json"])
+            return {"job_id": row["id"], "prompt": payload.get("prompt", "")}
+    return None
 
 
 def complete(job_id: int, output: str = "", error: str = "") -> None:
@@ -116,6 +134,41 @@ def job_owner(job_id: int) -> tuple[int, int] | None:
     row = db.connect().execute("SELECT user_id, session_id FROM interview_job WHERE id=?",
                                (job_id,)).fetchone()
     return (row["user_id"], row["session_id"]) if row else None
+
+
+def claim_for_apply(job_id: int) -> bool:
+    """Atomically claim a finished job so its result is applied EXACTLY once.
+
+    Applying a turn appends to the transcript and records rubric evidence, so doing it twice
+    duplicates the interviewer's message and double-counts the answer. Overlapping polls make that
+    easy to hit (a client polling every 2s has several requests in flight during a ~15s turn), and a
+    refresh or a second tab would too. The single conditional UPDATE is the lock: only the request
+    that actually flips done -> applying gets to run apply_turn.
+    """
+    conn = db.connect()
+    cur = conn.execute(
+        "UPDATE interview_job SET status='applying', updated_at=? WHERE id=? AND status='done'",
+        (_iso(), job_id))
+    conn.commit()
+    return cur.rowcount == 1
+
+
+def store_applied(job_id: int, applied: dict) -> None:
+    conn = db.connect()
+    conn.execute("UPDATE interview_job SET status='applied', result_json=?, updated_at=? WHERE id=?",
+                 (json.dumps({"applied": applied}), _iso(), job_id))
+    conn.commit()
+
+
+def applied_result(job_id: int) -> dict | None:
+    row = db.connect().execute(
+        "SELECT status, result_json FROM interview_job WHERE id=?", (job_id,)).fetchone()
+    if not row or row["status"] != "applied" or not row["result_json"]:
+        return None
+    try:
+        return json.loads(row["result_json"]).get("applied")
+    except Exception:
+        return None
 
 
 # ------------------------------------------------------------------ liveness (the host toggle)

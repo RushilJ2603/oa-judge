@@ -28,12 +28,24 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 WRAPPER = os.path.expanduser(
     "~/.claude/plugins/marketplaces/antigravity-for-claude-code/scripts/agy-delegate.sh")
 MODEL = os.environ.get("OAJ_INTERVIEW_MODEL", "gemini-3.6-flash-high")
-POLL_IDLE = 20          # seconds between polls when no work; keeps Fly wake-ups infrequent
-POLL_BUSY = 2
+# API path model id (different namespace from agy tier names).
+API_MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-2.5-flash")
+# Adaptive polling. A fixed idle interval was adding up to its full length to EVERY reply: the
+# candidate hits send, and the worker may not look for work again for that long. Measured 36s per
+# turn against 15s of actual generation.
+#
+# So: poll fast while a session is clearly live, and back off geometrically once nothing has come in
+# for a while. During an interview the site is being used anyway (the Fly machine is already awake),
+# so fast polling then is free; the backoff is what keeps an unattended worker from holding the
+# machine up and costing money.
+POLL_FAST = 0.7         # right after work — a live session
+POLL_MAX = 20.0         # fully idle
+BACKOFF = 1.6
 LEASE_TIMEOUT = 300
 
 
@@ -47,27 +59,82 @@ def _post(server, path, token, payload):
         return json.loads(r.read().decode() or "{}")
 
 
+def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str | None]:
+    """Gemini API path — used when GEMINI_API_KEY is set.
+
+    Measured: the agy CLI costs ~15s per turn regardless of prompt size or model tier
+    (0.3s process start + ~5s auth handshake + ~8s generation) and does not warm up across calls.
+    The HTTP API skips the per-call CLI handshake entirely and answers in roughly 1-3s, so this is
+    the single biggest response-time win available. Falls back to the CLI when no key is present.
+    """
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.6, "maxOutputTokens": 1200},
+    }).encode()
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{API_MODEL}:generateContent?key={key}")
+    req = urllib.request.Request(url, data=body,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            d = json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode()[:200]
+        except Exception:
+            pass
+        return None, f"gemini api HTTP {e.code}: {detail}"
+    except Exception as e:
+        return None, f"gemini api: {e}"
+    try:
+        return d["candidates"][0]["content"]["parts"][0]["text"], None
+    except Exception:
+        return None, f"gemini api: unexpected response {str(d)[:160]}"
+
+
 def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str | None]:
-    """Text in, text out. Empty scratch cwd + --sandbox + no workspace dirs."""
+    """Text in, text out. Empty scratch cwd + --sandbox + no workspace dirs.
+
+    Calls `agy` directly rather than through the plugin wrapper: the wrapper adds ~1.5s per turn
+    (measured 14.8s vs 13.3s) for delegation features this worker does not use, and that cost lands
+    on every single interviewer reply.
+    """
     scratch = tempfile.mkdtemp(prefix="oaj_iv_")
     try:
+        # Two agy invocation traps, both verified by experiment:
+        #  1. the prompt is an ARGUMENT, not stdin — `agy --print` ignores piped stdin and emits
+        #     nothing useful when stdin is a non-TTY, so stdin is closed and argv carries the text;
+        #  2. FLAG ORDER MATTERS — `--print --model X <prompt>` loses the prompt (agy answers a
+        #     generic "the active model is..."), while `--model X --print <prompt>` works.
         r = subprocess.run(
-            [WRAPPER, "-m", MODEL, "--sandbox", "--timeout", f"{timeout}s", "-"],
-            input=prompt, capture_output=True, text=True, timeout=timeout + 30, cwd=scratch)
+            ["agy", "--model", MODEL, "--print", prompt],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=timeout, cwd=scratch)
     except subprocess.TimeoutExpired:
         return None, "timeout"
     except FileNotFoundError:
-        return None, f"agy wrapper not found at {WRAPPER}"
+        return None, "agy not found on PATH — install the Antigravity CLI"
     finally:
         try:
             os.rmdir(scratch)
         except OSError:
             pass
     if r.returncode != 0:
-        # exit 10 = quota, 11 = auth (see agy-delegate.sh) — surface these clearly, they need you.
-        hint = {10: "QUOTA EXHAUSTED", 11: "AUTH — run `agy` once interactively"}.get(r.returncode, "")
-        return None, f"agy exit {r.returncode} {hint}: {(r.stderr or '')[-200:]}"
+        err = (r.stderr or "")[-200:]
+        hint = ""
+        low = err.lower()
+        if "quota" in low or "exhaust" in low:
+            hint = "QUOTA EXHAUSTED"
+        elif "auth" in low or "login" in low:
+            hint = "AUTH — run `agy` once interactively"
+        return None, f"agy exit {r.returncode} {hint}: {err}"
     return r.stdout, None
+
+
+def generate(prompt: str) -> tuple[str | None, str | None]:
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("OAJ_GEMINI_API_KEY")
+    return run_api(prompt, key) if key else run_agy(prompt)
 
 
 def looks_valid(text: str) -> bool:
@@ -83,6 +150,9 @@ def main():
     ap.add_argument("--server", default=os.environ.get("OAJ_SERVER", "https://oa123.fly.dev"))
     ap.add_argument("--once", action="store_true", help="process one job then exit (for testing)")
     ap.add_argument("--model", default=MODEL)
+    ap.add_argument("--concurrency", type=int,
+                    default=int(os.environ.get("OAJ_INTERVIEW_CONCURRENCY", "6")),
+                    help="simultaneous turns; must not exceed the server MAX_CONCURRENT")
     a = ap.parse_args()
 
     token = os.environ.get("OAJ_WORKER_TOKEN")
@@ -93,49 +163,68 @@ def main():
     print(f"interview worker {worker_id} -> {a.server}  (model {a.model})")
     print("This process is the host toggle: friends see 'Interviewer online' while it runs.\n")
 
+    def handle(job):
+        """One turn, start to finish. Runs on a pool thread so peers keep working meanwhile."""
+        jid = job["job_id"]
+        t0 = time.time()
+        out, err = generate(job.get("prompt", ""))
+        dt = time.time() - t0
+        if err or not looks_valid(out):
+            reason = err or "model output did not match the required block"
+            print(f"  job {jid}: FAILED ({reason}) in {dt:.0f}s", flush=True)
+            body = {"worker_id": worker_id, "job_id": jid, "error": reason}
+        else:
+            print(f"  job {jid}: ok in {dt:.0f}s", flush=True)
+            body = {"worker_id": worker_id, "job_id": jid, "output": out}
+        try:
+            _post(a.server, "/api/interview/worker/result", token, body)
+        except Exception as e:                       # the lease will expire and be re-offered
+            print(f"  job {jid}: could not post result ({e})", flush=True)
+
+    # A serial worker answers ~4 turns/minute, so a room of 10-16 people would queue for minutes.
+    # Turns are network-bound (a CLI call waiting on Gemini), not CPU-bound, so running several at
+    # once costs little locally and is what makes concurrent users feel instant.
+    pool = ThreadPoolExecutor(max_workers=a.concurrency)
+    inflight = set()
     idle_logged = False
+    delay = POLL_FAST
+    print(f"concurrency: {a.concurrency} simultaneous turns\n")
     while True:
+        inflight = {f for f in inflight if not f.done()}
+        if len(inflight) >= a.concurrency:
+            time.sleep(POLL_FAST)
+            continue
         try:
             job = _post(a.server, "/api/interview/worker/lease", token,
                         {"worker_id": worker_id, "version": "1"})
         except urllib.error.HTTPError as e:
             print(f"lease failed: HTTP {e.code} {e.reason}")
-            time.sleep(POLL_IDLE)
+            time.sleep(POLL_MAX)
             continue
         except Exception as e:
             print(f"lease failed: {e}")
-            time.sleep(POLL_IDLE)
+            time.sleep(POLL_MAX)
             continue
 
         if not job or not job.get("job_id"):
-            if not idle_logged:
+            if not idle_logged and not inflight:
                 print("idle — waiting for interview turns")
                 idle_logged = True
-            if a.once:
+            if a.once and not inflight:
+                pool.shutdown(wait=True)
                 return 0
-            time.sleep(POLL_IDLE)
+            # Stay responsive while peers are still generating (more work is likely imminent),
+            # otherwise ease off toward the idle ceiling.
+            delay = POLL_FAST if inflight else min(POLL_MAX, delay * BACKOFF)
+            time.sleep(delay)
             continue
 
         idle_logged = False
-        jid = job["job_id"]
-        print(f"job {jid}: generating turn…", end=" ", flush=True)
-        t0 = time.time()
-        out, err = run_agy(job.get("prompt", ""))
-        dt = time.time() - t0
-
-        if err or not looks_valid(out):
-            reason = err or "model output did not match the required block"
-            print(f"FAILED ({reason}) in {dt:.0f}s")
-            _post(a.server, "/api/interview/worker/result", token,
-                  {"worker_id": worker_id, "job_id": jid, "error": reason})
-        else:
-            print(f"ok in {dt:.0f}s")
-            _post(a.server, "/api/interview/worker/result", token,
-                  {"worker_id": worker_id, "job_id": jid, "output": out})
-
+        delay = POLL_FAST                     # a live session: snap back to responsive
+        inflight.add(pool.submit(handle, job))
         if a.once:
+            pool.shutdown(wait=True)
             return 0
-        time.sleep(POLL_BUSY)
 
 
 if __name__ == "__main__":

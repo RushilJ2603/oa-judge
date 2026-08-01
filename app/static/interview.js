@@ -212,11 +212,18 @@
 
   function poll(jobId) {
     clearInterval(S.polling);
-    let waited = 0;
+    let waited = 0, inFlight = false;
     S.polling = setInterval(async () => {
-      waited += 2;
+      // A turn takes ~15s, so a naive 2s interval puts ~7 requests in flight at once. They would
+      // all arrive as "done" together — hence the interviewer's message appearing many times.
+      // One request at a time.
+      if (inFlight) return;
+      inFlight = true;
+      waited += 1;
       let r;
-      try { r = await jget('/api/interview/poll/' + jobId); } catch (e) { return; }
+      try { r = await jget('/api/interview/poll/' + jobId); }
+      catch (e) { return; }
+      finally { inFlight = false; }
       if (r.status === 'done') {
         clearInterval(S.polling);
         const s = S.session;
@@ -226,7 +233,7 @@
         s.hintTier = r.hint_tier || 0;
         s.done = !!r.done;
         renderSession();
-      } else if (r.error || waited > 240) {
+      } else if (r.error || waited > 300) {
         clearInterval(S.polling);
         const s = S.session;
         s.thinking = false;
@@ -234,7 +241,7 @@
           content: '⚠ ' + (r.error || 'The interviewer did not respond. Is the host machine still running?') });
         renderSession();
       }
-    }, 2000);
+    }, 1000);   // 1s: the model floor is ~15s, so poll granularity should not add to it
   }
 
   async function showReport() {

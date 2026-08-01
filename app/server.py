@@ -975,13 +975,24 @@ def api_interview_poll(job_id):
     from interview import jobs
     from interview import session as iv
     uid = g.get("user_id") or 1
+    owner = jobs.job_owner(job_id)
+    if owner and owner[0] != uid:
+        return jsonify({"status": "unknown"}), 404
+    # Already applied by an earlier (possibly still in-flight) poll: replay the stored outcome.
+    prev = jobs.applied_result(job_id)
+    if prev is not None:
+        return jsonify({"status": "done", **prev})
     st = jobs.poll(uid, job_id)
     if st.get("status") != "done" or not st.get("output"):
         return jsonify(st)
-    owner = jobs.job_owner(job_id)
-    if not owner or owner[0] != uid:
-        return jsonify({"status": "unknown"}), 404
-    return jsonify({"status": "done", **iv.apply_turn(uid, owner[1], st["output"])})
+    if not jobs.claim_for_apply(job_id):
+        # Another request won the claim and is applying right now; report pending and let the
+        # client poll again rather than applying the same turn twice.
+        prev = jobs.applied_result(job_id)
+        return jsonify({"status": "done", **prev} if prev else {"status": "pending"})
+    applied = iv.apply_turn(uid, owner[1], st["output"])
+    jobs.store_applied(job_id, applied)
+    return jsonify({"status": "done", **applied})
 
 
 @app.route("/api/interview/session/<int:sid>")
@@ -1039,8 +1050,12 @@ def _serve(host: str, port: int) -> None:
     concurrent requests more gracefully (e.g. a long stress run while you browse)."""
     try:
         from waitress import serve as waitress_serve
-        print("  (serving via waitress)")
-        waitress_serve(app, host=host, port=port, threads=8, _quiet=True)
+        # Sized for a shared room: an interview client polls every ~2s, so 16 people plus judge
+        # traffic is a steady trickle of short DB reads. Threads are cheap here (each is idle
+        # waiting on SQLite or a subprocess), and too few is what turns a busy room into timeouts.
+        threads = int(os.environ.get("OAJ_HTTP_THREADS", "24"))
+        print(f"  (serving via waitress, {threads} threads)")
+        waitress_serve(app, host=host, port=port, threads=threads, _quiet=True)
     except ImportError:
         # Not installed, and we deliberately do not force it into an externally-managed
         # Python. `pip install waitress` upgrades this automatically next launch.
