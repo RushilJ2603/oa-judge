@@ -1168,7 +1168,12 @@ select option { background: var(--bg-elev); color: var(--text); }
     .app-header { gap: 8px; }
     .header-left { min-width: 0; flex: 1 1 100%; flex-wrap: wrap; overflow: visible; }
     .header-right { flex-shrink: 0; }
-    .topnav { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
+    /* Six tabs no longer fit one phone row. Wrapping pushed the page content down by a whole row,
+       so scroll the strip horizontally instead — same treatment as the statement tabs. */
+    .topnav { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap;
+        overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .topnav::-webkit-scrollbar { display: none; }
+    .topnav-item { flex-shrink: 0; }
     .app-name { display: none; }
     .breadcrumb { display: none; }
     .tracker-inner { padding: 18px; }
@@ -1188,4 +1193,97 @@ select option { background: var(--bg-elev); color: var(--text); }
     .tab-report { flex-shrink: 0; padding: 4px 7px; }
     .tr-label { display: none; }
     .compiler-inner, .tracker-inner, .sheet-content { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ===================== Mock interview ===================== */
+/* One natural page scroll — no nested scroll boxes (those produced the "black boundaries"
+   that made the sheets unusable on a phone). The thread grows, the page scrolls. */
+.interview-view { overflow: auto; }
+.interview-inner { max-width: 860px; margin: 0 auto; padding: 28px 28px 64px; }
+
+.iv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.iv-title { font-size: 22px; font-weight: 700; margin: 0; }
+.iv-sub { color: var(--text-muted); margin: 6px 0 0; font-size: 13px; }
+.iv-status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+.iv-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); display: inline-block; }
+.iv-dot.on { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.iv-offline { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border);
+    border-left: 3px solid var(--warn); border-radius: var(--radius-sm);
+    background: var(--bg-elev); color: var(--text-muted); font-size: 13px; }
+
+.iv-search { width: 100%; margin: 20px 0 6px; padding: 10px 13px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg-elev); color: var(--text); font-family: inherit; }
+.iv-search:focus { outline: none; border-color: var(--accent); }
+
+.iv-group { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted);
+    margin: 26px 0 10px; font-weight: 600; }
+.iv-count { color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.iv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.iv-card { text-align: left; display: flex; flex-direction: column; gap: 8px; padding: 13px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev);
+    color: var(--text); cursor: pointer; font-family: inherit; transition: border-color .12s, transform .12s; }
+.iv-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.iv-card-t { font-weight: 600; font-size: 14px; line-height: 1.35; }
+.iv-card-m { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+.iv-diff { text-transform: capitalize; padding: 2px 7px; border-radius: 999px; background: var(--bg-sunken); }
+.iv-diff.senior { color: var(--error); } .iv-diff.mid { color: var(--warn); } .iv-diff.campus { color: var(--accent); }
+
+/* --- live session --- */
+.iv-shead { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.iv-shead-main { min-width: 0; flex: 1; }
+.iv-stitle { font-size: 18px; font-weight: 700; margin: 0; }
+.iv-rail { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.iv-step { font-size: 10.5px; text-transform: capitalize; padding: 3px 9px; border-radius: 999px;
+    background: var(--bg-sunken); color: var(--text-muted); border: 1px solid transparent; }
+.iv-step.now { background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.iv-step.done { color: var(--success); }
+
+.iv-thread { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+.iv-row { display: flex; flex-direction: column; gap: 5px; }
+.iv-row.me { align-items: flex-end; }
+.iv-who { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.iv-bubble { max-width: 88%; padding: 12px 15px; border-radius: var(--radius);
+    background: var(--bg-elev); border: 1px solid var(--border); line-height: 1.55;
+    white-space: pre-wrap; overflow-wrap: anywhere; }
+.iv-bubble.me { background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev));
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.iv-thinking { display: flex; align-items: center; gap: 5px; color: var(--text-muted); font-style: italic; }
+.iv-thinking span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+    animation: ivblink 1.3s infinite; }
+.iv-thinking span:nth-child(2) { animation-delay: .18s; }
+.iv-thinking span:nth-child(3) { animation-delay: .36s; }
+@keyframes ivblink { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
+
+.iv-composer { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev);
+    padding: 10px; position: sticky; bottom: 12px; box-shadow: var(--shadow); }
+.iv-answer { width: 100%; border: none; background: transparent; color: var(--text); resize: vertical;
+    font-family: inherit; font-size: 14px; line-height: 1.55; padding: 4px 6px; }
+.iv-answer:focus { outline: none; }
+.iv-answer:disabled { opacity: .5; }
+.iv-composer-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.iv-hint-state { font-size: 11.5px; color: var(--text-muted); }
+
+.iv-done { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px;
+    background: var(--bg-elev); text-align: center; }
+.iv-done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+
+.iv-report { margin-top: 8px; }
+.iv-score { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 12px;
+    margin-bottom: 9px; font-size: 13px; text-transform: capitalize; }
+.iv-meter { height: 7px; background: var(--bg-sunken); border-radius: 999px; overflow: hidden; }
+.iv-meter div { height: 100%; background: var(--accent); border-radius: 999px; }
+.iv-misses { padding-left: 20px; line-height: 1.6; }
+.iv-misses li { margin-bottom: 11px; }
+.iv-yours { color: var(--text-muted); font-size: 12.5px; margin-top: 3px; font-style: italic; }
+
+@media (max-width: 900px) {
+    .interview-inner { padding: 18px 16px 56px; }
+    .iv-cards { grid-template-columns: 1fr; }
+    .iv-bubble { max-width: 100%; }
+    .iv-score { grid-template-columns: 96px 1fr 42px; gap: 8px; font-size: 12px; }
+    /* Composer sits above the thumb, and the field is >=16px so mobile browsers never auto-zoom. */
+    .iv-composer { position: sticky; bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
+    .iv-answer { font-size: 16px; }
 }

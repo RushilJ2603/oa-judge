@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=1">
-    <link rel="stylesheet" href="/static/style.css?v=28">
+    <link rel="stylesheet" href="/static/style.css?v=29">
 </head>
 <body>
     <header class="app-header">
@@ -17,6 +17,7 @@
                 <button class="topnav-item" data-view="cp">CP Sheet</button>
                 <button class="topnav-item" data-view="sd">System&nbsp;Design</button>
                 <button class="topnav-item" data-view="tracker">Tracker</button>
+                <button class="topnav-item" data-view="interview">Interview</button>
                 <button class="topnav-item" data-view="compiler">Compiler</button>
             </nav>
             <span class="breadcrumb" id="breadcrumb">Select a problem</span>
@@ -171,6 +172,11 @@
         <div class="compiler-inner" id="compiler-inner"></div>
     </section>
 
+    <!-- ===== Mock interview view ===== -->
+    <section class="interview-view" id="interview-view" style="display:none">
+        <div class="interview-inner" id="interview-inner"></div>
+    </section>
+
     <!-- Login gate (hosted, multi-user mode only). Hidden locally. -->
     <div class="login-overlay" id="login-overlay" style="display:none">
         <div class="login-card">
@@ -196,6 +202,7 @@
 
     <script src="/static/editor.js?v=17"></script>
     <script src="/static/app.js?v=16"></script>
-    <script src="/static/sheets.js?v=24"></script>
+    <script src="/static/interview.js?v=1"></script>
+    <script src="/static/sheets.js?v=25"></script>
 </body>
 </html>
