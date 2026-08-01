@@ -21,21 +21,53 @@ replied *"Your answer is correct."* The same model family, given the rubric, ret
 
 ## Running it (host mode)
 
-The interviewer runs on **your machine**, inside WSL (agy is not available to native Windows).
-Starting the worker **is** the host toggle: while it runs, the site shows "Interviewer online" for
-you and your friends; stop it and the site says offline and the Fly machine goes back to sleep.
+**Double-click `Start Interviewer` on the Desktop.** While that window is open the site shows
+"Interviewer online" for you and your friends; close it and the site goes offline and the Fly
+machine sleeps again.
+
+It bridges Windows → WSL (agy is not available to native Windows) and reads the token from `.env`,
+which is gitignored. Equivalent by hand:
 
 ```bash
-# one-time: set the same secret on the server and keep it out of git
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"     # generate
-fly secrets set OAJ_WORKER_TOKEN=<that value> -a oa123            # server side
-
-# every session:
-export OAJ_WORKER_TOKEN=<that value>
+cd /mnt/c/Users/jishu/Desktop/oa-judge
+set -a && . ./.env && set +a
 python3 interview_worker.py                     # add --server http://127.0.0.1:5137 for local
 ```
 
 Then open the site → **Interview** tab.
+
+## Response time
+
+Measured on the agy CLI path: **~16s per turn**, of which 14–16s is the model itself.
+
+The CLI is the floor. Breaking it down: 0.3s process start + ~5s auth handshake + ~8s generation,
+with no warm-up across calls and no usable token streaming (agy parses `--output-format stream-json`
+as prompt text). Model tier barely moves it — a two-token reply still takes ~14s.
+
+What *was* removable, and is:
+
+| Cause | Fix | Saved |
+|---|---|---|
+| Worker's fixed 20s idle poll — after you hit send it could sit that long before leasing your turn | adaptive backoff: fast while a session is live, easing off when truly idle | **~20s** |
+| Plugin wrapper around agy | call `agy` directly | ~1.5s |
+| Browser poll granularity | 2s → 1s | ~1s |
+
+Net: **36s → 16.1s per turn.**
+
+**Set `GEMINI_API_KEY` to go much faster.** The worker then uses the Gemini HTTP API (~1–3s per
+turn) instead of the CLI, skipping the per-call handshake entirely. Nothing else changes — same
+rubrics, same memory, same scoring. Unset, it falls back to agy.
+
+## Capacity
+
+Verified with `loadtest_interview.py`, which simulates N users plus a worker and asserts no
+duplicated turns, no job leased twice, and no cross-user leakage.
+
+- **16 users × 2 turns: 0 errors, 0 double-leases.**
+- Worker concurrency is the throughput knob (`OAJ_INTERVIEW_CONCURRENCY`, default 6; production
+  runs 12). Turns are network-bound, so concurrency scales past core count.
+- At concurrency 12, 16 simultaneous users see median ≈ the model floor rather than queueing.
+- Caps that protect the shared subscription: 120 turns/user/day, queue depth 200.
 
 ### Cost
 
