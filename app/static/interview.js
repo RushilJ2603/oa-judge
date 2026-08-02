@@ -226,10 +226,64 @@
        - the preference persists in localStorage, because re-enabling it every session is friction;
        - unsupported browsers hide the control instead of showing a dead one. */
   const TTS_KEY = 'oaj_iv_tts';
+  const TTS_VOICE_KEY = 'oaj_iv_voice';
+  let voicesReady = false;
+
   function ttsSupported() { return 'speechSynthesis' in window; }
   function ttsOn() { try { return localStorage.getItem(TTS_KEY) === '1'; } catch (e) { return false; } }
   function setTts(v) { try { localStorage.setItem(TTS_KEY, v ? '1' : '0'); } catch (e) { } }
   function stopSpeaking() { if (ttsSupported()) window.speechSynthesis.cancel(); }
+
+  /* Voice quality is the whole difference between "a robot is reading at me" and something you can
+     listen to for 45 minutes. Browsers ship a mix: modern NEURAL voices (Microsoft "… Online
+     (Natural)" on Edge/Chrome-Windows, Google's network voices) alongside decades-old formant
+     synths (David, Zira, eSpeak) — and the DEFAULT pick is very often one of the bad ones.
+     So rank explicitly rather than accepting voice[0]. */
+  function scoreVoice(v) {
+    const n = (v.name || '').toLowerCase();
+    const lang = (v.lang || '').toLowerCase();
+    let sc = 0;
+    if (/natural|neural/.test(n)) sc += 100;      // Microsoft neural — the best free option
+    if (/online/.test(n)) sc += 40;               // network voices beat local formant synths
+    if (/google/.test(n)) sc += 45;               // Google network voices are good
+    if (/siri|samantha|premium|enhanced/.test(n)) sc += 60;   // Apple's good ones
+    if (/^en-in/.test(lang)) sc += 22;            // familiar accent for an Indian candidate
+    else if (/^en-gb/.test(lang)) sc += 14;
+    else if (/^en-us/.test(lang)) sc += 12;
+    else if (/^en/.test(lang)) sc += 8;
+    else sc -= 60;                                // non-English voice reading English is unlistenable
+    if (/david|zira|mark|hazel|espeak|festival|pico|compact/.test(n)) sc -= 45;  // legacy synths
+    if (v.localService && !/natural|neural/.test(n)) sc -= 8;
+    return sc;
+  }
+
+  function voiceList() {
+    if (!ttsSupported()) return [];
+    return window.speechSynthesis.getVoices()
+      .filter((v) => /^en/i.test(v.lang || ''))
+      .sort((a, b) => scoreVoice(b) - scoreVoice(a));
+  }
+
+  function pickVoice() {
+    const list = voiceList();
+    if (!list.length) return null;
+    try {
+      const saved = localStorage.getItem(TTS_VOICE_KEY);
+      if (saved) {
+        const hit = list.find((v) => v.voiceURI === saved || v.name === saved);
+        if (hit) return hit;
+      }
+    } catch (e) { }
+    return list[0];                                // best-ranked available
+  }
+
+  // getVoices() is empty until the engine loads them; without this the first question of a session
+  // would speak in the default (usually worst) voice.
+  if (ttsSupported()) {
+    const markReady = () => { voicesReady = true; };
+    if (window.speechSynthesis.getVoices().length) markReady();
+    window.speechSynthesis.addEventListener('voiceschanged', markReady);
+  }
 
   function speakable(text) {
     return String(text || '')
@@ -238,6 +292,8 @@
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/^[-*]\s+/gm, '')
       .replace(/#{1,6}\s*/g, '')
+      .replace(/\bO\(([^)]+)\)/g, 'order $1')              // "O(n log n)" -> "order n log n"
+      .replace(/\s*\n{2,}\s*/g, '. ')                       // paragraph breaks become pauses
       .trim();
   }
 
@@ -247,10 +303,25 @@
     if (!t) return;
     stopSpeaking();                       // never let two turns talk over each other
     const u = new SpeechSynthesisUtterance(t);
-    u.rate = 1.02;                        // conversational, not robotic-slow
+    const v = pickVoice();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    u.rate = 1.0;                         // neural voices sound unnatural when sped up
     u.pitch = 1;
-    u.lang = 'en-IN';
     try { window.speechSynthesis.speak(u); } catch (e) { }
+  }
+
+  function voicePickerHtml() {
+    const list = voiceList();
+    if (list.length < 2) return '';
+    let cur = '';
+    try { cur = localStorage.getItem(TTS_VOICE_KEY) || ''; } catch (e) { }
+    const best = list[0];
+    return `<select class="iv-voice" id="iv-voice" title="Voice">` +
+      list.slice(0, 12).map((v) => {
+        const sel = (cur ? (v.voiceURI === cur || v.name === cur) : v === best) ? ' selected' : '';
+        const nice = /natural|neural|google|premium|enhanced/i.test(v.name) ? ' ★' : '';
+        return `<option value="${esc(v.voiceURI || v.name)}"${sel}>${esc(v.name)}${nice}</option>`;
+      }).join('') + `</select>`;
   }
 
   async function resume(sid) {
@@ -319,9 +390,12 @@
            <h1 class="iv-stitle">${esc(s.title)}</h1>
            <div class="iv-rail">${rail}</div>
          </div>
-         <button class="icon-btn iv-speak ${ttsOn() ? 'on' : ''}" id="iv-tts"
-           title="${ttsOn() ? 'Interviewer is reading aloud — click to mute' : 'Have the interviewer read questions aloud'}"
-           >${ttsOn() ? '🔊' : '🔇'}</button>
+         <span class="iv-voice-wrap">
+           ${ttsOn() ? voicePickerHtml() : ''}
+           <button class="icon-btn iv-speak ${ttsOn() ? 'on' : ''}" id="iv-tts"
+             title="${ttsOn() ? 'Interviewer is reading aloud — click to mute' : 'Have the interviewer read questions aloud'}"
+             >${ttsOn() ? '🔊' : '🔇'}</button>
+         </span>
        </div>
        <div class="iv-thread" id="iv-thread">${rows}${thinking}</div>
        ${composer}`;
@@ -334,6 +408,14 @@
         setTts(!ttsOn());
         if (!ttsOn()) stopSpeaking();
         renderSession();
+      });
+    }
+    const vsel = $('iv-voice');
+    if (vsel) {
+      vsel.addEventListener('change', () => {
+        try { localStorage.setItem(TTS_VOICE_KEY, vsel.value); } catch (e) { }
+        stopSpeaking();
+        speak('Voice set. I will read the questions in this voice.');   // hear it immediately
       });
     }
     if (s.done) {

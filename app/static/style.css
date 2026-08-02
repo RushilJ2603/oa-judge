@@ -1374,3 +1374,8 @@ select option { background: var(--bg-elev); color: var(--text); }
 .iv-speak { flex-shrink: 0; font-size: 15px; line-height: 1; }
 .iv-speak.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .iv-hist-row[data-active="1"] { border-left: 3px solid var(--accent); }
+.iv-voice-wrap { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.iv-voice { max-width: 165px; font-size: 11.5px; padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg-elev); color: var(--text);
+    font-family: inherit; }
+@media (max-width: 900px) { .iv-voice { max-width: 108px; } }
