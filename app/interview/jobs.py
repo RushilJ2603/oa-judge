@@ -133,7 +133,7 @@ def lease_waiting(worker_id: str, version: str = "", max_wait: float = 0.0) -> d
     return {"live": sessions_live()}
 
 
-def lease(worker_id: str, version: str = "") -> dict | None:
+def lease(worker_id: str, version: str = "", heartbeat: bool = True) -> dict | None:
     """Hand the caller one job and mark it leased. Also records the heartbeat.
 
     Safe under concurrency: a multi-threaded worker (needed to serve 10-16 people at once) issues
@@ -142,7 +142,10 @@ def lease(worker_id: str, version: str = "") -> dict | None:
     whose rowcount is 1 gets the job.
     """
     conn = db.connect()
-    beat(worker_id, version)
+    if heartbeat:
+        # The in-process cloud answerer passes heartbeat=False: worker_beat means "a HOST machine is
+        # up", and beating here would make the UI claim agy is available when only the API is.
+        beat(worker_id, version)
     now = _iso()
     # Reclaim anything whose lease expired (worker died mid-turn) before counting or taking work.
     conn.execute("UPDATE interview_job SET status='queued' WHERE status='leased' AND lease_until <= ?",

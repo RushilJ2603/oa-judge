@@ -31,11 +31,15 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
+# The server and this worker answer turns with the SAME Gemini client, so behaviour cannot diverge.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
+from interview import gemini as _gemini  # noqa: E402
+
 WRAPPER = os.path.expanduser(
     "~/.claude/plugins/marketplaces/antigravity-for-claude-code/scripts/agy-delegate.sh")
 MODEL = os.environ.get("OAJ_INTERVIEW_MODEL", "gemini-3.6-flash-high")
 # API path model id (different namespace from agy tier names).
-API_MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-3.6-flash")
+API_MODEL = _gemini.MODEL
 # LONG POLL. The worker asks for work once and the SERVER holds that request open until a turn
 # appears, so pickup is immediate rather than "whenever the next poll lands".
 #
@@ -64,81 +68,14 @@ def _post(server, path, token, payload, timeout=45):
 
 
 def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str | None, float]:
-    """Gemini API path. Returns (text, error, retry_after_seconds).
+    """Delegate to the shared client in app/interview/gemini.py.
 
-    MEASURED on a real 13.6 KB interview turn (2026-08-02), against agy's 16.1s for the same prompt:
-
-        gemini-3.6-flash     5.52s / 5.34s      think=704 / 640
-        gemini-3.5-flash     5.36s / 5.92s      think=1071 / 1198
-
-    ~3x faster, and it produced the SAME grading decision as agy on the same turn (identical HIT and
-    PARTIAL point ids, same ADVANCE) — which is the part that has to match, since those drive the
-    score and phase advancement.
-
-    Two things the measurement changed:
-      * `gemini-2.5-flash` — the previous default here — returns 404 "no longer available to new
-        users". It would have failed on every single turn.
-      * The free tier rate-limits HARD: three calls in quick succession returned 429. That is fine
-        at interview pace but not for several people at once, so the fallback to agy is not a nicety,
-        it is load-bearing.
+    Kept as a thin wrapper rather than a second implementation: the parsing is subtle (a reasoning
+    model returns several parts and the first may be a thought; truncation must fail rather than
+    deliver half an explanation; a 429 carries its own retry window) and two copies would drift.
+    The server answers turns with exactly the same code.
     """
-    # maxOutputTokens has to clear the LONGEST legitimate turn, not the average one. The role
-    # contract explicitly asks for full whiteboard-depth explanations when a candidate is stuck at
-    # the deepest hint tier, and a truncated explanation is exactly the quality loss this path
-    # exists to avoid — so the cap sits well above the ~400-token typical reply.
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.6,
-                             "maxOutputTokens": int(os.environ.get("OAJ_GEMINI_MAX_TOKENS", "3000"))},
-    }).encode()
-    # Key goes in a HEADER, never the query string: URLs end up in proxy logs, server access logs
-    # and error reports, and this one is a live credential. It is also the form Google's own
-    # quickstart uses for current-generation keys.
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{API_MODEL}:generateContent")
-    req = urllib.request.Request(url, data=body, method="POST",
-                                 headers={"Content-Type": "application/json",
-                                          "X-goog-api-key": key})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            d = json.loads(r.read().decode())
-    except urllib.error.HTTPError as e:
-        detail = ""
-        try:
-            detail = e.read().decode()[:400]
-        except Exception:
-            pass
-        # A 429 usually carries Google's own RetryInfo. Honour it instead of guessing a cooldown —
-        # backing off too little re-triggers the limit, too much wastes the fast path.
-        wait = 0.0
-        m = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', detail)
-        if m:
-            wait = float(m.group(1))
-        elif e.code in (429, 503):
-            wait = API_COOLDOWN_S
-        return None, f"gemini api HTTP {e.code}: {detail[:200]}", wait
-    except Exception as e:
-        return None, f"gemini api: {e}", 0.0
-    # Join EVERY text part rather than taking parts[0]. A reasoning model can emit several parts,
-    # and the first one may be a thought rather than the answer — taking [0] would silently hand the
-    # server a fragment that fails to parse into the HIT/PARTIAL block, which reads downstream as
-    # "the interviewer said nothing" rather than as an error.
-    try:
-        cand = (d.get("candidates") or [])[0]
-    except IndexError:
-        fb = (d.get("promptFeedback") or {}).get("blockReason")
-        return None, f"gemini api: no candidates{f' (blocked: {fb})' if fb else ''}", 0.0
-    parts = ((cand.get("content") or {}).get("parts") or [])
-    text = "".join(p["text"] for p in parts if isinstance(p, dict) and "text" in p
-                   and not p.get("thought"))
-    reason = cand.get("finishReason")
-    if not text:
-        return None, f"gemini api: empty reply (finishReason={reason})", 0.0
-    if reason == "MAX_TOKENS":
-        # Truncation would lose the SAY block mid-explanation. Fail loudly so the turn is retried
-        # instead of the candidate receiving half an answer.
-        return None, "gemini api: reply hit maxOutputTokens — raise OAJ_GEMINI_MAX_TOKENS", 0.0
-    return text, None, 0.0
+    return _gemini.generate(prompt, timeout=timeout)
 
 
 def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str | None]:

@@ -139,6 +139,9 @@ def main():
     # ---- history is ordered by last interaction, not creation ---------
     check_history_order(rid)
 
+    # ---- who can answer a turn ----------------------------------------
+    check_cloud_path()
+
     # ---- worker pickup latency ----------------------------------------
     check_long_poll()
 
@@ -229,6 +232,57 @@ def check_history_order(rid):
           str([h["id"] for h in iv.history(uid)][:2]))
     check("history: exposes the timestamp it sorted on",
           all(h.get("last_at") for h in iv.history(uid)))
+
+
+def check_cloud_path():
+    """Two paths answer turns and they fail independently, so the status must not conflate them.
+
+    The specific lie to guard against: the cloud answerer leasing a job and heartbeating would make
+    the site report a HOST machine is up. A user would then see "Interviewer online · Host machine"
+    with their laptop shut, and when the free tier rate-limits there would be nothing behind it.
+    """
+    import time as _t
+    from interview import cloud, jobs
+    from interview import session as iv
+    uid = 4470
+
+    key_before = os.environ.pop("GEMINI_API_KEY", None)
+    os.environ.pop("OAJ_GEMINI_API_KEY", None)
+    check("cloud: no key means the cloud path is not available", not cloud.gemini.available())
+    check("cloud: not healthy without a key", not cloud.healthy())
+    check("cloud: start() refuses without a key", cloud.start(None) is False)
+
+    os.environ["GEMINI_API_KEY"] = "test-key-not-used-for-network"
+    check("cloud: a key makes it available", cloud.gemini.available())
+    check("cloud: available and no cooldown means healthy", cloud.healthy())
+
+    # A rate limit must park the cloud path so an agy worker gets the turns instead.
+    cloud._blocked_until = _t.monotonic() + 30
+    check("cloud: rate-limited reads as NOT healthy", not cloud.healthy())
+    check("cloud: still reports itself configured while cooling", cloud.gemini.available())
+    cloud._blocked_until = 0.0
+
+    # The heartbeat lie.
+    sid = iv.start(uid, rubrics.list_ids()[0])["session_id"]
+    jobs.enqueue(uid, sid, "P", "turn")
+    before = db.connect().execute("SELECT COUNT(*) n FROM worker_beat").fetchone()["n"]
+    job = jobs.lease(cloud.WORKER_ID, "cloud", heartbeat=False)
+    after = db.connect().execute("SELECT COUNT(*) n FROM worker_beat").fetchone()["n"]
+    check("cloud: leases work like any worker", bool(job and job.get("job_id")))
+    check("cloud: leasing does NOT claim a host machine is up", after == before,
+          f"worker_beat {before} -> {after}")
+    check("cloud: so 'host' stays false with only the cloud running", jobs.online() is False)
+    if job:
+        jobs.complete(job["job_id"], output="HIT: NONE\nSTUCK: NO\nADVANCE: NO\nSAY: hi")
+
+    # A local worker still beats normally — the two must remain distinguishable.
+    jobs.lease("a-real-laptop", "1")
+    check("cloud: a real worker DOES mark the host online", jobs.online() is True)
+
+    if key_before is None:
+        os.environ.pop("GEMINI_API_KEY", None)
+    else:
+        os.environ["GEMINI_API_KEY"] = key_before
 
 
 def check_long_poll():

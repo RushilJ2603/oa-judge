@@ -906,8 +906,17 @@ def _worker_authed() -> bool:
 
 @app.route("/api/interview/status")
 def api_interview_status():
-    from interview import jobs, rubrics
-    return jsonify({"online": jobs.online(), "rubrics": len(rubrics.list_ids()),
+    """Who can answer a turn right now.
+
+    Two independent paths, reported separately because they fail separately: `cloud` is the server
+    calling Gemini itself (always up, but the free tier rate-limits), `host` is the owner's machine
+    running agy (slower, but no quota). `online` is just "either" — what the UI gates starting on.
+    """
+    from interview import cloud, jobs, rubrics
+    host, cl = jobs.online(), cloud.healthy()
+    return jsonify({"online": host or cl, "cloud": cl, "host": host,
+                    "cloud_configured": cloud.gemini.available(),
+                    "rubrics": len(rubrics.list_ids()),
                     "used_today": jobs.used_today(g.get("user_id") or 1),
                     "daily_limit": jobs.DAILY_PER_USER})
 
@@ -1131,10 +1140,26 @@ def _already_running(port: int) -> bool:
         return False
 
 
+def _start_cloud_interviewer() -> None:
+    """Answer interview turns from the server itself when a Gemini key is configured.
+
+    Started here rather than at import so it runs once per process, in the real serving process
+    only — not in a `--help` run, a migration, or a test importing the app.
+    """
+    try:
+        from interview import cloud
+        if cloud.start(app):
+            print(f"  (cloud interviewer on: {cloud.gemini.MODEL}, "
+                  f"{cloud.CONCURRENCY} concurrent turns)")
+    except Exception as e:                       # never let this stop the site from serving
+        print(f"  (cloud interviewer unavailable: {e})")
+
+
 def _serve(host: str, port: int) -> None:
     """Prefer waitress (a real WSGI server) when it is installed; otherwise fall back to the
     Flask dev server. Both are fine for single-user local use — waitress just handles
     concurrent requests more gracefully (e.g. a long stress run while you browse)."""
+    _start_cloud_interviewer()
     try:
         from waitress import serve as waitress_serve
         # Sized for a shared room: an interview client polls every ~2s, so 16 people plus judge

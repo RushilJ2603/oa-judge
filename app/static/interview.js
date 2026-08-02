@@ -58,12 +58,28 @@
 
   function renderCatalog(status) {
     const host = $('interview-inner');
+    /* Two independent paths answer turns, and they fail independently — so say which is up rather
+       than collapsing both into one dot. `cloud` is the server calling Gemini itself (always on,
+       but the free tier rate-limits); `host` is the owner's machine running agy (slower, no quota).
+       When both are up the fast one answers and the other is a live fallback. */
+    const where = status.cloud && status.host ? 'Cloud + host machine'
+      : status.cloud ? 'Cloud'
+      : status.host ? 'Host machine' : '';
+    const detail = status.cloud && status.host
+      ? 'answering from the cloud, with your host machine as backup'
+      : status.cloud ? 'answering from the cloud — no host machine needed'
+      : status.host ? 'answering from the host machine'
+      : '';
     const dot = status.online
-      ? '<span class="iv-dot on"></span>Interviewer online'
+      ? `<span class="iv-dot on"></span>Interviewer online <span class="iv-where"
+           title="${esc(detail)}">· ${esc(where)}</span>`
       : '<span class="iv-dot"></span>Interviewer offline';
     const offlineNote = status.online ? '' :
-      `<div class="iv-offline">The interviewer runs on a host machine that is not currently up.
-       You can still browse — start a session once it is online.</div>`;
+      `<div class="iv-offline">${status.cloud_configured
+        ? `The cloud interviewer is rate-limited right now and no host machine is running.
+           It comes back on its own — try again shortly.`
+        : `The interviewer runs on a host machine that is not currently up.`}
+       You can still browse; starting a session is disabled until one is available.</div>`;
 
     const tabs = [['loops', 'Interview loops'],
                   ['weak', `Weak spots${S.weak.length ? ' (' + S.weak.length + ')' : ''}`],
@@ -361,6 +377,14 @@
   // ------------------------------------------------------------------ session
   async function start(rubricId, shape, exclude, rubricIds) {
     const host = $('interview-inner');
+    // Starting with nothing able to answer means watching a spinner for five minutes and then
+    // getting an error, with a session left half-open. Refuse up front instead.
+    if (S.status && !S.status.online) {
+      alert('No interviewer is available right now.\n\n' + (S.status.cloud_configured
+        ? 'The cloud interviewer is rate-limited and no host machine is running. It recovers on its own — try again in a minute.'
+        : 'Start the host machine (Start Interviewer) and try again.'));
+      return;
+    }
     host.innerHTML = '<p class="spinner">Starting the interview…</p>';
     const payload = rubricIds ? { rubric_ids: rubricIds }
       : shape ? { shape }
