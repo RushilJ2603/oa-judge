@@ -25,9 +25,17 @@ from . import rubrics
 BUDGET = {
     "dossier": 2400,
     "grounding": 8000,
-    "transcript": 8000,
+    # Room for a real conversation, not a keyhole. 8000 chars held about three exchanges, which is
+    # why the flat path forgot what it had said. MEASURED free on the agy path: an 18.7k-char prompt
+    # answers in 16.0-16.8s, the same as the 13.6k baseline, because 13.8s of that is session
+    # bootstrap either way. (Not measured on the API path — see KEEP_TURNS.)
+    "transcript": 24000,
 }
-KEEP_VERBATIM = 3          # exchanges kept verbatim in the FLAT prompt (agy path)
+# Exchanges kept verbatim in the FLAT prompt — the shape agy must use, since `agy --print` takes a
+# single string and cannot receive a conversation. It cannot be given real turns, so the least it
+# can be given is a long write-up: this is what runs whenever the API is rate-limited, which on the
+# free tier is often.
+KEEP_VERBATIM = 14
 # Exchanges replayed as real turns in the CONVERSATIONAL prompt — much larger than the flat window,
 # because the 3-exchange window was buying stiffness for a saving that may not exist.
 # CAUTION: "prompt size is free" was measured on the AGY path, where 13.8s of session bootstrap
