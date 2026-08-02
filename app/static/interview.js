@@ -20,6 +20,10 @@
     return r.json();
   }
 
+  // Touch keyboards have no Shift+Enter, so the Enter key has to mean different things.
+  const TOUCH = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                ('ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches);
+
   async function jdel(p) {
     const r = await fetch(p, { method: 'DELETE' });
     return r.json();
@@ -566,7 +570,8 @@
          </div>`
       : `<div class="iv-composer">
            <textarea id="iv-answer" class="iv-answer" rows="3" spellcheck="true"
-             placeholder="Type your answer…  (Enter to send, Shift+Enter for a new line)"
+             placeholder="${TOUCH ? 'Type your answer… (Enter makes a new line — tap Send when done)'
+                                  : 'Type your answer…  (Enter to send, Shift+Enter for a new line)'}"
              ${s.thinking ? 'disabled' : ''}></textarea>
            <div class="iv-composer-bar">
              <span class="iv-hint-state">${s.hintTier > 0
@@ -621,15 +626,35 @@
       const ta = $('iv-answer');
       $('iv-send').addEventListener('click', send);
       ta.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+        // On a phone there is no Shift+Enter, so Enter-to-send left NO way to type a new line.
+        // Touch keyboards get the standard messaging behaviour instead: Enter is a newline and the
+        // Send button sends. Physical keyboards keep Enter-to-send, which is faster to type with.
+        if (e.key === 'Enter' && !e.shiftKey && !TOUCH) { e.preventDefault(); send(); }
       });
       wireMic(ta);
       // Keep the candidate in flow: focus returns the moment it is their turn again.
       if (!s.thinking) ta.focus();
     }
-    const th = $('iv-thread');
-    if (th) th.scrollTop = th.scrollHeight;
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollToEnd();
+  }
+
+  /* Scroll the element that ACTUALLY scrolls. `.interview-view` is the scroll container, so
+     scrolling `window` (or `.iv-thread`, which has no overflow) did nothing on desktop and fought
+     the container on touch — which is what made the end of a long interview feel stuck. */
+  function scrollContainer() {
+    let el = $('interview-inner');
+    while (el && el !== document.body) {
+      const oy = getComputedStyle(el).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+      el = el.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function scrollToEnd() {
+    const el = scrollContainer();
+    try { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
+    catch (e) { el.scrollTop = el.scrollHeight; }
   }
 
   async function send() {

@@ -380,10 +380,18 @@ def phase_score(user_id: int, session_id: int, rubric: dict, phase: str) -> dict
         (str(session_id), phase))}
     total = won = 0.0
     core_met = True
+    core_open = []
     for m in ph.get("must_hit", []):
         w = 2.0 if m.get("weight") == "core" else 1.0
         total += w
         won += w * OUTCOME.get(rows.get(m["id"], "missed"), 0.0)
-        if m.get("weight") == "core" and rows.get(m["id"]) != "hit":
-            core_met = False
-    return {"phase": phase, "score": (won / total) if total else 0.0, "core_met": core_met}
+        if m.get("weight") == "core":
+            if rows.get(m["id"]) != "hit":
+                core_met = False
+            if m["id"] not in rows:
+                core_open.append(m["id"])
+    # `core_open` is what has had NO ruling at all — still genuinely askable. It is separate from
+    # core_met on purpose: a point the interviewer explained in full is ruled (missed, no credit) but
+    # is no longer open, and a phase with nothing open has nothing left to ask.
+    return {"phase": phase, "score": (won / total) if total else 0.0,
+            "core_met": core_met, "core_open": core_open}

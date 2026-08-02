@@ -16,6 +16,7 @@ The model returns point IDs, never scores. The app computes scores from the chec
 candidate types can move a number.
 """
 import json
+import re
 
 from . import rubrics
 
@@ -60,6 +61,12 @@ with the reasoning, the tradeoff, a concrete example, and why the naive answer f
 In those moments, explain properly. Use the REFERENCE material for depth. Then move on.
 Do NOT pre-emptively explain a point they still have a fair chance to reach on their own.
 
+ONCE YOU HAVE EXPLAINED SOMETHING, IT IS SETTLED
+List its id on the TAUGHT line and never raise it again. Do not ask them to repeat back, summarise,
+or "now tell me" something you just explained — they will correctly point out that you already
+answered it, and it wastes the interview. A point you taught is finished, exactly like one they got
+right; the only difference is that it scores nothing. Move to genuinely new ground.
+
 RULES YOU MUST FOLLOW
 - End with ONE question. Say as much as the moment needs before it, but never stack several
   questions at once — they can only answer one.
@@ -70,16 +77,25 @@ RULES YOU MUST FOLLOW
 - Use ONLY the hints provided. If none are shown, you have not been authorised to hint yet.
 - Judge substance, not vocabulary. Loose phrasing that conveys the idea counts as a hit.
 - React to THEIR answer. Do not restate the question they just answered.
+- NEVER re-ask something already settled — anything under ALREADY ASKED, anything marked [DONE],
+  [PARTIAL] or [MISSED] below, or anything you have explained. If the ground is covered, the honest
+  move is forward, not another lap. Circling back is the single most common way a mock interview
+  stops being worth the candidate's time.
 - Do not call tools, read files, or run commands. Everything you need is in this message; a tool
   attempt is denied in this environment and silently produces no answer at all.
 
 OUTPUT FORMAT — return exactly these lines, nothing else:
 HIT: <comma-separated point ids the answer genuinely covered, or NONE>
 PARTIAL: <point ids partially covered, or NONE>
+TAUGHT: <point ids you EXPLAINED in this message because they could not get there, or NONE>
 EVIDENCE: <point_id="short quote from their answer"; ...>
 STUCK: <YES if they are floundering or asked for help, else NO>
 ADVANCE: <YES only if every CORE point in this phase is now hit, else NO>
 SAY: <your next message to the candidate — a natural conversational turn, ending in one question>
+
+TAUGHT scores nothing — it records that a point is finished so the interview stops circling back to
+it. Use it whenever you hand over an answer instead of eliciting it. Never list a point as both HIT
+and TAUGHT: HIT is what THEY produced, TAUGHT is what YOU did.
 """
 
 
@@ -214,20 +230,38 @@ def render_crosscut(rubric: dict, phase_name: str) -> str:
 
 
 # ------------------------------------------------------------------ transcript
-def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
-    """Last `keep` exchanges verbatim; everything older collapsed to an 'established' digest.
+def _last_question(text: str) -> str:
+    """The question an interviewer turn ended on — the thing that must not be asked twice."""
+    qs = re.findall(r"[^.?!\n]*\?", text or "")
+    return " ".join(qs[-1].split())[:170] if qs else ""
 
-    Keeps cost flat and, more importantly, keeps the model's attention on the live thread instead of
-    diluting it across forty turns of history.
+
+def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
+    """Last `keep` exchanges verbatim; everything older collapsed to a digest.
+
+    Keeps cost flat and keeps the model's attention on the live thread instead of diluting it across
+    forty turns of history.
+
+    The digest used to keep ONLY the candidate's words, and that was the single biggest cause of the
+    interviewer repeating itself: past the last few exchanges it could not see what it had already
+    asked or already explained. In real transcripts it re-asked the Round Robin bound it had just
+    derived, and re-asked the MLFQ gaming question it had already answered in full — the candidate
+    had to tell it "you're asking the same question again". So the questions it has already put are
+    now carried forward explicitly, and cheaply: one line each, not the whole turn.
     """
     if not turns:
         return "(interview has not started)"
     head, tail = turns[:-keep * 2] if len(turns) > keep * 2 else [], turns[-keep * 2:]
     out = []
     if head:
+        asked = [q for q in (_last_question(t["content"]) for t in head
+                             if t["role"] == "interviewer") if q]
+        if asked:
+            out.append("ALREADY ASKED — these are settled, do NOT ask any of them again:\n"
+                       + "\n".join(f"  - {q}" for q in asked[-14:]))
         established = [t["content"] for t in head if t["role"] == "candidate"]
         digest = " ".join(established)[-1200:]
-        out.append(f"ESTABLISHED EARLIER (digest): {digest}")
+        out.append(f"ESTABLISHED EARLIER (candidate's own words): {digest}")
     for t in tail:
         who = {"interviewer": "INTERVIEWER", "candidate": "CANDIDATE"}.get(t["role"], "SYSTEM")
         out.append(f"{who}: {t['content']}")
@@ -310,7 +344,8 @@ def parse_response(text: str) -> dict:
     Tolerant of formatting drift but never of *semantic* drift: unknown point ids are dropped by the
     caller against the rubric, and nothing here can set a score.
     """
-    out = {"hit": [], "partial": [], "evidence": {}, "stuck": False, "advance": False, "say": ""}
+    out = {"hit": [], "partial": [], "taught": [], "evidence": {}, "stuck": False,
+           "advance": False, "say": ""}
     if not text:
         return out
     cur, say_lines = None, []
@@ -323,6 +358,9 @@ def parse_response(text: str) -> dict:
         elif up.startswith("PARTIAL:"):
             cur = None
             out["partial"] = _ids(line.split(":", 1)[1])
+        elif up.startswith("TAUGHT:"):
+            cur = None
+            out["taught"] = _ids(line.split(":", 1)[1])
         elif up.startswith("EVIDENCE:"):
             cur = None
             out["evidence"] = _evidence(line.split(":", 1)[1])

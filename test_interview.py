@@ -139,6 +139,9 @@ def main():
     # ---- history is ordered by last interaction, not creation ---------
     check_history_order(rid)
 
+    # ---- the interviewer must not circle back -------------------------
+    check_no_circling()
+
     # ---- who can answer a turn ----------------------------------------
     check_cloud_path()
     check_rate_limit_survivable()
@@ -233,6 +236,93 @@ def check_history_order(rid):
           str([h["id"] for h in iv.history(uid)][:2]))
     check("history: exposes the timestamp it sorted on",
           all(h.get("last_at") for h in iv.history(uid)))
+
+
+def check_no_circling():
+    """The interviewer must not re-ask what it has already answered itself.
+
+    From real transcripts: it derived the Round Robin (n-1)xTQ bound, then re-asked it; it explained
+    MLFQ gaming in full, then asked the candidate how a process could game MLFQ. The candidate had
+    to say "you're asking the same question again". Two independent causes, both pinned here.
+
+    1. A point the interviewer EXPLAINED was never recorded, so it stayed open, so the phase could
+       never close, so the interview kept coming back to it.
+    2. The transcript digest kept only the CANDIDATE's words, so past the last few exchanges the
+       model could not see what it had already asked.
+    """
+    from interview import session as iv
+    TIER_AT_LAST = iv.TIER_AT[-1]
+    uid = 7720
+    rid = "hq01_url_shortener"
+    r = rubrics.load(rid)
+    if not r:
+        return
+    first = rubrics.first_phase(r)
+    core = [m["id"] for m in rubrics.phase(r, first)["must_hit"] if m.get("weight") == "core"]
+    if len(core) < 2:
+        return
+
+    # (1) Teaching settles a point and lets the phase close.
+    sid = iv.start(uid, rid)["session_id"]
+    iv.add_turn(sid, uid, "candidate", "we shorten urls", first)
+    iv.apply_turn(uid, sid, f"HIT: {core[0]}\nSTUCK: NO\nADVANCE: NO\nSAY: go on?")
+    iv.add_turn(sid, uid, "candidate", "I'm stuck", first)
+    iv.apply_turn(uid, sid, "HIT: NONE\nSTUCK: YES\nADVANCE: NO\nSAY: a hint?")
+    iv.add_turn(sid, uid, "candidate", "still stuck", first)
+    res = iv.apply_turn(uid, sid, f"HIT: NONE\nTAUGHT: {','.join(core[1:])}\n"
+                                  f"STUCK: YES\nADVANCE: NO\nSAY: let me explain fully…")
+    check("circling: teaching a point closes the phase instead of looping", res["advanced"] is True)
+    check("circling: teaching earns NO credit", res["phase_score"]["score"] < 1.0,
+          str(res["phase_score"]))
+
+    # It must not become a way to skip a phase nobody attempted.
+    sid2 = iv.start(uid, rid)["session_id"]
+    iv.add_turn(sid2, uid, "candidate", "hello", first)
+    res2 = iv.apply_turn(uid, sid2, f"HIT: NONE\nTAUGHT: {','.join(core)}\n"
+                                    f"STUCK: NO\nADVANCE: YES\nSAY: skipping")
+    check("circling: TAUGHT cannot skip a phase without help being asked for",
+          res2["advanced"] is False)
+
+    # (2) The digest must carry what was already asked.
+    turns = []
+    for i, q in enumerate(["What is the role of the CPU scheduler?",
+                           "What trap does FCFS hit with mixed burst lengths?",
+                           "With n processes and quantum TQ, what is the max wait for a first slice?",
+                           "How does MLFQ approximate SJF?",
+                           "What state is saved on a context switch?"]):
+        turns.append({"role": "interviewer", "content": f"Some preamble. {q}"})
+        turns.append({"role": "candidate", "content": f"answer {i}"})
+    digest = context.compact_transcript(turns)
+    check("circling: the digest lists questions already asked", "ALREADY ASKED" in digest)
+    check("circling: an old question survives past the verbatim window",
+          "quantum TQ" in digest, digest[:200])
+    check("circling: the candidate's own words are still kept",
+          "ESTABLISHED EARLIER" in digest)
+    check("circling: carrying both sides stays cheap",
+          len(digest) < context.BUDGET["transcript"], f"{len(digest)} chars")
+
+    # And the rule is actually stated to the model.
+    ctx = context.build_turn(r, first, {}, 0, "", turns, "x")
+    check("circling: the role contract forbids re-asking settled ground",
+          "NEVER re-ask" in ctx and "TAUGHT:" in ctx)
+
+    # (3) The FLOOR. TAUGHT is the clean exit, but a model that never emits it would still loop
+    # forever — so the app closes a stalled phase on its own once hints are exhausted.
+    sid3 = iv.start(uid, rid)["session_id"]
+    phases_seen, advanced_at = [], None
+    for n in range(1, 9):
+        st = iv.get(uid, sid3)
+        if st["status"] != "active":
+            break
+        phases_seen.append(st["current_phase"])
+        iv.add_turn(sid3, uid, "candidate", "I'm stuck", st["current_phase"])
+        res = iv.apply_turn(uid, sid3, "HIT: NONE\nSTUCK: YES\nADVANCE: NO\nSAY: explaining…")
+        if res["advanced"] and advanced_at is None:
+            advanced_at = n
+    check("circling: a stalled phase closes itself even with no TAUGHT from the model",
+          advanced_at is not None, f"still looping after {len(phases_seen)} stuck signals")
+    check("circling: but not before the hint ladder has been walked",
+          advanced_at is None or advanced_at > TIER_AT_LAST, f"advanced at stuck #{advanced_at}")
 
 
 def check_cloud_path():

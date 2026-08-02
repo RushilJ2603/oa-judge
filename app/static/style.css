@@ -1233,7 +1233,15 @@ select option { background: var(--bg-elev); color: var(--text); }
 .iv-diff.senior { color: var(--error); } .iv-diff.mid { color: var(--warn); } .iv-diff.campus { color: var(--accent); }
 
 /* --- live session --- */
-.iv-shead { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+/* Sticky, because it carries the ONLY way out of an interview. It used to scroll away with the
+   transcript, so leaving a long session meant scrolling all the way back to the first message to
+   reach the back arrow. The negative margins + padding let it span the container's own padding so
+   nothing shows through underneath it while the thread scrolls past. */
+.iv-shead { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px;
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    margin-left: -28px; margin-right: -28px; padding: 10px 28px 12px;
+    border-bottom: 1px solid transparent; }
+.iv-shead.stuck { border-bottom-color: var(--border); }
 .iv-shead-main { min-width: 0; flex: 1; }
 .iv-stitle { font-size: 18px; font-weight: 700; margin: 0; }
 .iv-rail { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
@@ -1289,6 +1297,11 @@ select option { background: var(--bg-elev); color: var(--text); }
     /* Composer sits above the thumb, and the field is >=16px so mobile browsers never auto-zoom. */
     .iv-composer { position: sticky; bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
     .iv-answer { font-size: 16px; }
+    /* Match the narrower container padding, or the sticky header bleeds past the screen edge. */
+    .iv-shead { margin-left: -16px; margin-right: -16px; padding: 8px 16px 10px; }
+    /* The phase rail is the least useful thing on a phone and the tallest part of a header that is
+       now always on screen — the title and the way out matter more than eight pills. */
+    .iv-shead .iv-rail { display: none; }
 }
 /* Loop cards: the preview names the exact subjects picked for this candidate, so a "full loop"
    is a concrete promise rather than a vague label. */

@@ -209,18 +209,39 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
 
     dossier.record_checkoffs(user_id, session_id, r, phase, hit, partial, [], parsed["evidence"])
 
+    # Points the interviewer EXPLAINED because the candidate could not get there. Recorded as missed
+    # — no credit, so reporting one can never inflate a score — but recorded, which is what matters:
+    # an unrecorded point stays "open" forever, the phase can never close, and the interview circles
+    # back to a question it already answered itself. That is exactly what happened in real sessions.
+    # Gated on the candidate having actually asked for help, so it cannot be used to skip a phase
+    # that was never attempted.
+    taught = [i for i in parsed["taught"] if i in valid and i not in hit and i not in partial]
+    if taught and (s["hint_tier"] > 0 or parsed["stuck"]):
+        dossier.record_checkoffs(user_id, session_id, r, phase, [], [], taught, {})
+
     conn = db.connect()
     tier, stuck = s["hint_tier"], s["stuck_signals"]
     if parsed["stuck"]:
         stuck += 1
         # App-side escalation: the model cannot grant itself a deeper hint.
         tier = max(tier, _tier_for(stuck))
+        # And an app-side FLOOR that does not depend on the model cooperating. TAUGHT is the clean
+        # path out of a stalled phase, but a model that simply never emits it would keep the phase
+        # open forever and go on re-asking — which is the behaviour being fixed. Once the deepest
+        # hint has been released and the candidate is STILL stuck, the phase has nothing left to
+        # offer: close its open points as misses and let the interview move on.
+        if tier >= MAX_TIER and stuck > TIER_AT[-1]:
+            _close_phase(user_id, session_id, r, phase)
 
     # Advancement is a function of stored evidence, never of the model's ADVANCE flag alone.
     score = dossier.phase_score(user_id, session_id, r, phase)
     advanced = False
     rubric_id, seg_idx = s["rubric_id"], s["segment_idx"]
-    if score["core_met"]:
+    # Advance when every core point is hit, OR when none is still open. Requiring `hit` alone was
+    # the bug behind "it keeps asking me the same thing": a point the interviewer had explained in
+    # full was never hit, so the phase could not close, so it kept coming back to it. A phase with
+    # nothing left to ask must move on — the score already reflects what was and was not earned.
+    if score["core_met"] or not score["core_open"]:
         _close_phase(user_id, session_id, r, phase)
         nxt, rubric_id, seg_idx = _next_step(s, r, phase)
         if nxt:
