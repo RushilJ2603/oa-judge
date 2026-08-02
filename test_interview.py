@@ -306,6 +306,23 @@ def check_no_circling():
     check("circling: the role contract forbids re-asking settled ground",
           "NEVER re-ask" in ctx and "TAUGHT:" in ctx)
 
+    # "Settled" must not swallow PARTIAL. It did, briefly: a half-right answer had a checkoff row so
+    # the phase advanced past it, AND the contract told the model never to raise it again — leaving
+    # the point frozen at half credit with no path to finish the thought.
+    pts = [m["id"] for m in rubrics.phase(r, first)["must_hit"]]
+    ctx_p = context.build_turn(r, first, {pts[0]: "partial"}, 0, "", [], "x")
+    check("circling: a PARTIAL point is still shown as unfinished",
+          f"[PARTIAL] {pts[0]}" in ctx_p)
+    check("circling: PARTIAL is NOT in the never-re-ask list",
+          "[PARTIAL] or [MISSED]" not in ctx_p and "[PARTIAL] is NOT settled" in ctx_p)
+
+    # A student who asks a clarifying question is engaged, not stuck. Counting it as stuck burns
+    # hint tiers and — with the stall floor — force-closes the phase of the most curious students.
+    check("circling: STUCK means cannot progress, not 'asked anything'",
+          "CANNOT make progress" in ctx and "asked for help" not in ctx)
+    check("circling: a question is answered, not graded as an answer",
+          "WHEN THEY ASK YOU SOMETHING" in ctx)
+
     # (3) The FLOOR. TAUGHT is the clean exit, but a model that never emits it would still loop
     # forever — so the app closes a stalled phase on its own once hints are exhausted.
     sid3 = iv.start(uid, rid)["session_id"]
