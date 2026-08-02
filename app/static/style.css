@@ -70,7 +70,16 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
+/* App height tracks the VISIBLE viewport, not the layout one.
+   `height: 100%` resolves against the layout viewport, which does not shrink when the on-screen
+   keyboard appears. The browser instead shifts the visual viewport down to keep the focused input
+   in sight — and on dismissal that shift is not undone, leaving the app scrolled into empty page
+   below its own content. That is the black band on mobile, and it hit every tab.
+   dvh handles it on modern browsers; app.js overrides this variable with the exact visualViewport
+   height where that API exists, which is what actually covers Android Chrome. */
+:root { --app-h: 100vh; }
+@supports (height: 100dvh) { :root { --app-h: 100dvh; } }
+html, body { height: var(--app-h); margin: 0; }
 body {
     font-family: var(--sans);
     color: var(--text);
@@ -1064,7 +1073,9 @@ select option { background: var(--bg-elev); color: var(--text); }
 
 @media (max-width: 820px) {
     .viz-ov { padding: 0; }
-    .viz-panel { height: 100vh; max-width: none; border-radius: 0; }
+    /* Same reason as the shell: a full-screen panel must match the VISIBLE viewport, or it hangs
+       below the fold once the keyboard has been up. */
+    .viz-panel { height: var(--app-h); max-width: none; border-radius: 0; }
     .viz-main { grid-template-columns: 1fr; grid-template-rows: 1.1fr 1fr; }
     .viz-code { border-right: 0; border-bottom: 1px solid var(--border); }
 }

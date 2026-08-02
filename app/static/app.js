@@ -1,5 +1,41 @@
 'use strict';
 
+/* ── Mobile viewport: keep the app exactly as tall as the VISIBLE area ──────────────────────────
+   The shell is a fixed-height flex column with its own inner scrollers, sized from CSS `height`.
+   That resolves against the LAYOUT viewport, which does not change when the on-screen keyboard
+   opens — the browser instead shrinks the VISUAL viewport and scrolls it down so the focused input
+   stays in view. On dismissal that scroll offset is not restored, so the app is left displaced and
+   a band of empty page shows below its content. That was the black space on mobile, on every tab,
+   and scrolling right back to the top was the only way to clear it.
+
+   Two halves, both needed:
+     * size the shell from visualViewport.height, so it never claims more room than is on screen;
+     * when the viewport GROWS again (keyboard dismissed), undo the browser's leftover scroll.
+   Growth-only, because resetting scroll while the keyboard is still opening would fight the browser
+   as it tries to reveal the field being typed into. */
+(function () {
+    const vv = window.visualViewport;
+    if (!vv) return;                       // dvh in the stylesheet already covers these browsers
+    let last = vv.height;
+    const apply = () => {
+        document.documentElement.style.setProperty('--app-h', vv.height + 'px');
+        if (vv.height > last + 40) {       // a real keyboard dismissal, not scroll jitter
+            window.scrollTo(0, 0);
+        }
+        last = vv.height;
+    };
+    vv.addEventListener('resize', apply);
+    // The visual viewport can also drift without resizing (toolbar hide/show, rubber-banding). If it
+    // has drifted while nothing is being typed into, put it back instead of leaving a gap on screen.
+    vv.addEventListener('scroll', () => {
+        const el = document.activeElement;
+        if (vv.offsetTop > 0 && !(el && /^(INPUT|TEXTAREA)$/.test(el.tagName))) {
+            window.scrollTo(0, 0);
+        }
+    });
+    apply();
+})();
+
 const state = {
     problems: [],
     history: { attempts: [], revisit: [] },
