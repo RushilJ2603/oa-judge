@@ -162,21 +162,30 @@ def facts(user_id: int) -> list[tuple]:
 WEAK_MAX = 0.7
 
 
-def weak_skills(user_id: int, limit: int = 8, exclude_rubric: str = "",
+def weak_skills(user_id: int, limit: int = 8, exclude_rubrics=(),
                 threshold: float = WEAK_MAX) -> list[dict]:
     """Weakest concepts first — the interviewer's job is to find the edge of what you know.
 
-    Concepts from the rubric being interviewed right now are excluded: surfacing "you are weak at
-    est2" while running that very question would hand over the answer.
+    Concepts from the rubrics this session will visit are excluded: surfacing "you are weak at est2:
+    <the point text>" while running that very question hands over the answer.
+
+    EVERY rubric in the loop is excluded, not just the one in play. A mixed round visits several
+    topics in sequence, and a weak-area line naming a point from segment 3 previews it just as surely
+    as naming one from segment 1 — the same leak phase scoping exists to prevent. This matters more
+    than it looks: a weak-spot drill composes its loop from exactly the topics that rank weakest, so
+    without this the leak is close to guaranteed rather than incidental.
     """
+    if isinstance(exclude_rubrics, str):
+        exclude_rubrics = (exclude_rubrics,) if exclude_rubrics else ()
+    prefixes = tuple(f"{rid}:" for rid in exclude_rubrics if rid)
     rows = db.connect().execute(
         "SELECT concept_key, label, mastery, times_tested, last_tested_at, last_evidence "
         "FROM skill WHERE user_id=? AND times_tested > 0 AND mastery < ? "
         "ORDER BY mastery ASC, last_tested_at ASC LIMIT ?",
-        (user_id, threshold, limit * 3)).fetchall()
+        (user_id, threshold, limit * 4)).fetchall()
     out = []
     for r in rows:
-        if exclude_rubric and r["concept_key"].startswith(exclude_rubric + ":"):
+        if prefixes and r["concept_key"].startswith(prefixes):
             continue
         out.append(dict(r))
         if len(out) >= limit:
@@ -243,11 +252,11 @@ def recent_sessions(user_id: int, limit: int = 3) -> list[str]:
     return out
 
 
-def render(user_id: int, exclude_rubric: str = "") -> str:
+def render(user_id: int, exclude_rubrics=()) -> str:
     """Everything the interviewer should know about this candidate, compacted for the prompt."""
     from . import context
     return context.render_dossier(
-        facts(user_id), weak_skills(user_id, exclude_rubric=exclude_rubric),
+        facts(user_id), weak_skills(user_id, exclude_rubrics=exclude_rubrics),
         behavior(user_id), recent_sessions(user_id))
 
 

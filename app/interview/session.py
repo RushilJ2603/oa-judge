@@ -164,7 +164,8 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     r = rubrics.load(s["rubric_id"])
     if not r:
         return None
-    dos = dossier.render(user_id, exclude_rubric=s["rubric_id"])
+    # Exclude every topic this session will visit, not just the live one — see weak_skills.
+    dos = dossier.render(user_id, exclude_rubrics=_rubric_ids(s))
     # Prior attempts at THIS topic are excluded from the dossier (naming a weak point of the live
     # question leaks its answer), so they are re-added here as counts only — see topic_recall.
     recall = dossier.topic_recall(user_id, s["rubric_id"], session_id)
@@ -288,6 +289,15 @@ def _close_phase(user_id: int, session_id: int, rubric: dict, phase: str) -> Non
                 if m["id"] not in seen]
     if open_ids:
         dossier.record_checkoffs(user_id, session_id, rubric, phase, [], [], open_ids, {})
+
+
+def _rubric_ids(s) -> list[str]:
+    """Every rubric id this session touches — the live one, or all segments of a mixed round."""
+    plan = _plan(s)
+    ids = [seg["rubric_id"] for seg in plan] if plan else []
+    if s.get("rubric_id") and s["rubric_id"] not in ids:
+        ids.append(s["rubric_id"])
+    return ids
 
 
 def _rubrics_in(s) -> list:

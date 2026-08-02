@@ -139,6 +139,9 @@ def main():
     # ---- history is ordered by last interaction, not creation ---------
     check_history_order(rid)
 
+    # ---- a mixed loop must not preview its own later segments ---------
+    check_no_cross_segment_leak()
+
     # ---- the progress rail tracks the real position -------------------
     check_rail()
 
@@ -220,6 +223,43 @@ def check_history_order(rid):
           str([h["id"] for h in iv.history(uid)][:2]))
     check("history: exposes the timestamp it sorted on",
           all(h.get("last_at") for h in iv.history(uid)))
+
+
+def check_no_cross_segment_leak():
+    """Phase scoping hides later PHASES; this pins the same guarantee for later SEGMENTS.
+
+    The dossier drops the rubric being interviewed so "you are weak at est2: <point text>" cannot
+    hand over the live answer. In a mixed loop that is not enough: a weak-area line naming a point
+    from segment 3 previews it just as surely. And it is not a corner case — a weak-spot drill builds
+    its loop out of precisely the topics that rank weakest, so the two lists overlap by construction.
+    """
+    from interview import mixed
+    from interview import session as iv
+    uid = 8460
+    ids = rubrics.list_ids()[:3]
+    plan = mixed.from_ids(ids, phases=2)
+    if len(plan) < 2:
+        return
+    later = plan[-1]["rubric_id"]
+    rl = rubrics.load(later)
+    pts = rubrics.all_points(rl)
+    lp = [m["id"] for m in rl["phases"][0]["must_hit"]]
+
+    # Make the candidate demonstrably weak on the LAST segment's topic first.
+    s0 = iv.start(uid, later)["session_id"]
+    dossier.record_checkoffs(uid, s0, rl, rubrics.first_phase(rl), hit=[], partial=[], missed=lp,
+                             evidence={})
+    weak_now = [w["concept_key"] for w in dossier.weak_skills(uid)]
+    check("leak: the later topic IS in the dossier when nothing excludes it (guard is meaningful)",
+          any(k.startswith(later + ":") for k in weak_now), str(weak_now[:3]))
+
+    s = iv.start(uid, plan[0]["rubric_id"], plan=plan)
+    prompt = iv.build_prompt(uid, s["session_id"])
+    leaked = [pid for pid in lp if pts[pid]["point"][:50] in prompt]
+    check("leak: a mixed loop never previews a later segment's rubric points",
+          not leaked, str(leaked[:3]))
+    check("leak: the dossier is still populated, not emptied to pass",
+          "KNOWN WEAK AREAS" in prompt or "No history yet" in prompt)
 
 
 def check_rail():

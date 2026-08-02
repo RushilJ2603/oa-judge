@@ -57,7 +57,7 @@ quality is still enforced by the same tooling gates.
     (how many times, when, what you scored, how many of its points are still weak) but never point ids
     or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    **50 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
+    **53 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
@@ -93,6 +93,13 @@ Four asks, all from using the thing for real.
   avoid leaking answers, which also meant the interviewer had no idea it had asked you this before —
   `topic_recall` re-adds that as counts only. Also: weak-area labels now trim on a word boundary, and
   recent sessions name the topic instead of the corpus id.
+- **Cross-segment answer leak in mixed loops (found while checking the drill path).** The dossier
+  drops the rubric in play so a weak-area line cannot hand over the live answer — but it dropped only
+  that ONE rubric, so in a mixed round a line naming a point from segment 3 previewed it just as
+  surely. Not a corner case: a weak-spot drill composes its loop from exactly the topics that rank
+  weakest, so the two lists overlap by construction. `weak_skills` now excludes every rubric in the
+  plan. Reproduced (3 leaked points) → fixed (0) → pinned by an invariant that also asserts the
+  dossier is still populated, so the guard cannot pass by emptying it.
 - **Progress-rail bug found by the new drill loop.** The rail located the current step with
   `phases.indexOf(phase)`; a mixed loop repeats phase names across segments, so being in segment 3's
   "approach" highlighted segment 1's. Walked a 3-segment loop end to end: the old logic produced
