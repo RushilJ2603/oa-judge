@@ -35,3 +35,6 @@ _push_to_github.sh
 
 # Offline wheel cache (regenerate with pip download)
 .wheels/
+
+# Bug-hunt scratch: agent output, simulated transcripts, probe databases
+.bughunt/

@@ -620,7 +620,10 @@
       });
     }
     if (s.done) {
-      $('iv-report').addEventListener('click', showReport);
+      // Must be wrapped: passing showReport directly hands it the click EVENT as its sid, which
+      // built the URL /api/interview/report/[object PointerEvent], 404'd, and left the spinner up
+      // forever. This is the "See the full report" button at the end of every interview.
+      $('iv-report').addEventListener('click', () => showReport());
       $('iv-exit').addEventListener('click', leave);
     } else {
       const ta = $('iv-answer');
@@ -743,8 +746,21 @@
   async function showReport(sid) {
     const host = $('interview-inner');
     host.innerHTML = '<p class="spinner">Building your report…</p>';
-    const id = sid || (S.session && S.session.id);
-    const rep = await jget('/api/interview/report/' + id);
+    // Coerce: anything that is not a real session id falls back to the live session rather than
+    // being pasted into the URL. A spinner with no failure path is the worst outcome — it looks
+    // like the server is thinking when nothing is in flight at all.
+    const n = Number(sid);
+    const id = Number.isFinite(n) && n > 0 ? n : (S.session && S.session.id);
+    if (!id) { host.innerHTML = '<p class="placeholder">No interview selected.</p>'; return; }
+    let rep;
+    try {
+      rep = await jget('/api/interview/report/' + id);
+    } catch (e) {
+      host.innerHTML = `<p class="placeholder">Could not load that report (${esc(e.message || e)}).
+        <button class="btn btn-subtle" id="iv-back">Back to interviews</button></p>`;
+      const b = $('iv-back'); if (b) b.addEventListener('click', leave);
+      return;
+    }
     if (rep.error) { host.innerHTML = `<p class="placeholder">${esc(rep.error)}</p>`; return; }
     const sc = rep.scores || {};
     const phases = (sc.phases || []).map((p) =>
