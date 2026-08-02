@@ -180,9 +180,13 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     # only score a checklist; with it it can engage a tangent, judge a subtle claim, or answer "why"
     # the way someone who has actually read the chapter would. Latency is unaffected — measured, the
     # model call is auth-dominated, not token-dominated (a two-token reply still costs ~14s).
+    # Tell the model when this is the last phase there is, so it can close rather than end the
+    # interview on a question the student will never get to answer.
+    nxt, _rid, _seg = _next_step(s, r, s["current_phase"])
     return context.build_turn(r, s["current_phase"], _checkoff_map(session_id, s["current_phase"]),
                               s["hint_tier"], dos, tl[:-1] if answer else tl, answer,
-                              grounding=rubrics.source_text(s["rubric_id"]), recall=recall)
+                              grounding=rubrics.source_text(s["rubric_id"]), recall=recall,
+                              is_last=(nxt is None))
 
 
 def _checkoff_map(session_id: int, phase: str) -> dict:
@@ -203,11 +207,30 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
     phase = s["current_phase"]
     parsed = context.parse_response(raw_model_output)
 
-    valid = {m["id"] for m in (rubrics.phase(r, phase) or {}).get("must_hit", [])}
-    hit = [i for i in parsed["hit"] if i in valid]          # drop anything not in THIS phase
-    partial = [i for i in parsed["partial"] if i in valid and i not in hit]
+    # Credit a point wherever it lives in the rubric, not only in the phase currently open.
+    #
+    # This used to be filtered to the CURRENT phase, and it threw away correct answers. The sequence
+    # is ordinary: the interviewer asks about a point, the student's reply also settles the phase's
+    # last core point, the phase advances — and then the answer they were still typing lands against
+    # a phase that no longer accepts that id. The credit was dropped silently and the point was
+    # written up as MISSED, so the report told a student they got wrong something they got right.
+    # Four independent audit agents hit this in real interviews before it was reproduced here.
+    #
+    # Which phase a point belongs to is OUR filing system, not the student's problem. Ids are still
+    # checked against the rubric, so the model cannot invent one; they are just recorded against
+    # their own phase. INSERT OR REPLACE means late credit overwrites an earlier miss, which is the
+    # same "circle back and still get credit" rule the phase-close logic already relies on.
+    all_pts = rubrics.all_points(r)
+    hit = [i for i in parsed["hit"] if i in all_pts]
+    partial = [i for i in parsed["partial"] if i in all_pts and i not in hit]
 
-    dossier.record_checkoffs(user_id, session_id, r, phase, hit, partial, [], parsed["evidence"])
+    by_phase: dict[str, tuple[list, list]] = {}
+    for i in hit:
+        by_phase.setdefault(all_pts[i]["phase"], ([], []))[0].append(i)
+    for i in partial:
+        by_phase.setdefault(all_pts[i]["phase"], ([], []))[1].append(i)
+    for ph, (h, p) in by_phase.items():
+        dossier.record_checkoffs(user_id, session_id, r, ph, h, p, [], parsed["evidence"])
 
     # Points the interviewer EXPLAINED because the candidate could not get there. Recorded as missed
     # — no credit, so reporting one can never inflate a score — but recorded, which is what matters:
@@ -215,7 +238,15 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
     # back to a question it already answered itself. That is exactly what happened in real sessions.
     # Gated on the candidate having actually asked for help, so it cannot be used to skip a phase
     # that was never attempted.
-    taught = [i for i in parsed["taught"] if i in valid and i not in hit and i not in partial]
+    # TAUGHT stays scoped to the CURRENT phase: it closes points out, and letting it reach a later
+    # phase would let the interview skip material the student has not seen yet.
+    # It also must never DOWNGRADE a ruling. A point already recorded hit or partial has been earned;
+    # re-teaching it later (or teaching around it) must not rewrite that to missed and take the
+    # credit back — a student praised in the conversation was finishing with it marked wrong.
+    here = {m["id"] for m in (rubrics.phase(r, phase) or {}).get("must_hit", [])}
+    already = _checkoff_map(session_id, phase)
+    taught = [i for i in parsed["taught"] if i in here and i not in hit and i not in partial
+              and already.get(i) not in ("hit", "partial")]
     if taught and (s["hint_tier"] > 0 or parsed["stuck"]):
         dossier.record_checkoffs(user_id, session_id, r, phase, [], [], taught, {})
 

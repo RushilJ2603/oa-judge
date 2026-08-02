@@ -185,7 +185,8 @@ def render_dossier(facts: list, weak_skills: list, behavior: list, recent: list)
 
 
 # ------------------------------------------------------------------ phase scoping
-def render_phase(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int) -> str:
+def render_phase(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
+                 is_last: bool = False) -> str:
     """Render ONLY the current phase. Later phases are never included — that is the leak guard."""
     ph = rubrics.phase(rubric, phase_name)
     if not ph:
@@ -222,6 +223,19 @@ def render_phase(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int)
                 "interview forward rather than circling.")
     else:
         lines.append("\nNO HINTS AUTHORISED YET — do not hint. Probe or restate instead.")
+
+    # The interview ENDS the moment this phase's core points are settled, and the app cannot rewrite
+    # what was said — so a turn that both settles the last point and ends on a new question leaves
+    # the student staring at something they can never answer, with no closing summary. Five audit
+    # agents hit exactly that ending. The model is the only thing that can prevent it, so it is told
+    # while there is still time to act.
+    if is_last:
+        lines.append(
+            "\nFINAL PHASE. The interview ENDS as soon as the core points here are settled, and "
+            "your message is the last thing they will read. So: if this turn settles the last of "
+            "them, do NOT end on a new question — close instead. Two or three sentences on what "
+            "they handled well, what to go and review, and a genuine sign-off. Ask another question "
+            "only if there is still open ground worth covering.")
     return "\n".join(lines)
 
 
@@ -282,7 +296,7 @@ def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
 # ------------------------------------------------------------------ assembly
 def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
                dossier: str, turns: list, candidate_answer: str, grounding: str = "",
-               recall: str = "") -> str:
+               recall: str = "", is_last: bool = False) -> str:
     """Assemble the full prompt for one interviewer turn.
 
     Order matters: stable material first (role, who they are, the question), volatile last (the
@@ -301,7 +315,7 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
     if recall:
         parts += [recall, ""]
     parts += [
-        render_phase(rubric, phase_name, checkoffs, hint_tier),
+        render_phase(rubric, phase_name, checkoffs, hint_tier, is_last),
     ]
     cross = render_crosscut(rubric, phase_name)
     if cross:
