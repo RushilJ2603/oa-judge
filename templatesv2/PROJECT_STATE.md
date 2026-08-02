@@ -257,6 +257,37 @@ Five asks, all from using the thing for real.
 | **Topic searchable but hidden** on the problem view | Seeing the topic gives away the approach | 2026-07-25 |
 | Hidden tests **gzipped**; deploy the `.gz` reader **before** the compressed bank | ~2.9× smaller ≈ doubles the volume ceiling; ordering keeps the live app readable | 2026-07-25 |
 
+## Interview latency — where a turn actually goes (measured 2026-08-02, session 8)
+Measured with agy's own `--log-file`, which timestamps every phase.
+
+| Phase | Time | Notes |
+|---|---|---|
+| CLI startup | 0.5s | `agy --version` is 0.33s — process start is free |
+| Auth → "silent auth succeeded" | 5.3s | |
+| 3 × `loadCodeAssist` (repeats) | 5.2s | in-process caches miss before auth completes |
+| model resolve ×2, forced quota refresh, experiments ×3 | 3.3s | |
+| **`streamGenerateContent` — the real call** | **starts at 13.8s** | generation itself ~1–3s |
+
+**Prompt size is irrelevant** — a two-token reply costs the same ~14s, so trimming context to go
+faster would cost quality for nothing. Every turn pays the bootstrap because every turn is a fresh
+process (deliberately — statelessness is what makes phase scoping work).
+
+**Fixed this session:** the lease long-poll took **~10s average off every turn** (discovery
+10.0s → 0.10s). The old geometric backoff existed to let Fly sleep, but an interview is mostly idle —
+the candidate is thinking — so the worker eased out to a 20s interval and the next answer waited
+~10s just to be noticed. Fly waives bills under $5 and the worker only runs when the host switches
+it on, so holding the connection is affordable.
+
+**The remaining 13.8s is agy's, and only the API path removes it.** `run_api()` in
+`interview_worker.py` is implemented and now verified against six response shapes, but has never
+executed because no key exists. Adding `GEMINI_API_KEY=…` to `.env` is sufficient — the launcher
+does `set -a && . ./.env`. Expected ~13.8s → ~2s.
+
+**Dead ends, do not retry:** warm/pre-spawned agy processes (`--prompt-interactive` needs a real TTY
+— `bubbletea: could not open TTY` — so it cannot be fed a later prompt headlessly, and driving a TUI
+through a pty to parse a scoring block is far too fragile). Reducing prompt size (measured
+irrelevant). Lower `--effort` / a weaker tier (that is a quality compromise, which was ruled out).
+
 ## Known Issues / Tech Debt
 - **No JS runtime in WSL** (`node`/`deno`/`bun` all absent), so `interview.js` cannot even be
   syntax-checked locally, let alone run. Session 7's TDZ `ReferenceError` (history list silently empty
