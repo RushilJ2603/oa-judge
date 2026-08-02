@@ -63,7 +63,38 @@ def _now():
 
 
 # ------------------------------------------------------------------ lifecycle
-def start(user_id: int, rubric_id: str, problem_id: str = None, plan: list = None) -> dict | None:
+def deepen(rubric_id: str) -> str:
+    """The deeper companion of a topic, when the corpus has one.
+
+    22 of the 322 rubrics (the whole CP set) ship a `__deep` variant — more phases, more points, a
+    harder difficulty label. They were only ever reachable as a SEPARATE catalogue card that looked
+    like an unrelated topic, which is why a loop could hand someone the depth pass while clicking the
+    topic by name gave them the campus one, with nothing on screen to explain the difference.
+    """
+    return rubric_id + "__deep" if rubrics.load(rubric_id + "__deep") else rubric_id
+
+
+def mastered_phases(user_id: int, r: dict) -> list[str]:
+    """Leading phases this candidate has demonstrably finished with.
+
+    Only from the FRONT of the rubric and only while every core point is above the weak threshold:
+    skipping a middle phase would leave holes, and one lucky answer should not buy a skip. This is
+    what stops a deep interview opening with the same warm-up for the third time.
+    """
+    from . import dossier as dos
+    mastery = {k.split(":", 1)[1]: v for k, v in dos.point_mastery(user_id, r.get("id", "")).items()}
+    out = []
+    for p in r.get("phases", []):
+        core = [m["id"] for m in p.get("must_hit", []) if m.get("weight") == "core"]
+        if core and all(mastery.get(c, 0.0) >= dos.WEAK_MAX for c in core):
+            out.append(p["phase"])
+        else:
+            break                      # stop at the first phase that is not settled
+    return out[:-1] if len(out) == len(r.get("phases", [])) else out   # never skip the whole thing
+
+
+def start(user_id: int, rubric_id: str, problem_id: str = None, plan: list = None,
+          depth: str = "standard") -> dict | None:
     """Start a session.
 
     `plan` (mixed rounds) is a list of {"rubric_id":..., "phases":[...]}. Without it the session is
@@ -74,22 +105,33 @@ def start(user_id: int, rubric_id: str, problem_id: str = None, plan: list = Non
         if not plan:
             return None
         rubric_id = plan[0]["rubric_id"]
+    # A deep interview uses the deeper rubric where the corpus has one.
+    if depth == "deep" and not plan:
+        rubric_id = deepen(rubric_id)
     r = rubrics.load(rubric_id)
     if not r:
         return None
     first = (plan[0]["phases"][0] if plan and plan[0].get("phases") else rubrics.first_phase(r))
+    # Start past what they have already proven, rather than making them re-earn it.
+    skipped = [] if plan else mastered_phases(user_id, r)
+    if skipped:
+        after = [p["phase"] for p in r.get("phases", []) if p["phase"] not in skipped]
+        if after:
+            first = after[0]
     conn = db.connect()
     cur = conn.execute(
         "INSERT INTO interview_session (user_id, kind, rubric_id, problem_id, started_at, "
-        "status, current_phase, hint_tier, stuck_signals, plan_json, segment_idx) "
-        "VALUES (?,?,?,?,?,'active',?,0,0,?,0)",
+        "status, current_phase, hint_tier, stuck_signals, plan_json, segment_idx, depth, "
+        "skipped_json) VALUES (?,?,?,?,?,'active',?,0,0,?,0,?,?)",
         (user_id, "MIXED" if plan else r.get("type", "HLD"), rubric_id, problem_id, _now(), first,
-         json.dumps(plan) if plan else None))
+         json.dumps(plan) if plan else None, depth,
+         json.dumps(skipped) if skipped else None))
     conn.commit()
     sid = cur.lastrowid
     return {"session_id": sid, "rubric_id": rubric_id, "title": r.get("title", ""),
-            "type": "MIXED" if plan else r.get("type"), "phase": first, "step": 0,
-            "phases": _phase_labels(plan, r), "mixed": bool(plan)}
+            "type": "MIXED" if plan else r.get("type"), "phase": first, "step": len(skipped),
+            "phases": _phase_labels(plan, r), "mixed": bool(plan), "depth": depth,
+            "skipped": skipped}
 
 
 def _phase_labels(plan, r) -> list:

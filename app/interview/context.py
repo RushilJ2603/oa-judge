@@ -27,7 +27,14 @@ BUDGET = {
     "grounding": 8000,
     "transcript": 8000,
 }
-KEEP_VERBATIM = 3          # most recent exchanges kept word-for-word for conversational continuity
+KEEP_VERBATIM = 3          # exchanges kept verbatim in the FLAT prompt (agy path)
+# Exchanges replayed as real turns in the CONVERSATIONAL prompt — much larger than the flat window,
+# because the 3-exchange window was buying stiffness for a saving that may not exist.
+# CAUTION: "prompt size is free" was measured on the AGY path, where 13.8s of session bootstrap
+# swamped it. That does NOT transfer to the API path, which has no bootstrap and where input size
+# plausibly costs time-to-first-token. UNMEASURED (the free-tier quota ran out mid-test). Re-measure
+# before raising this.
+KEEP_TURNS = 14
 MAX_HINT_TIER = 3          # deepest authored hint; past this the interview switches to teaching
 
 
@@ -283,7 +290,14 @@ def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
     """
     if not turns:
         return "(interview has not started)"
-    head, tail = turns[:-keep * 2] if len(turns) > keep * 2 else [], turns[-keep * 2:]
+    # keep <= 0 means "digest everything, keep nothing verbatim" — used by the conversational path,
+    # which replays recent turns as real turns and only wants a summary of what fell off the end.
+    # Written explicitly because `turns[:-0]` is the EMPTY list and `turns[-0:]` is the WHOLE list,
+    # so the obvious slice expression does exactly the opposite of what it reads like.
+    if keep <= 0:
+        head, tail = turns, []
+    else:
+        head, tail = (turns[:-keep * 2] if len(turns) > keep * 2 else []), turns[-keep * 2:]
     out = []
     if head:
         asked = [q for q in (_last_question(t["content"]) for t in head
@@ -303,14 +317,15 @@ def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
 # ------------------------------------------------------------------ assembly
 def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
                dossier: str, turns: list, candidate_answer: str, grounding: str = "",
-               recall: str = "", is_last: bool = False) -> str:
+               recall: str = "", is_last: bool = False, depth: str = "standard",
+               skipped: list = None) -> str:
     """Assemble the full prompt for one interviewer turn.
 
     Order matters: stable material first (role, who they are, the question), volatile last (the
     live transcript and the answer being graded), so the fixed prefix stays identical turn to turn.
     """
     parts = [
-        ROLE,
+        role(depth),
         "=" * 60,
         f"QUESTION: {rubric.get('title','')}  [{rubric.get('type','')}, "
         f"{rubric.get('difficulty','')}]",
@@ -319,6 +334,12 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
         dossier,
         "",
     ]
+    if skipped:
+        # Never skip SILENTLY. Starting three phases in with no explanation reads as the interview
+        # being broken; saying "you have covered this, so we are starting further in" reads as the
+        # interviewer knowing them.
+        parts += [f"ALREADY MASTERED — skipped, do not revisit: {', '.join(skipped)}. Say once, "
+                  f"briefly, that you are starting further in because they have covered it.", ""]
     if recall:
         parts += [recall, ""]
     parts += [
@@ -345,6 +366,107 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
         "Now produce the HIT/PARTIAL/EVIDENCE/STUCK/ADVANCE/SAY block.",
     ]
     return "\n".join(p for p in parts if p is not None)
+
+
+# What "deep" adds. Not a different rubric (only 22 topics have one) and not more thinking tokens —
+# it is PERMISSION. The rubric stops being the ceiling of the interview and becomes its floor.
+DEEP = """
+DEPTH: THIS IS A DEEP INTERVIEW
+The rubric below is the FLOOR, not the ceiling. Cover it — but do not stop there, and do not treat
+it as the list of things worth asking.
+
+  * Once its points are settled, KEEP GOING on this phase's material. Ask the harder question a
+    senior interviewer would ask next: the case that breaks their answer, the constant they waved
+    at, the design they did not consider, the thing that changes at scale.
+  * You may ask about material NO rubric point names. Draw on the REFERENCE and on what you know.
+    Those answers score nothing, and that is fine — this candidate wants to be stretched, not
+    measured.
+  * Do not accept correct-but-shallow. If they give the textbook answer, ask why it is true, or when
+    it stops being true.
+  * Assume they have seen the basics. Skip the warm-up and open somewhere that costs them something.
+
+Set ADVANCE only when you have genuinely finished with this material — not the moment the checklist
+is satisfied."""
+
+
+def role(depth: str = "standard") -> str:
+    """The contract, plus the depth clause when one applies."""
+    return ROLE + (DEEP if depth == "deep" else "")
+
+
+def build_conversation(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
+                       dossier: str, turns: list, candidate_answer: str, grounding: str = "",
+                       recall: str = "", is_last: bool = False, depth: str = "standard",
+                       skipped: list = None, keep: int = 0) -> tuple[str, list]:
+    """The same turn, shaped as a CONVERSATION instead of one flat blob.
+
+    Returns (system_instruction, contents). The interviewer's own earlier replies go back as MODEL
+    turns and the candidate's as USER turns, so the model is continuing something it took part in
+    rather than reading a transcript of it. That is the difference between an interviewer and a fresh
+    chatbot handed a summary every turn.
+
+    Everything volatile still lives in the SYSTEM instruction, rebuilt from scratch here: the current
+    phase and only that phase, the hint tiers earned so far, the dossier. Keeping a genuinely
+    persistent chat would freeze all of that at turn 1 — phase scoping and hint gating would die with
+    it — which is exactly why the conversation is replayed rather than held open.
+    """
+    parts = [role(depth), "=" * 60,
+             f"QUESTION: {rubric.get('title','')}  [{rubric.get('type','')}, "
+             f"{rubric.get('difficulty','')}]", "",
+             "CANDIDATE DOSSIER (persistent memory — do not ask them to repeat this):", dossier, ""]
+    if skipped:
+        parts += [f"ALREADY MASTERED — skipped, do not revisit: {', '.join(skipped)}. Say once, "
+                  f"briefly, that you are starting further in because they have covered it.", ""]
+    if recall:
+        parts += [recall, ""]
+    parts += [render_phase(rubric, phase_name, checkoffs, hint_tier, is_last)]
+    cross = render_crosscut(rubric, phase_name)
+    if cross:
+        parts += ["", cross]
+    if grounding:
+        parts += ["", "REFERENCE — the source material this topic is drawn from. You have read it; "
+                      "the candidate has not. Use it to judge subtle or partly-right answers, to "
+                      "follow a tangent competently, and to answer 'why' when they ask. NEVER quote "
+                      "it at them and never use it to reveal an unmet rubric point.",
+                  _clip(grounding, BUDGET["grounding"])]
+    system = "\n".join(p for p in parts if p is not None)
+
+    # How much real conversation to replay. Much larger than the flat path's window, but BOUNDED —
+    # "send everything" would grow without limit, dilute attention on a long interview, and throw
+    # away the flat-cost property. Anything older than the window is still summarised into the system
+    # instruction, so a long session degrades to the old behaviour rather than forgetting outright.
+    #
+    # NOTE: the "prompt size is free" measurement came from the AGY path, where 13.8s of session
+    # bootstrap swamped it. That does NOT transfer to the API path, which has no bootstrap — input
+    # size plausibly costs time-to-first-token there and has not been measured (quota ran out).
+    # Re-measure before raising KEEP_TURNS.
+    keep = keep or KEEP_TURNS
+    older = turns[:-keep * 2] if len(turns) > keep * 2 else []
+    if older:
+        system += "\n\n" + compact_transcript(older, keep=0)
+
+    contents = []
+    for t in turns[-keep * 2:]:
+        if t["role"] == "candidate":
+            contents.append({"role": "user", "parts": [{"text": t["content"]}]})
+        elif t["role"] == "interviewer":
+            contents.append({"role": "model", "parts": [{"text": t["content"]}]})
+    contents.append({"role": "user", "parts": [{
+        "text": f"{candidate_answer}\n\n[Reply with the HIT/PARTIAL/TAUGHT/EVIDENCE/STUCK/ADVANCE/SAY "
+                f"block exactly as specified. The candidate sees only your SAY line.]"}]})
+    # A conversation must alternate and must open on a user turn. Callers pass the live answer
+    # separately, so whether the tail already contains it depends on the caller — merge rather than
+    # trust, or the model is handed two consecutive candidate turns and reads the older one as the
+    # answer being graded.
+    merged: list = []
+    for c in contents:
+        if merged and merged[-1]["role"] == c["role"]:
+            merged[-1]["parts"][0]["text"] += "\n\n" + c["parts"][0]["text"]
+        else:
+            merged.append(c)
+    while merged and merged[0]["role"] != "user":
+        merged.pop(0)
+    return system, merged
 
 
 def build_opening(rubric: dict, dossier: str, recall: str = "") -> str:

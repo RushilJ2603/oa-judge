@@ -257,6 +257,15 @@ def topic_progress(user_id: int) -> dict[str, dict]:
     return out
 
 
+def point_mastery(user_id: int, rubric_id: str) -> dict[str, float]:
+    """concept_key -> mastery for one topic. Used to decide which opening phases can be skipped."""
+    if not rubric_id:
+        return {}
+    return {r["concept_key"]: r["mastery"] for r in db.connect().execute(
+        "SELECT concept_key, mastery FROM skill WHERE user_id=? AND concept_key LIKE ?",
+        (user_id, rubric_id + ":%"))}
+
+
 def behavior(user_id: int) -> list[dict]:
     return [dict(r) for r in db.connect().execute(
         "SELECT trait, value, observations FROM behavior WHERE user_id=? AND observations >= 2 "

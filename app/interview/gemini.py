@@ -31,18 +31,43 @@ def available() -> bool:
     return bool(key())
 
 
-def generate(prompt: str, timeout: int = 90, model: str = "") -> tuple[str | None, str | None, float]:
-    """(text, error, retry_after_seconds). retry_after is > 0 only when we should stop asking."""
+def generate(prompt: str, timeout: int = 90, model: str = "", system: str = "",
+             history: list | None = None, thinking: int = 0
+             ) -> tuple[str | None, str | None, float]:
+    """(text, error, retry_after_seconds). retry_after is > 0 only when we should stop asking.
+
+    Two shapes, one call:
+
+    * FLAT — `prompt` alone. One blob containing everything. This is what the agy CLI path must use,
+      because `agy --print` takes a single string.
+    * CONVERSATIONAL — `system` + `history`. The interviewer's own earlier replies are sent back as
+      MODEL turns and the candidate's as USER turns, so the model sees a real conversation it took
+      part in rather than a transcript pasted into a prompt. That is what stops it feeling like a
+      fresh chatbot every turn. The system instruction is still rebuilt from scratch each time, which
+      is what keeps phase scoping, hint-tier release and the dossier working — a genuinely persistent
+      chat would freeze the system prompt at turn 1 and lose all three.
+
+    `thinking` is a CAP, not a target: the model spends what the turn needs. Left at 0 it uses the
+    model default, which measured at 640-704 tokens on a real interview turn — less than half the
+    1456-1888 the agy path was doing, so the API path was quietly reasoning less.
+    """
     k = key()
     if not k:
         return None, "no GEMINI_API_KEY", 0.0
     # maxOutputTokens must clear the LONGEST legitimate turn: the role contract asks for full
     # whiteboard-depth explanations when a candidate is stuck at the deepest hint tier, and a
     # truncated explanation is exactly the quality loss the fast path exists to avoid.
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.6, "maxOutputTokens": MAX_TOKENS},
-    }).encode()
+    gen = {"temperature": 0.6, "maxOutputTokens": MAX_TOKENS}
+    if thinking > 0:
+        gen["thinkingConfig"] = {"thinkingBudget": thinking}
+    payload = {"generationConfig": gen}
+    if history:
+        payload["contents"] = history
+        if system:
+            payload["systemInstruction"] = {"parts": [{"text": system}]}
+    else:
+        payload["contents"] = [{"parts": [{"text": prompt}]}]
+    body = json.dumps(payload).encode()
     # Key in a HEADER, never the query string — URLs reach proxy logs, access logs and error reports.
     req = urllib.request.Request(
         f"{API_ROOT}/models/{model or MODEL}:generateContent", data=body, method="POST",
