@@ -88,6 +88,46 @@ def _clip(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 20].rstrip() + "\n…[trimmed]"
 
 
+def _short(s: str, n: int) -> str:
+    """Trim to a word boundary. Rubric points are full sentences, and a hard character cut leaves
+    the model reading half a word ("…building a valid configuration fr"), which looks like data
+    corruption and spends dossier budget on nothing."""
+    s = " ".join((s or "").split())
+    if len(s) <= n:
+        return s
+    return s[:n].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+
+
+# A raw number ("verbosity=0.31") tells a model nothing it can act on. Each trait is therefore
+# rendered as the behaviour it implies, at whichever end of the range it sits — and omitted entirely
+# when it sits in the middle, because "this candidate is averagely talkative" is noise in a prompt.
+_HABITS = {
+    "verbosity": (0.30, 0.70,
+                  "Answers are terse — push for the reasoning behind the answer, not just the answer.",
+                  "Answers run long — it is fair to interrupt and ask them to get to the point."),
+    "hint_dependency": (0.25, 0.60,
+                        "Rarely asks for help — do not offer hints they have not earned; let them work.",
+                        "Leans on hints — make them attempt it themselves before you release one."),
+    "pacing": (0.30, 0.70,
+               "Moves fast through phases — you can raise the bar and probe deeper than usual.",
+               "Takes many turns per phase — keep them moving; do not let one point sprawl."),
+}
+
+
+def _habit_lines(behavior: list) -> list[str]:
+    out = []
+    for b in behavior:
+        spec = _HABITS.get(b["trait"])
+        if not spec:
+            continue
+        lo, hi, low_txt, high_txt = spec
+        if b["value"] <= lo:
+            out.append(low_txt)
+        elif b["value"] >= hi:
+            out.append(high_txt)
+    return out
+
+
 # ------------------------------------------------------------------ dossier
 def render_dossier(facts: list, weak_skills: list, behavior: list, recent: list) -> str:
     """The persistent memory, compacted.
@@ -102,13 +142,14 @@ def render_dossier(facts: list, weak_skills: list, behavior: list, recent: list)
         bits = []
         for s in weak_skills[:8]:
             when = f", last tested {s['last_tested_at'][:10]}" if s.get("last_tested_at") else ""
-            ev = f" — previously: {s['last_evidence']}" if s.get("last_evidence") else ""
-            bits.append(f"  - {s.get('label') or s['concept_key']} "
+            ev = f" — previously: {_short(s['last_evidence'], 90)}" if s.get("last_evidence") else ""
+            bits.append(f"  - {_short(s.get('label') or s['concept_key'], 110)} "
                         f"(mastery {s['mastery']:.0%}{when}){ev}")
         out.append("KNOWN WEAK AREAS (probe these if they arise naturally):\n" + "\n".join(bits))
-    if behavior:
-        out.append("INTERVIEW HABITS: " + "; ".join(
-            f"{b['trait']}={b['value']:.0%}" for b in behavior))
+    habits = _habit_lines(behavior or [])
+    if habits:
+        out.append("INTERVIEW HABITS (observed over past sessions — adapt to these):\n"
+                   + "\n".join(f"  - {t}" for t in habits))
     if recent:
         out.append("RECENT SESSIONS: " + " | ".join(recent[:3]))
     if not out:
@@ -195,7 +236,8 @@ def compact_transcript(turns: list, keep: int = KEEP_VERBATIM) -> str:
 
 # ------------------------------------------------------------------ assembly
 def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
-               dossier: str, turns: list, candidate_answer: str, grounding: str = "") -> str:
+               dossier: str, turns: list, candidate_answer: str, grounding: str = "",
+               recall: str = "") -> str:
     """Assemble the full prompt for one interviewer turn.
 
     Order matters: stable material first (role, who they are, the question), volatile last (the
@@ -210,6 +252,10 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
         "CANDIDATE DOSSIER (persistent memory — do not ask them to repeat this):",
         dossier,
         "",
+    ]
+    if recall:
+        parts += [recall, ""]
+    parts += [
         render_phase(rubric, phase_name, checkoffs, hint_tier),
     ]
     cross = render_crosscut(rubric, phase_name)
@@ -235,11 +281,11 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
     return "\n".join(p for p in parts if p is not None)
 
 
-def build_opening(rubric: dict, dossier: str) -> str:
+def build_opening(rubric: dict, dossier: str, recall: str = "") -> str:
     """The first turn: no answer to grade yet, so this only asks for the opening question."""
     first = rubrics.first_phase(rubric)
     ph = rubrics.phase(rubric, first) or {}
-    return "\n".join([
+    parts = [
         ROLE,
         "=" * 60,
         f"QUESTION: {rubric.get('title','')}  [{rubric.get('type','')}]",
@@ -247,12 +293,14 @@ def build_opening(rubric: dict, dossier: str) -> str:
         "CANDIDATE DOSSIER:",
         dossier,
         "",
+        (recall + "\n") if recall else None,
         f"You are opening the interview at phase '{first}'. Goal: {ph.get('goal','')}",
         "",
         "Greet briefly, state the problem, and ask your FIRST question. Do not list the phases or "
         "reveal the rubric. Return ONLY:",
         "HIT: NONE\nPARTIAL: NONE\nEVIDENCE:\nSTUCK: NO\nADVANCE: NO\nSAY: <your opening>",
-    ])
+    ]
+    return "\n".join(p for p in parts if p is not None)
 
 
 # ------------------------------------------------------------------ response parsing

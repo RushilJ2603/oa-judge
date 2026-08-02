@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-08-02 14:00 IST (session 7 — +3 gated problems, statement-render fix, and a full MOCK INTERVIEW system: 322 gated rubrics, per-user memory, 16-user concurrency) | By: Claude (Opus 4.8, via Claude Code)
+# Last Updated: 2026-08-02 (session 8 — interview polish: dollar-LaTeX in live model output, deletable/recency-ordered history with a real dossier unwind, a visible Weak-spots tab, cross-session topic recall, progress-rail fix) | By: Claude (Opus 5, via Claude Code)
 
 ## Current Phase
 **Live & multi-user; the judge + built-in compiler are stable and the newer surface area is learning
@@ -12,7 +12,7 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets: **style.css v35, interview.js v8, sheets.js v25, app.js v16, editor.js v17**.
+  persistent volume `/data`. Static assets: **style.css v36, interview.js v9, sheets.js v25, app.js v16, editor.js v17**.
 - **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
   (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
@@ -46,16 +46,62 @@ quality is still enforced by the same tooling gates.
   - **Host mode = running the worker.** `Start Interviewer.bat` on the Desktop (Windows→WSL bridge).
     Heartbeat drives "Interviewer online"; stopping it lets Fly sleep (~$0.09/mo). 24/7 ≈ $3/mo.
   - **Speech both ways:** dictation (Web Speech) + interviewer TTS with ranked neural-voice selection.
-  - **Past interviews** are listed, scored, and **resumable** — a session stranded by the worker dying
-    re-queues its pending turn instead of being lost.
+  - **Past interviews** are listed **newest-talked-to first**, scored, **resumable** and **deletable**
+    — a session stranded by the worker dying re-queues its pending turn instead of being lost, and
+    deleting one erases its dossier contribution too (`rebuild_skills` replays the EMA over surviving
+    evidence, because a deleted session's outcomes are already baked into the average).
+  - **Weak spots tab** — the accumulated rubric misses, rolled up per topic, worst first, each one
+    clickable to drill, plus "drill the top 4 in one loop". Previously this evidence only steered loop
+    composition invisibly.
+  - **Cross-session topic recall** — starting a topic you have sat before injects prior-attempt COUNTS
+    (how many times, when, what you scored, how many of its points are still weak) but never point ids
+    or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    17 invariants in `test_interview.py`; 322/322 re-gated from scratch.
+    **50 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
-## Shipped this session (session 7, 2026-08-01 → 08-02)
+## Shipped this session (session 8, 2026-08-02)
+Four asks, all from using the thing for real.
+- **Raw LaTeX in interviewer replies (`$\text{RT} = \text{WT}$`).** Two causes. (1) `md.py` only
+  understood `\(…\)`; authored statements can be rewritten offline but *live model output cannot*, so
+  `$…$`/`$$…$$` are now handled — with strict boundaries (opening `$` followed by non-space, closing
+  `$` preceded by non-space and not followed by a word char) so "it costs $5 and $10" stays prose.
+  (2) **Reopened interviews rendered nothing at all** — only raw markdown is stored and the live turn
+  was rendered at apply-time, so resume/history showed literal `**bold**` and fences. `turns_for_ui()`
+  renders interviewer turns server-side.
+  Also rewrote `_math_inner` as ONE `\name` lookup pass: per-command `\b` anchors were silently wrong
+  where it mattered (`\sum_{i=1}` — `_` is a word char, so the boundary failed and the sigma never
+  appeared), and prefix pairs like `\in`/`\infty` were ordering-sensitive. Code spans are now pulled
+  out BEFORE every other rule, which also fixed a pre-existing bug where `*` inside backticks was
+  italicised (`nums[i-1]*nums[i]*nums[i+1]` rendered as `nums[i-1]<em>nums[i]</em>…`).
+  **Measured across the bank: 166 user-facing files, 56 leftover LaTeX artefacts → 0, 0 injected tags.**
+- **Delete past interviews + order by last interaction.** `DELETE /api/interview/session/<id>` hard-
+  deletes session/turns/checkoffs/jobs and then rebuilds the skill model from surviving evidence —
+  filtering at read time would have been cheaper and *wrong*, since mastery is an accumulated EMA.
+  History now sorts on `MAX(turn.created_at)` (falling back to ended/started) and shows a relative
+  "3 hours ago", so the thing you sorted on is the thing displayed.
+- **Weak spots made visible** (the "where is that feature?" ask). It existed only as invisible
+  weakness-first sorting inside `mixed.compose`. Now a tab: per-topic mastery rolled up from rubric
+  points, "3 of 7 points still shaky", click to drill, or start a 4-topic loop from the top of the list.
+- **Context management.** Two real holes closed: `record_behavior` had **zero callers**, so the
+  behavioural profile was dead code and "INTERVIEW HABITS" never appeared — now written at session
+  close from stored turns + the app's own stuck counter (never the model's opinion), and rendered as
+  *actionable instructions* rather than "verbosity=0.31". And the dossier excludes the live rubric to
+  avoid leaking answers, which also meant the interviewer had no idea it had asked you this before —
+  `topic_recall` re-adds that as counts only. Also: weak-area labels now trim on a word boundary, and
+  recent sessions name the topic instead of the corpus id.
+- **Progress-rail bug found by the new drill loop.** The rail located the current step with
+  `phases.indexOf(phase)`; a mixed loop repeats phase names across segments, so being in segment 3's
+  "approach" highlighted segment 1's. Walked a 3-segment loop end to end: the old logic produced
+  `[0,1,0,1,0,1]`. The server now sends an absolute `step`.
+- **Timestamps to microseconds** in `session.py`/`dossier.py` — the ordering key has to be finer than
+  the events it orders, and `rebuild_skills` replays an order-dependent EMA over checkoffs written in
+  one tight loop (at second precision they all tie and the replay order is arbitrary).
+
+## Shipped in session 7 (2026-08-01 → 08-02)
 - **+2 gated Arcesium problems** (Iris — Personal): `arcesium-max-campaign-score` (Hard — top-k of all
   n(n+1)/2 window spreads; the user's PQ sweep was the trap) and `arcesium-banquet-seating` (Medium —
   feasible iff `m ≥ n + (S − minD) + maxD`, cross-checked against exhaustive circular permutations).
@@ -143,10 +189,13 @@ quality is still enforced by the same tooling gates.
 >    does not include API access).
 > 3. **CP-sheet dedup** — 312 cross-topic duplicate copies analysed, user chose "keep best-fit",
 >    **not executed**. `app/sheets/cp.json`; the 3 digest/ladder sections re-list by design.
-> 4. **Mixed-loop tests** — `_next_step`/segment-hop is verified manually but has no entry in
->    `test_interview.py`.
+> 4. ~~Mixed-loop tests~~ — **done (session 8)**: `check_rail()` walks a 3-segment loop end to end,
+>    exercising `_next_step`/segment-hop and pinning the absolute step index.
 > 5. Optional: judged **DSA interview round** (wire the interview to the real judge so code is actually
 >    run against hidden tests during a session).
+> 6. Optional: the mixed-loop **rail shows repeated phase names** ("recognition, approach" ×3) with no
+>    indication of which topic each belongs to. The highlight is now correct; the labels are still
+>    ambiguous. Grouping the rail by segment would need `_phase_labels` to return topic info.
 
 ## Environment Notes
 - OS: Windows 11 + WSL2; app at `C:\Users\jishu\Desktop\oa-judge` (= `/mnt/c/Users/jishu/Desktop/oa-judge`).
@@ -181,6 +230,11 @@ quality is still enforced by the same tooling gates.
 | Hidden tests **gzipped**; deploy the `.gz` reader **before** the compressed bank | ~2.9× smaller ≈ doubles the volume ceiling; ordering keeps the live app readable | 2026-07-25 |
 
 ## Known Issues / Tech Debt
+- **No JS runtime in WSL** (`node`/`deno`/`bun` all absent), so `interview.js` cannot even be
+  syntax-checked locally, let alone run. Session 7's TDZ `ReferenceError` (history list silently empty
+  while the tab said "(1)", endpoints 200 throughout) was found only in a browser. Mitigation used in
+  session 8: drive the same state machine through Python against a live `test_client()` and assert on
+  the JSON the UI consumes. That catches server bugs, not client ones.
 - **Interview latency floor is ~16s** on the agy CLI path (0.3s spawn + ~5s auth + ~8s generation; no
   warm-up, and `--output-format stream-json` is parsed as prompt text so streaming is unavailable).
   `GEMINI_API_KEY` would fix it; see Next Session.

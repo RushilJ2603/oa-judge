@@ -20,8 +20,13 @@
     return r.json();
   }
 
+  async function jdel(p) {
+    const r = await fetch(p, { method: 'DELETE' });
+    return r.json();
+  }
+
   const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '',
-              shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [] };
+              shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [], weak: [] };
 
   // ------------------------------------------------------------------ entry
   async function render() {
@@ -30,17 +35,22 @@
     if (S.session) { renderSession(); return; }
     host.innerHTML = '<p class="spinner">Loading…</p>';
     let status = { online: false, rubrics: 0 }, cat = { items: [] },
-        shapes = { shapes: [], subjects: [] }, hist = { sessions: [] };
+        shapes = { shapes: [], subjects: [] }, hist = { sessions: [] }, weak = { topics: [] };
     try {
-      [status, cat, shapes, hist] = await Promise.all([
+      [status, cat, shapes, hist, weak] = await Promise.all([
         jget('/api/interview/status'), jget('/api/interview/catalog'),
-        jget('/api/interview/shapes'), jget('/api/interview/history')]);
+        jget('/api/interview/shapes'), jget('/api/interview/history'),
+        jget('/api/interview/weak')]);
     } catch (e) { host.innerHTML = '<p class="placeholder">Could not load interviews.</p>'; return; }
     S.catalog = cat.items || [];
     S.shapes = shapes.shapes || [];
     S.subjects = shapes.subjects || [];
     S.history = hist.sessions || [];
+    S.weak = weak.topics || [];
     S.status = status;
+    // Landing on an empty tab reads as a broken feature, so a tab that has nothing to show is not
+    // where you start.
+    if (S.tab === 'weak' && !S.weak.length) S.tab = 'loops';
     renderCatalog(status);
   }
 
@@ -53,13 +63,16 @@
       `<div class="iv-offline">The interviewer runs on a host machine that is not currently up.
        You can still browse — start a session once it is online.</div>`;
 
-    const tabs = [['loops', 'Interview loops'], ['topics', 'By topic'],
+    const tabs = [['loops', 'Interview loops'],
+                  ['weak', `Weak spots${S.weak.length ? ' (' + S.weak.length + ')' : ''}`],
+                  ['topics', 'By topic'],
                   ['history', `Past interviews${S.history.length ? ' (' + S.history.length + ')' : ''}`]];
     const tabBar = `<div class="iv-tabs">` + tabs.map(([k, l]) =>
       `<button class="iv-tab ${S.tab === k ? 'active' : ''}" data-tab="${k}">${esc(l)}</button>`).join('') + `</div>`;
 
     let body = '';
     if (S.tab === 'loops') body = renderLoops();
+    else if (S.tab === 'weak') body = renderWeak();
     else if (S.tab === 'topics') body = renderTopics();
     else body = renderHistory();
 
@@ -79,9 +92,8 @@
       el.addEventListener('click', () => { S.tab = el.dataset.tab; renderCatalog(status); }));
     wireLoops(status);
     wireTopics(status);
-    host.querySelectorAll('.iv-hist-row').forEach((el) =>
-      el.addEventListener('click', () =>
-        el.dataset.active === '1' ? resume(+el.dataset.sid) : showReport(+el.dataset.sid)));
+    wireWeak();
+    wireHistory();
   }
 
   // --- tab 1: loops (the default — a real onsite spans subjects) ---------------
@@ -177,7 +189,47 @@
     });
   }
 
-  // --- tab 3: past interviews -------------------------------------------------
+  // --- tab 3: weak spots ------------------------------------------------------
+  /* The evidence from past interviews, made visible and actionable. It already drove loop
+     composition invisibly (mixed.compose sorts weakness-first) — which meant the feature existed
+     but nobody could SEE it, so it may as well not have. */
+  function renderWeak() {
+    if (!S.weak.length) {
+      return `<p class="placeholder">Nothing here yet — weak spots are built from what you miss in
+              interviews. Finish a loop or two and the topics you struggled with will collect here,
+              worst first, ready to drill.</p>`;
+    }
+    const rows = S.weak.map((t) => {
+      const pct = Math.round(t.mastery * 100);
+      const when = t.last_tested_at ? ' · last tested ' + esc((t.last_tested_at || '').slice(0, 10)) : '';
+      return `<button class="iv-weak-row" data-id="${esc(t.id)}" title="Drill this topic now">
+                <span class="iv-weak-main">
+                  <span class="iv-weak-t">${esc(t.title)}</span>
+                  <span class="iv-weak-sub">${esc(t.subject_label)} · ${t.weak_points} of ${t.points}
+                    points still shaky${when}</span>
+                </span>
+                <span class="iv-meter iv-weak-meter"><div style="width:${pct}%"></div></span>
+                <b class="iv-weak-pct">${pct}%</b>
+              </button>`;
+    }).join('');
+    return `<div class="iv-weak-head">
+              <p class="iv-sub">Built from the rubric points you actually missed — worst first.</p>
+              <button class="btn btn-primary" id="iv-weak-drill">Drill the top ${
+                Math.min(4, S.weak.length)} in one loop</button>
+            </div>
+            <div class="iv-weak">${rows}</div>`;
+  }
+
+  function wireWeak() {
+    const host = $('interview-inner');
+    host.querySelectorAll('.iv-weak-row').forEach((el) =>
+      el.addEventListener('click', () => start(el.dataset.id)));
+    const drill = $('iv-weak-drill');
+    if (drill) drill.addEventListener('click', () =>
+      start(null, null, null, S.weak.slice(0, 4).map((t) => t.id)));
+  }
+
+  // --- tab 4: past interviews -------------------------------------------------
   function renderHistory() {
     if (!S.history.length) {
       return '<p class="placeholder">No interviews yet. Your sessions, scores and every point you missed will appear here.</p>';
@@ -187,31 +239,78 @@
       // declaration throws a TDZ ReferenceError, which killed the whole history list silently.
       const live = h.status === 'active';
       const pct = h.overall == null ? '—' : Math.round(h.overall * 100) + '%';
-      const when = (h.started_at || '').slice(0, 16).replace('T', ' ');
+      // Sorted by last interaction, so the timestamp shown must be the same one it sorted on —
+      // showing "started 12 Jul" at the top of the list looks like the sort is broken.
+      const when = ago(h.last_at || h.started_at);
       const state = h.status === 'done' ? '' :
         `<span class="iv-hist-state">${live ? '▸ continue' : esc(h.status)}</span>`;
-      return `<button class="iv-hist-row" data-sid="${h.id}" data-active="${live ? 1 : 0}"
-                title="${live ? 'Continue this interview' : 'See the report'}">
-                <span class="iv-hist-main">
-                  <span class="iv-hist-t">${esc(h.title || h.kind)}${h.mixed ? ' <span class="iv-hist-mix">loop</span>' : ''}</span>
-                  <span class="iv-hist-sub">${esc(when)} · ${h.answers} answers${h.summary ? ' · ' + esc(h.summary) : ''}</span>
-                </span>
-                ${state}<span class="iv-hist-score">${pct}</span>
-              </button>`;
+      return `<div class="iv-hist-item">
+                <button class="iv-hist-row" data-sid="${h.id}" data-active="${live ? 1 : 0}"
+                  title="${live ? 'Continue this interview' : 'See the report'}">
+                  <span class="iv-hist-main">
+                    <span class="iv-hist-t">${esc(h.title || h.kind)}${h.mixed ? ' <span class="iv-hist-mix">loop</span>' : ''}</span>
+                    <span class="iv-hist-sub">${esc(when)} · ${h.answers} answers${h.summary ? ' · ' + esc(h.summary) : ''}</span>
+                  </span>
+                  ${state}<span class="iv-hist-score">${pct}</span>
+                </button>
+                <button class="icon-btn iv-hist-del" data-sid="${h.id}"
+                  data-title="${esc(h.title || h.kind)}"
+                  title="Delete this interview and everything it taught the interviewer about you"
+                  aria-label="Delete interview">✕</button>
+              </div>`;
     }).join('') + '</div>';
   }
 
+  /* "3 hours ago" beats "2026-08-01 14:20" for a list whose whole point is recency — you can see
+     the order is right without doing date arithmetic. */
+  function ago(ts) {
+    if (!ts) return '';
+    const t = Date.parse(/Z|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts + 'Z');
+    if (isNaN(t)) return String(ts).slice(0, 16).replace('T', ' ');
+    const mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+    const days = Math.round(hrs / 24);
+    if (days < 30) return days + (days === 1 ? ' day ago' : ' days ago');
+    return new Date(t).toISOString().slice(0, 10);
+  }
+
+  function wireHistory() {
+    const host = $('interview-inner');
+    host.querySelectorAll('.iv-hist-row').forEach((el) =>
+      el.addEventListener('click', () =>
+        el.dataset.active === '1' ? resume(+el.dataset.sid) : showReport(+el.dataset.sid)));
+    host.querySelectorAll('.iv-hist-del').forEach((el) =>
+      el.addEventListener('click', async (e) => {
+        e.stopPropagation();                       // never open the interview you meant to delete
+        const sid = +el.dataset.sid;
+        if (!window.confirm(
+          `Delete “${el.dataset.title}”?\n\nThe transcript, its score and everything it contributed ` +
+          `to your weak spots are removed for good. The interviewer will no longer remember it.`)) return;
+        el.disabled = true;
+        const r = await jdel('/api/interview/session/' + sid);
+        if (r && r.error) { el.disabled = false; alert(r.error); return; }
+        // Weak spots are recomputed server-side by the delete, so reload rather than splicing
+        // locally — otherwise the two tabs disagree about what you know.
+        await render();
+      }));
+  }
+
   // ------------------------------------------------------------------ session
-  async function start(rubricId, shape, exclude) {
+  async function start(rubricId, shape, exclude, rubricIds) {
     const host = $('interview-inner');
     host.innerHTML = '<p class="spinner">Starting the interview…</p>';
-    const payload = shape ? { shape }
+    const payload = rubricIds ? { rubric_ids: rubricIds }
+      : shape ? { shape }
       : exclude ? { exclude, segments: 4 }
       : { rubric_id: rubricId };
     const r = await jpost('/api/interview/start', payload);
     if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
     S.session = { id: r.session_id, title: r.title, type: r.type, phases: r.phases,
-                  phase: r.phase, turns: [], thinking: true, hintTier: 0, done: false };
+                  phase: r.phase, step: r.step || 0, turns: [], thinking: true,
+                  hintTier: 0, done: false };
     renderSession();
     poll(r.job_id);
   }
@@ -331,11 +430,12 @@
     if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
     S.session = {
       id: r.session_id, title: r.title, type: r.type, phases: r.phases || [],
-      phase: r.phase, hintTier: r.hint_tier || 0, done: false,
-      // Rebuild the visible transcript from the server; older interviewer turns were stored as
-      // plain text, so they fall back to escaped text rather than rendered markdown.
+      phase: r.phase, step: r.step || 0, hintTier: r.hint_tier || 0, done: false,
+      // Rebuild the visible transcript from the server, which renders interviewer turns for us.
+      // Only the raw markdown is stored, so without carrying `html` through here a reopened
+      // interview showed every past turn as literal **markdown**, fences and all.
       turns: (r.turns || []).filter((t) => t.role !== 'system')
-                            .map((t) => ({ role: t.role, content: t.content })),
+                            .map((t) => ({ role: t.role, content: t.content, html: t.html || '' })),
       thinking: !!r.job_id,
     };
     renderSession();
@@ -344,7 +444,10 @@
 
   function renderSession() {
     const s = S.session, host = $('interview-inner');
-    const idx = s.phases.indexOf(s.phase);
+    // The server hands over the absolute step. Looking the phase name up in the rail instead is
+    // wrong for a mixed loop, where several segments repeat the same phase names — indexOf finds
+    // the first match, so being in segment 3's "approach" would light up segment 1's.
+    const idx = (typeof s.step === 'number' && s.step >= 0) ? s.step : s.phases.indexOf(s.phase);
     const rail = s.phases.map((p, i) => {
       const cls = s.done ? 'done' : (i < idx ? 'done' : i === idx ? 'now' : '');
       return `<span class="iv-step ${cls}" title="${esc(p)}">${esc(p.replace(/_/g, ' '))}</span>`;
@@ -471,6 +574,7 @@
         s.turns.push({ role: 'interviewer', content: r.say || '…', html: r.say_html || '' });
         speak(r.say || '');
         if (r.phase) s.phase = r.phase;
+        if (typeof r.step === 'number') s.step = r.step;
         s.hintTier = r.hint_tier || 0;
         s.done = !!r.done;
         renderSession();

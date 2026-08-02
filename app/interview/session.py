@@ -35,7 +35,10 @@ def _tier_for(stuck: int) -> int:
 
 
 def _now():
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    # Microseconds, not seconds: history sorts by last interaction, so the ordering key has to be
+    # finer-grained than the events it orders. ISO-8601 still sorts lexicographically, and rows
+    # already stored at second precision compare correctly against these.
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="microseconds")
 
 
 # ------------------------------------------------------------------ lifecycle
@@ -64,7 +67,7 @@ def start(user_id: int, rubric_id: str, problem_id: str = None, plan: list = Non
     conn.commit()
     sid = cur.lastrowid
     return {"session_id": sid, "rubric_id": rubric_id, "title": r.get("title", ""),
-            "type": "MIXED" if plan else r.get("type"), "phase": first,
+            "type": "MIXED" if plan else r.get("type"), "phase": first, "step": 0,
             "phases": _phase_labels(plan, r), "mixed": bool(plan)}
 
 
@@ -79,6 +82,29 @@ def _phase_labels(plan, r) -> list:
         for ph in (seg.get("phases") or [p["phase"] for p in sr.get("phases", [])]):
             out.append(ph)
     return out
+
+
+def step_index(s, r, phase: str) -> int:
+    """Absolute position in the flattened progress rail.
+
+    The rail spans every segment of a mixed round, and segments of the same type repeat their phase
+    names — "recognition, approach, implementation" three times over for a three-topic CP loop. The
+    UI cannot therefore locate the current step by looking the phase name up in the list: it would
+    find the first match and highlight segment 1 while the candidate is in segment 3. So the server,
+    which knows the segment index, hands over the position directly.
+    """
+    plan = _plan(s)
+    if not plan:
+        names = [p["phase"] for p in (r or {}).get("phases", [])]
+        return names.index(phase) if phase in names else 0
+    offset = 0
+    for i, seg in enumerate(plan):
+        sr = rubrics.load(seg["rubric_id"]) or {}
+        names = seg.get("phases") or [p["phase"] for p in sr.get("phases", [])]
+        if i == s["segment_idx"]:
+            return offset + (names.index(phase) if phase in names else 0)
+        offset += len(names)
+    return offset
 
 
 def _plan(s) -> list | None:
@@ -99,6 +125,23 @@ def turns(session_id: int) -> list[dict]:
     return [dict(r) for r in db.connect().execute(
         "SELECT role, content, phase, hint_tier FROM interview_turn "
         "WHERE session_id=? ORDER BY idx", (session_id,))]
+
+
+def turns_for_ui(session_id: int) -> list[dict]:
+    """Transcript for the browser, with interviewer turns rendered.
+
+    Only the raw markdown is stored, and it is rendered at apply-time for the live turn — so a
+    REOPENED interview used to show every past interviewer turn as literal markdown (`**bold**`,
+    fenced blocks, `$…$` math). Rendering here means resuming looks identical to living through it.
+    Candidate turns stay plain text on purpose: their own input is never treated as markup.
+    """
+    out = []
+    for t in turns(session_id):
+        t = dict(t)
+        if t["role"] == "interviewer":
+            t["html"] = render_md(t["content"])
+        out.append(t)
+    return out
 
 
 def add_turn(session_id: int, user_id: int, role: str, content: str,
@@ -122,9 +165,12 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     if not r:
         return None
     dos = dossier.render(user_id, exclude_rubric=s["rubric_id"])
+    # Prior attempts at THIS topic are excluded from the dossier (naming a weak point of the live
+    # question leaks its answer), so they are re-added here as counts only — see topic_recall.
+    recall = dossier.topic_recall(user_id, s["rubric_id"], session_id)
     tl = turns(session_id)
     if not tl:
-        return context.build_opening(r, dos)
+        return context.build_opening(r, dos, recall)
     # In a mixed round the subject can change mid-session; the prompt always describes the segment
     # the candidate is actually in, so the interviewer never grades against the previous subject.
     last = tl[-1]
@@ -135,7 +181,7 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     # model call is auth-dominated, not token-dominated (a two-token reply still costs ~14s).
     return context.build_turn(r, s["current_phase"], _checkoff_map(session_id, s["current_phase"]),
                               s["hint_tier"], dos, tl[:-1] if answer else tl, answer,
-                              grounding=rubrics.source_text(s["rubric_id"]))
+                              grounding=rubrics.source_text(s["rubric_id"]), recall=recall)
 
 
 def _checkoff_map(session_id: int, phase: str) -> dict:
@@ -194,9 +240,10 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
 
     say = parsed["say"] or "Go on."
     add_turn(session_id, user_id, "interviewer", say, phase, tier)
-    return {"say": say, "say_html": render_md(say), "phase": phase, "hint_tier": tier,
-            "advanced": advanced, "phase_score": score, "hit": hit, "partial": partial,
-            "done": phase is None}
+    step = step_index({**s, "segment_idx": seg_idx}, rubrics.load(rubric_id), phase) if phase else -1
+    return {"say": say, "say_html": render_md(say), "phase": phase, "step": step,
+            "hint_tier": tier, "advanced": advanced, "phase_score": score, "hit": hit,
+            "partial": partial, "done": phase is None}
 
 
 def render_md(text: str) -> str:
@@ -274,19 +321,30 @@ def _finish(user_id: int, session_id: int, s) -> None:
         "UPDATE interview_session SET status='done', ended_at=?, score_json=?, summary=? WHERE id=?",
         (_now(), json.dumps({"overall": overall, "phases": scores}), summary, session_id))
     db.connect().commit()
+    # HOW they interviewed, not just what they knew. Derived from stored turns and the app's own
+    # stuck counter — the model never gets a vote on its own candidate's habits.
+    dossier.observe_session(user_id, session_id, len(scores))
 
 
 def history(user_id: int, limit: int = 50) -> list[dict]:
-    """Past interviews, newest first — every session is already stored, this just surfaces them.
+    """Past interviews, MOST RECENTLY TALKED TO first.
+
+    Ordering by started_at was wrong in the way that actually bites: pick up a three-week-old
+    interview, talk to it for twenty minutes, and it stays buried under sessions you have not opened
+    since. The list is a conversation list, so it sorts by last interaction — the timestamp of the
+    newest turn, falling back to ended_at/started_at for a session with no turns yet.
 
     Includes active/abandoned ones so a session interrupted by the worker dying (WSL down, laptop
     asleep) is visible and resumable rather than silently lost.
     """
     out = []
     for r in db.connect().execute(
-            "SELECT id, kind, rubric_id, started_at, ended_at, status, current_phase, score_json, "
-            "summary, plan_json FROM interview_session WHERE user_id=? "
-            "ORDER BY started_at DESC LIMIT ?", (user_id, limit)):
+            "SELECT s.id, s.kind, s.rubric_id, s.started_at, s.ended_at, s.status, "
+            "       s.current_phase, s.score_json, s.summary, s.plan_json, "
+            "       COALESCE((SELECT MAX(t.created_at) FROM interview_turn t "
+            "                  WHERE t.session_id = s.id), s.ended_at, s.started_at) AS last_at "
+            "FROM interview_session s WHERE s.user_id=? "
+            "ORDER BY last_at DESC, s.id DESC LIMIT ?", (user_id, limit)):
         s = dict(r)
         rs = _rubrics_in(s)
         title = " + ".join(x.get("title", "") for x in rs) if rs else s["rubric_id"]
@@ -301,11 +359,39 @@ def history(user_id: int, limit: int = 50) -> list[dict]:
             (s["id"],)).fetchone()["n"]
         out.append({
             "id": s["id"], "kind": s["kind"], "title": title, "started_at": s["started_at"],
-            "ended_at": s["ended_at"], "status": s["status"], "phase": s["current_phase"],
-            "overall": overall, "summary": s["summary"], "answers": n_turns,
-            "mixed": bool(s["plan_json"]),
+            "ended_at": s["ended_at"], "last_at": s["last_at"], "status": s["status"],
+            "phase": s["current_phase"], "overall": overall, "summary": s["summary"],
+            "answers": n_turns, "mixed": bool(s["plan_json"]),
         })
     return out
+
+
+def delete(user_id: int, session_id: int) -> bool:
+    """Erase an interview and every trace it left in the dossier.
+
+    "Deleted" has to mean deleted, or the feature is a lie: a session you removed must not keep
+    steering what the interviewer thinks you are weak at. So this is a hard delete of the session,
+    its transcript, its rubric evidence and any queued work — followed by a full rebuild of the
+    skill model from the evidence that SURVIVED. Filtering at read time would have been cheaper and
+    wrong, because mastery is an accumulated average: the deleted session's contribution is already
+    baked into the number and only a replay can take it back out.
+
+    Scoped by user_id at every step, so one friend can never delete another's history.
+    """
+    conn = db.connect()
+    if not conn.execute("SELECT 1 FROM interview_session WHERE id=? AND user_id=?",
+                        (session_id, user_id)).fetchone():
+        return False
+    conn.execute("DELETE FROM interview_turn WHERE session_id=? AND user_id=?",
+                 (session_id, user_id))
+    conn.execute("DELETE FROM interview_checkoff WHERE session_id=? AND user_id=?",
+                 (str(session_id), user_id))
+    conn.execute("DELETE FROM interview_job WHERE session_id=? AND user_id=?",
+                 (session_id, user_id))
+    conn.execute("DELETE FROM interview_session WHERE id=? AND user_id=?", (session_id, user_id))
+    conn.commit()
+    dossier.rebuild_skills(user_id)
+    return True
 
 
 def _was_walked(session_id: int, phase: str) -> bool:

@@ -1335,6 +1335,41 @@ select option { background: var(--bg-elev); color: var(--text); }
 .iv-hist-state { font-size: 11px; color: var(--warn); white-space: nowrap; }
 .iv-hist-score { font-weight: 700; font-size: 15px; min-width: 46px; text-align: right; }
 
+/* Delete sits beside the row, not inside it: nested buttons are invalid HTML and, worse, one
+   mis-aimed click would open the interview you were trying to remove. It stays faint until you are
+   on the row — destructive, so it should not compete for attention. */
+.iv-hist-item { display: flex; align-items: stretch; gap: 6px; }
+.iv-hist-item .iv-hist-row { flex: 1; min-width: 0; }
+.iv-hist-del { flex-shrink: 0; opacity: 0; transition: opacity .12s, color .12s, border-color .12s; }
+.iv-hist-item:hover .iv-hist-del, .iv-hist-del:focus-visible { opacity: 1; }
+.iv-hist-del:hover { color: var(--error);
+    border-color: color-mix(in srgb, var(--error) 50%, var(--border)); }
+
+/* Weak spots — the same visual language as the report's per-phase meters, because it is the same
+   evidence, just accumulated across sessions instead of within one. */
+.iv-weak-head { display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-top: 16px; flex-wrap: wrap; }
+.iv-weak-head .iv-sub { margin: 0; }
+.iv-weak { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.iv-weak-row { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-elev); color: var(--text); font-family: inherit; cursor: pointer;
+    transition: border-color .12s; }
+.iv-weak-row:hover { border-color: var(--accent); }
+.iv-weak-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.iv-weak-t { font-weight: 600; font-size: 13.5px; }
+.iv-weak-sub { font-size: 11.5px; color: var(--text-muted); }
+.iv-weak-meter { width: 110px; flex-shrink: 0; }
+.iv-weak-meter div { background: var(--warn); }
+.iv-weak-pct { font-weight: 700; font-size: 14px; min-width: 42px; text-align: right;
+    color: var(--warn); }
+
+@media (max-width: 900px) {
+    .iv-weak-meter { display: none; }         /* the % is the signal; the bar is decoration */
+    .iv-weak-head .btn { width: 100%; }
+    .iv-hist-del { opacity: 1; }              /* no hover on touch — it would be unreachable */
+}
+
 @media (max-width: 900px) {
     .iv-tabs { overflow-x: auto; scrollbar-width: none; }
     .iv-tabs::-webkit-scrollbar { display: none; }

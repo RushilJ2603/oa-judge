@@ -7,49 +7,131 @@ CommonMark implementation; deliberately small so the app needs no pip installs.
 import html
 import re
 
-# --- Inline LaTeX math: authored statements (esp. Grok-generated ones) wrap constraints in \(...\)
-# with commands like \le, 10^5, N_i. This tiny renderer has no KaTeX; converting to Unicode +
-# <sup>/<sub> keeps it dependency-free and renders everywhere. Only the inside of \(...\)/\[...\] is
-# touched, so plain prose and `code spans` (e.g. the older `2 <= n <= 10^5` style) are untouched. ---
-_MATH_CMDS = [
-    (r"\\leq?\b", "≤"), (r"\\geq?\b", "≥"), (r"\\neq\b", "≠"), (r"\\ne\b", "≠"),
-    (r"\\times\b", "×"), (r"\\cdot\b", "·"), (r"\\pm\b", "±"), (r"\\bmod\b", " mod "),
-    (r"\\ldots\b", "…"), (r"\\dots\b", "…"), (r"\\cdots\b", "…"),
-    (r"\\to\b", "→"), (r"\\rightarrow\b", "→"), (r"\\leftarrow\b", "←"),
-    (r"\\infty\b", "∞"), (r"\\lfloor\b", "⌊"), (r"\\rfloor\b", "⌋"),
-    (r"\\lceil\b", "⌈"), (r"\\rceil\b", "⌉"), (r"\\%", "%"), (r"\\\$", "$"),
-]
+# --- Inline LaTeX math. Authored statements wrap constraints in \(...\); live model output uses
+# $...$. Both are handled. This tiny renderer has no KaTeX; converting to Unicode + <sup>/<sub> keeps
+# it dependency-free and renders everywhere. Only the inside of a math span is touched, and `code
+# spans` are lifted out before any rule runs, so prose and code are never rewritten. ---
+# A LaTeX command name is letters only, so it always ends at the first non-letter. That single fact
+# is why this is ONE lookup pass over `\name` rather than a list of patterns: per-command \b anchors
+# get it wrong exactly where it matters ("\sum_{i=1}" — \b fails because _ is a word character, so
+# the sigma silently never appeared), and prefix pairs like \in/\infty become ordering-sensitive.
+# Unknown commands fall through to their bare name, which is right for \log, \min, \max, \gcd.
+_MATH_SYMBOLS = {
+    "le": "≤", "leq": "≤", "ge": "≥", "geq": "≥", "ne": "≠", "neq": "≠",
+    "times": "×", "cdot": "·", "pm": "±", "bmod": " mod ", "div": "÷", "ast": "*",
+    "ldots": "…", "dots": "…", "cdots": "…", "vdots": "⋮",
+    "to": "→", "rightarrow": "→", "leftarrow": "←", "leftrightarrow": "↔",
+    "Rightarrow": "⇒", "Leftarrow": "⇐", "Leftrightarrow": "⇔", "iff": "⇔", "implies": "⇒",
+    "infty": "∞", "lfloor": "⌊", "rfloor": "⌋", "lceil": "⌈", "rceil": "⌉",
+    "approx": "≈", "equiv": "≡", "sim": "∼", "simeq": "≃", "propto": "∝", "ll": "≪", "gg": "≫",
+    "in": "∈", "notin": "∉", "subset": "⊂", "subseteq": "⊆", "supset": "⊃", "supseteq": "⊇",
+    "cup": "∪", "cap": "∩", "setminus": "∖", "emptyset": "∅", "varnothing": "∅",
+    "sum": "Σ", "prod": "Π", "int": "∫", "oplus": "⊕", "otimes": "⊗",
+    "forall": "∀", "exists": "∃", "land": "∧", "lor": "∨", "wedge": "∧", "vee": "∨",
+    "lnot": "¬", "neg": "¬", "mid": "|", "colon": ":", "cong": "≅",
+    # Greek, and the complexity classes an interviewer reaches for constantly.
+    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε",
+    "zeta": "ζ", "eta": "η", "theta": "θ", "kappa": "κ", "lambda": "λ", "mu": "μ", "nu": "ν",
+    "xi": "ξ", "pi": "π", "rho": "ρ", "sigma": "σ", "tau": "τ", "phi": "φ", "chi": "χ",
+    "psi": "ψ", "omega": "ω",
+    "Gamma": "Γ", "Delta": "Δ", "Theta": "Θ", "Lambda": "Λ", "Xi": "Ξ", "Pi": "Π",
+    "Sigma": "Σ", "Phi": "Φ", "Psi": "Ψ", "Omega": "Ω",
+}
+# Pure layout: carries nothing once the formula is flattened to text, and the bare-name fallback
+# would otherwise print the word "left" in the middle of an expression.
+_MATH_DROP = {"left", "right", "displaystyle", "limits", "nolimits", "big", "Big", "bigg", "Bigg",
+              "bigl", "bigr", "Bigl", "Bigr", "quad", "qquad", "nonumber", "textstyle"}
+# Wrappers whose only job is a font. Unwrapped to their contents: \text{RT} -> RT.
+_MATH_WRAP = re.compile(
+    r"\\(?:text|textit|texttt|textbf|textrm|mathrm|mathbb|mathcal|mathbf|mathit|mathsf|"
+    r"mathbin|mathop|operatorname)\{([^{}]*)\}")
+_MATH_CMD = re.compile(r"\\([A-Za-z]+)")
+# Backslash-escaped literals must survive every later rule: \_ must not become a subscript, and
+# \{ \} must not be eaten by the final brace strip. (latex, placeholder, what it renders as)
+_MATH_ESCAPES = (
+    (r"\_", "\x00u\x00", "_"), (r"\{", "\x00[\x00", "{"), (r"\}", "\x00]\x00", "}"),
+    (r"\%", "\x00p\x00", "%"), (r"\$", "\x00m\x00", "$"), (r"\#", "\x00h\x00", "#"),
+    # The input is already HTML-escaped, so a literal ampersand is "&amp;" by the time it lands.
+    ("\\&amp;", "\x00a\x00", "&amp;"),
+)
+
+
+def _operand(x: str) -> str:
+    """Parenthesise a fraction/root operand only when it needs it: 1/2, not (1)/(2)."""
+    x = x or ""
+    return x if re.fullmatch(r"[\w.]*", x) else f"({x})"
+
+
+def _cmd(m) -> str:
+    name = m.group(1)
+    if name in _MATH_DROP:
+        return ""
+    return _MATH_SYMBOLS.get(name, name)
 
 
 def _math_inner(s: str) -> str:
-    for pat, rep in _MATH_CMDS:
-        s = re.sub(pat, rep, s)
-    s = re.sub(r"\\text\{([^{}]*)\}", r"\1", s)
-    s = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)", s)
+    for lit, slot, _out in _MATH_ESCAPES:
+        s = s.replace(lit, slot)
+    for _ in range(2):                                    # \mathrm{\text{x}} nests one deep
+        s = _MATH_WRAP.sub(r"\1", s)
+    # Before the generic pass, which would eat the command names these two need.
+    s = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}",
+               lambda m: f"{_operand(m.group(1))}/{_operand(m.group(2))}", s)
+    s = re.sub(r"\\sqrt\{([^{}]*)\}", lambda m: "√" + _operand(m.group(1)), s)
+    s = _MATH_CMD.sub(_cmd, s)
     s = re.sub(r"\^\{([^{}]*)\}", r"<sup>\1</sup>", s)   # 10^{18} -> 10<sup>18</sup>
     s = re.sub(r"\^(-?[\w])", r"<sup>\1</sup>", s)        # 10^5 -> 10<sup>5</sup>
     s = re.sub(r"_\{([^{}]*)\}", r"<sub>\1</sub>", s)     # A_{k} -> A<sub>k</sub>
     s = re.sub(r"_([\w])", r"<sub>\1</sub>", s)           # X_s -> X<sub>s</sub>
-    s = re.sub(r"\\[,;\s]", " ", s)                       # thin/med spaces
-    s = re.sub(r"\\([A-Za-z]+)", r"\1", s)               # drop any unknown \command backslash
-    return s.replace("{", "").replace("}", "")
+    s = re.sub(r"\\[,;:!\s]", " ", s)                     # thin/med spaces
+    s = s.replace("{", "").replace("}", "")
+    for _lit, slot, out in _MATH_ESCAPES:
+        s = s.replace(slot, out)
+    return s
+
+
+# Dollar-delimited math is what *live model output* uses: the interviewer writes things like
+# "Response Time and Waiting Time are identical ($\text{RT} = \text{WT}$)" mid-sentence. Authored
+# statements can be rewritten to \(...\) offline; a model's reply cannot, so this must be handled
+# here or it reaches the reader as raw LaTeX.
+#
+# The boundaries are deliberately strict so prose about money never becomes math: the opening $ must
+# be followed by a non-space, and the closing $ must be preceded by a non-space AND not followed by a
+# word character. "it costs $5 and $10 more" therefore has no valid closer and is left alone.
+_DISPLAY_RE = re.compile(r"\$\$(.+?)\$\$", re.S)
+_INLINE_RE = re.compile(r"(?<![\w$])\$(?!\s)([^$\n]*?)(?<!\s)\$(?![\w$])")
+_CODE_RE = re.compile(r"`([^`]+)`")
+_CODE_SLOT = "\x00c%d\x00"          # placeholder; \x00 cannot appear in HTML-escaped input
+_DOLLAR_SLOT = "\x00d\x00"          # a backslash-escaped \$ — literal currency, never a delimiter
+
+
+def _span(m) -> str:
+    return f'<span class="math">{_math_inner(m.group(1))}</span>'
 
 
 def _mathify(escaped: str) -> str:
-    escaped = re.sub(r"\\\((.+?)\\\)",
-                     lambda m: f'<span class="math">{_math_inner(m.group(1))}</span>', escaped, flags=re.S)
-    escaped = re.sub(r"\\\[(.+?)\\\]",
-                     lambda m: f'<span class="math">{_math_inner(m.group(1))}</span>', escaped, flags=re.S)
+    escaped = re.sub(r"\\\((.+?)\\\)", _span, escaped, flags=re.S)
+    escaped = re.sub(r"\\\[(.+?)\\\]", _span, escaped, flags=re.S)
+    escaped = _DISPLAY_RE.sub(_span, escaped)      # $$…$$ before $…$, or the outer pair splits
+    escaped = _INLINE_RE.sub(_span, escaped)
     return escaped
 
 
 def _inline(text: str) -> str:
     # Escape first, then re-introduce the small set of inline constructs.
     out = html.escape(text)
-    # inline LaTeX math \(...\) -> Unicode/sup/sub (before code so `\(` inside code stays literal)
+    out = out.replace("\\$", _DOLLAR_SLOT)
+    # Pull `code spans` out BEFORE any other rule runs. Their contents are literal: `$5`, `\(x\)`
+    # and `**p` are code, not markup, and must survive math/bold/link rewriting untouched.
+    spans: list[str] = []
+
+    def _stash(m):
+        spans.append(m.group(1))
+        return _CODE_SLOT % (len(spans) - 1)
+
+    out = _CODE_RE.sub(_stash, out)
+    # LaTeX math -> Unicode/sup/sub
     out = _mathify(out)
-    # inline code: `...`
-    out = re.sub(r"`([^`]+)`", lambda m: f"<code>{m.group(1)}</code>", out)
     # bold: **...**
     out = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", out)
     # italic: *...*  (avoid matching bold leftovers)
@@ -57,7 +139,9 @@ def _inline(text: str) -> str:
     # links: [text](url)
     out = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)",
                  r'<a href="\2" target="_blank" rel="noopener">\1</a>', out)
-    return out
+    for i, c in enumerate(spans):
+        out = out.replace(_CODE_SLOT % i, f"<code>{c}</code>")
+    return out.replace(_DOLLAR_SLOT, "$")
 
 
 def _table(rows: list[str]) -> str:

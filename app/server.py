@@ -948,7 +948,9 @@ def api_interview_start():
     # A shape (or a custom exclude list) composes a multi-subject loop weakness-first from the
     # dossier; a rubric_id is a single-subject session. Both land in the same session machinery.
     plan = None
-    if b.get("shape") or b.get("exclude") is not None:
+    if b.get("rubric_ids"):
+        plan = mixed.from_ids(b["rubric_ids"])          # "drill these exact topics" (weak spots)
+    elif b.get("shape") or b.get("exclude") is not None:
         plan = mixed.compose(uid, b.get("shape") or "mixed_full",
                              exclude=b.get("exclude"),
                              segments=int(b["segments"]) if b.get("segments") else None)
@@ -988,7 +990,9 @@ def api_interview_poll(job_id):
     from interview import session as iv
     uid = g.get("user_id") or 1
     owner = jobs.job_owner(job_id)
-    if owner and owner[0] != uid:
+    if not owner or owner[0] != uid:
+        # No owner means the job is gone — its session was deleted mid-turn. Reporting "unknown"
+        # stops the client polling rather than letting the apply path dereference a missing owner.
         return jsonify({"status": "unknown"}), 404
     # Already applied by an earlier (possibly still in-flight) poll: replay the stored outcome.
     prev = jobs.applied_result(job_id)
@@ -1014,7 +1018,24 @@ def api_interview_session(sid):
     s = iv.get(uid, sid)
     if not s:
         return jsonify({"error": "unknown session"}), 404
-    return jsonify({"session": s, "turns": iv.turns(sid)})
+    return jsonify({"session": s, "turns": iv.turns_for_ui(sid)})
+
+
+@app.route("/api/interview/session/<int:sid>", methods=["DELETE"])
+def api_interview_delete(sid):
+    """Erase an interview for good, dossier contribution included — see session.delete."""
+    from interview import session as iv
+    uid = g.get("user_id") or 1
+    if not iv.delete(uid, sid):
+        return jsonify({"error": "unknown session"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/interview/weak")
+def api_interview_weak():
+    """Topics your past interviews say you are weakest at."""
+    from interview import dossier
+    return jsonify({"topics": dossier.weak_topics(g.get("user_id") or 1)})
 
 
 @app.route("/api/interview/resume/<int:sid>", methods=["POST"])
@@ -1034,7 +1055,7 @@ def api_interview_resume(sid):
         return jsonify({"error": "unknown session"}), 404
     if s["status"] != "active":
         return jsonify({"error": "this interview is already finished"}), 409
-    turns = iv.turns(sid)
+    turns = iv.turns_for_ui(sid)
     out = {"session_id": sid, "title": "", "phase": s["current_phase"],
            "hint_tier": s["hint_tier"], "turns": turns, "resumed": True}
     r = __import__("interview.rubrics", fromlist=["x"]).load(s["rubric_id"])
@@ -1042,6 +1063,7 @@ def api_interview_resume(sid):
         out["title"] = r.get("title", "")
         out["phases"] = iv._phase_labels(iv._plan(s), r)
         out["type"] = s["kind"]
+        out["step"] = iv.step_index(s, r, s["current_phase"])
     # Only re-queue when they are genuinely waiting on the interviewer.
     if turns and turns[-1]["role"] == "candidate":
         j = jobs.enqueue(uid, sid, iv.build_prompt(uid, sid), "turn")

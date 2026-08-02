@@ -99,6 +99,22 @@ def compose(user_id: int, shape: str = "mixed_full", exclude: list = None,
     return plan
 
 
+def from_ids(ids: list, phases: int = 3) -> list:
+    """A loop over topics chosen explicitly — what "drill my weak spots" starts.
+
+    Selection is already done by the caller, so this only validates and trims: unknown ids are
+    dropped rather than failing the whole loop, and the segment count is capped so a long weak-spot
+    list cannot start a two-hour interview by accident.
+    """
+    plan = []
+    for rid in (ids or [])[:6]:
+        r = rubrics.load(rid)
+        if not r:
+            continue
+        plan.append({"rubric_id": rid, "phases": [p["phase"] for p in r.get("phases", [])][:phases]})
+    return plan
+
+
 def describe(plan: list) -> str:
     parts = []
     for seg in plan:
