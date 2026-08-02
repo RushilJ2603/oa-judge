@@ -45,7 +45,7 @@ def terms(text: str) -> Counter:
 
 
 def source_for(rid: str) -> str | None:
-    for sub in ("sd", "cp"):
+    for sub in ("sd", "cp", "fund"):
         p = os.path.join(RESEARCH, sub, rid + ".md")
         if os.path.exists(p):
             return p
@@ -114,7 +114,11 @@ def main():
             print(f"  {s:5.0%}  {rid:44} {' '.join(ung[:4])}")
 
     if flagged:
-        print(f"\nFLAGGED (<{floor:.0%}) — read these against their source:")
+        print(f"\nFLAGGED (<{floor:.0%}) — read these against their source.")
+        print("  NOTE: this metric counts shared WORDS, so number- and formula-heavy topics score")
+        print("  low even when perfectly grounded (mental math and algebra both flagged at 40-52%")
+        print("  while gate_rubric.py reported zero ungrounded numbers for them). Treat a flag as")
+        print("  'go read it', not as proof of drift — the numeric check in the gate is stronger.")
         for rid, s, ung in flagged:
             print(f"  {s:5.0%}  {rid}")
             if ung:
