@@ -12,7 +12,7 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets: **style.css v37, interview.js v10, sheets.js v25, app.js v16, editor.js v17**.
+  persistent volume `/data`. Static assets: **style.css v38, interview.js v12, sheets.js v25, app.js v16, editor.js v17**.
 - **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
   (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
@@ -43,8 +43,16 @@ quality is still enforced by the same tooling gates.
   - **Dossier** = skill model (EMA mastery per concept) + behavioural profile + standing facts; drives
     weakness-first question selection and "last time you couldn't explain X".
   - **Mixed loops** span subjects like a real onsite, built by EXCLUSION ("not system design today").
-  - **Host mode = running the worker.** `Start Interviewer.bat` on the Desktop (Windows→WSL bridge).
-    Heartbeat drives "Interviewer online"; stopping it lets Fly sleep (~$0.09/mo). 24/7 ≈ $3/mo.
+  - **TWO paths answer a turn, reported independently because they fail independently.**
+    **CLOUD** (`app/interview/cloud.py`) — a background thread on Fly calling Gemini directly, so the
+    interviewer is up with **no laptop running**. Measured 5.0s for a real turn, start to answer.
+    **HOST** — `Start Interviewer.bat`, the laptop running agy (~16s, no quota). When both are up the
+    cloud answers and the host is a live fallback; on a 429 the cloud parks itself for exactly
+    Google's `retryDelay` and the host picks the turns up.
+    Key is a **Fly secret** (`GEMINI_API_KEY`), never in git.
+    **The trap:** the cloud leases with `heartbeat=False`. `worker_beat` means "a HOST machine is
+    up"; beating there would show "online · Host machine" with the laptop shut and nothing behind it
+    once quota ran out. Pinned by an invariant.
   - **Speech both ways:** dictation (Web Speech) + interviewer TTS with ranked neural-voice selection.
   - **Past interviews** are listed **newest-talked-to first**, scored, **resumable** and **deletable**
     — a session stranded by the worker dying re-queues its pending turn instead of being lost, and
@@ -64,7 +72,7 @@ quality is still enforced by the same tooling gates.
     (how many times, when, what you scored, how many of its points are still weak) but never point ids
     or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    **61 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
+    **79 invariants** in `test_interview.py` + 12 in `test_worker_routing.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
