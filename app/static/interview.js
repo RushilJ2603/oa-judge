@@ -20,10 +20,8 @@
     return r.json();
   }
 
-  const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '' };
-  const TYPE_LABEL = { FUND: 'CS Fundamentals', CP: 'DSA & Algorithms', HLD: 'System Design',
-                       LLD: 'Low-Level Design', CONCEPT: 'System Design Foundations' };
-  const TYPE_ORDER = ['FUND', 'CP', 'HLD', 'LLD', 'CONCEPT'];
+  const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '',
+              shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [] };
 
   // ------------------------------------------------------------------ entry
   async function render() {
@@ -31,100 +29,181 @@
     if (!host) return;
     if (S.session) { renderSession(); return; }
     host.innerHTML = '<p class="spinner">Loading…</p>';
-    let status = { online: false, rubrics: 0 }, cat = { items: [] }, shapes = { shapes: [] };
+    let status = { online: false, rubrics: 0 }, cat = { items: [] },
+        shapes = { shapes: [], subjects: [] }, hist = { sessions: [] };
     try {
-      [status, cat, shapes] = await Promise.all([
-        jget('/api/interview/status'), jget('/api/interview/catalog'), jget('/api/interview/shapes')]);
+      [status, cat, shapes, hist] = await Promise.all([
+        jget('/api/interview/status'), jget('/api/interview/catalog'),
+        jget('/api/interview/shapes'), jget('/api/interview/history')]);
     } catch (e) { host.innerHTML = '<p class="placeholder">Could not load interviews.</p>'; return; }
     S.catalog = cat.items || [];
     S.shapes = shapes.shapes || [];
+    S.subjects = shapes.subjects || [];
+    S.history = hist.sessions || [];
+    S.status = status;
     renderCatalog(status);
   }
 
   function renderCatalog(status) {
     const host = $('interview-inner');
-    const groups = {};
-    S.catalog.forEach((it) => { (groups[it.type] = groups[it.type] || []).push(it); });
-    const q = S.filter.toLowerCase();
-
     const dot = status.online
       ? '<span class="iv-dot on"></span>Interviewer online'
       : '<span class="iv-dot"></span>Interviewer offline';
     const offlineNote = status.online ? '' :
       `<div class="iv-offline">The interviewer runs on a host machine that is not currently up.
-       You can still browse the list — start a session once it is online.</div>`;
+       You can still browse — start a session once it is online.</div>`;
 
-    // Loop shapes first: a full round is what you actually sit in an onsite, and the preview shows
-    // the exact subjects picked for YOU (weakest-first from your dossier), not a generic blurb.
-    const SHAPE_LABEL = {
-      mixed_full: ['Full loop', 'Fundamentals → DSA → System design'],
-      mixed_short: ['Short mixed', 'Fundamentals → DSA'],
-      cs_round: ['CS fundamentals', 'OS · DBMS · C++ · networks'],
-      dsa_round: ['DSA round', 'Explain your approach, get critiqued'],
-      design_round: ['Design round', 'One system, end to end'],
-    };
-    let shapesHtml = '';
-    if (S.shapes && S.shapes.length && !q) {
-      shapesHtml = '<h2 class="iv-group">Interview loops <span class="iv-count">picked from your weak areas</span></h2><div class="iv-cards">' +
-        S.shapes.map((s) => {
-          const [label, sub] = SHAPE_LABEL[s.shape] || [s.shape, ''];
-          return `<button class="iv-card iv-loop" data-shape="${esc(s.shape)}">
-                    <span class="iv-card-t">${esc(label)}</span>
-                    <span class="iv-loop-sub">${esc(sub)}</span>
-                    <span class="iv-loop-prev">${esc(s.preview)}</span>
-                  </button>`;
-        }).join('') + '</div>';
-    }
+    const tabs = [['loops', 'Interview loops'], ['topics', 'By topic'],
+                  ['history', `Past interviews${S.history.length ? ' (' + S.history.length + ')' : ''}`]];
+    const tabBar = `<div class="iv-tabs">` + tabs.map(([k, l]) =>
+      `<button class="iv-tab ${S.tab === k ? 'active' : ''}" data-tab="${k}">${esc(l)}</button>`).join('') + `</div>`;
 
     let body = '';
-    TYPE_ORDER.forEach((t) => {
-      const items = (groups[t] || []).filter((i) =>
-        !q || i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q));
-      if (!items.length) return;
-      body += `<h2 class="iv-group">${esc(TYPE_LABEL[t] || t)} <span class="iv-count">${items.length}</span></h2>
-               <div class="iv-cards">` +
-        items.map((i) => `
-          <button class="iv-card" data-id="${esc(i.id)}">
-            <span class="iv-card-t">${esc(i.title)}</span>
-            <span class="iv-card-m">
-              <span class="iv-diff ${esc(i.difficulty)}">${esc(i.difficulty || '')}</span>
-              <span class="iv-phases">${i.phases.length} phases</span>
-            </span>
-          </button>`).join('') + '</div>';
-    });
-    if (!body) body = '<p class="placeholder">No interviews match that search.</p>';
+    if (S.tab === 'loops') body = renderLoops();
+    else if (S.tab === 'topics') body = renderTopics();
+    else body = renderHistory();
 
     host.innerHTML =
       `<div class="iv-head">
          <div>
            <h1 class="iv-title">Mock Interview</h1>
-           <p class="iv-sub">Grounded in your own notes and research. It remembers what you missed last time.</p>
+           <p class="iv-sub">Grounded in your own notes. It remembers what you missed last time.</p>
          </div>
-         <div class="iv-status" title="${status.online ? 'A host machine is running the interviewer' : 'No host machine is running'}">${dot}</div>
+         <div class="iv-status">${dot}</div>
        </div>
        ${offlineNote}
-       <input class="iv-search" id="iv-search" type="text" placeholder="Search interviews…"
-              autocomplete="off" spellcheck="false" value="${esc(S.filter)}">
-       ${shapesHtml}
+       ${tabBar}
        ${body}`;
 
+    host.querySelectorAll('.iv-tab').forEach((el) =>
+      el.addEventListener('click', () => { S.tab = el.dataset.tab; renderCatalog(status); }));
+    wireLoops(status);
+    wireTopics(status);
+    host.querySelectorAll('.iv-hist-row').forEach((el) =>
+      el.addEventListener('click', () => showReport(+el.dataset.sid)));
+  }
+
+  // --- tab 1: loops (the default — a real onsite spans subjects) ---------------
+  function renderLoops() {
+    const cards = S.shapes.map((s) => `
+      <button class="iv-card iv-loop" data-shape="${esc(s.shape)}">
+        <span class="iv-card-t">${esc(s.label || s.shape)}</span>
+        <span class="iv-loop-sub">${esc(s.sub || '')}</span>
+        <span class="iv-loop-prev">${esc(s.preview)}</span>
+      </button>`).join('');
+
+    const chips = S.subjects.map((sub) => {
+      const off = S.excluded.has(sub.key);
+      return `<button class="iv-chip ${off ? 'off' : ''}" data-sub="${esc(sub.key)}"
+                title="${off ? 'Excluded — click to include' : 'Included — click to exclude'}">
+                ${esc(sub.label)} <span class="iv-chip-n">${sub.count}</span></button>`;
+    }).join('');
+
+    return `
+      <div class="iv-cards">${cards}</div>
+      <h2 class="iv-group">Build your own <span class="iv-count">turn off anything you don't want asked</span></h2>
+      <div class="iv-builder">
+        <div class="iv-chips">${chips}</div>
+        <div class="iv-builder-foot">
+          <span class="iv-preview" id="iv-custom-preview">Pick your subjects, then start.</span>
+          <button class="btn btn-primary" id="iv-custom-start">Start custom loop</button>
+        </div>
+      </div>`;
+  }
+
+  function wireLoops(status) {
+    const host = $('interview-inner');
+    host.querySelectorAll('.iv-loop').forEach((el) =>
+      el.addEventListener('click', () => start(null, el.dataset.shape)));
+    host.querySelectorAll('.iv-chip').forEach((el) =>
+      el.addEventListener('click', async () => {
+        const k = el.dataset.sub;
+        if (S.excluded.has(k)) S.excluded.delete(k); else S.excluded.add(k);
+        el.classList.toggle('off');
+        await refreshPreview();
+      }));
+    const btn = $('iv-custom-start');
+    if (btn) btn.addEventListener('click', () => start(null, null, [...S.excluded]));
+    if ($('iv-custom-preview')) refreshPreview();
+  }
+
+  async function refreshPreview() {
+    const el = $('iv-custom-preview');
+    if (!el) return;
+    el.textContent = 'Choosing topics…';
+    try {
+      const r = await jpost('/api/interview/preview', { exclude: [...S.excluded], segments: 4 });
+      el.textContent = r.segments ? r.preview : 'Nothing left — re-enable a subject.';
+    } catch (e) { el.textContent = ''; }
+  }
+
+  // --- tab 2: by topic, grouped by subject ------------------------------------
+  function renderTopics() {
+    const q = S.filter.toLowerCase();
+    const groups = new Map();
+    S.catalog.forEach((it) => {
+      if (q && !it.title.toLowerCase().includes(q) && !it.subject_label.toLowerCase().includes(q)) return;
+      if (!groups.has(it.subject_label)) groups.set(it.subject_label, []);
+      groups.get(it.subject_label).push(it);
+    });
+    let body = `<input class="iv-search" id="iv-search" type="text" placeholder="Search topics…"
+                  autocomplete="off" spellcheck="false" value="${esc(S.filter)}">`;
+    if (!groups.size) return body + '<p class="placeholder">No topics match.</p>';
+    groups.forEach((items, label) => {
+      body += `<h2 class="iv-group">${esc(label)} <span class="iv-count">${items.length}</span></h2>
+               <div class="iv-cards">` + items.map((i) => `
+          <button class="iv-card" data-id="${esc(i.id)}" title="${esc(i.relevance || '')}">
+            <span class="iv-card-t">${esc(i.title)}</span>
+            <span class="iv-card-m">
+              <span class="iv-w" title="How often interviews ask this">${'★'.repeat(i.weight)}</span>
+              <span class="iv-diff ${esc(i.difficulty)}">${esc(i.difficulty || '')}</span>
+            </span>
+          </button>`).join('') + '</div>';
+    });
+    return body;
+  }
+
+  function wireTopics(status) {
+    const host = $('interview-inner');
+    host.querySelectorAll('.iv-card[data-id]').forEach((el) =>
+      el.addEventListener('click', () => start(el.dataset.id)));
     const search = $('iv-search');
-    search.addEventListener('input', () => {
+    if (search) search.addEventListener('input', () => {
       S.filter = search.value;
       const pos = search.selectionStart;
       renderCatalog(status);
-      const s2 = $('iv-search'); s2.focus(); s2.setSelectionRange(pos, pos);
+      const s2 = $('iv-search'); if (s2) { s2.focus(); s2.setSelectionRange(pos, pos); }
     });
-    host.querySelectorAll('.iv-card').forEach((el) =>
-      el.addEventListener('click', () => start(el.dataset.id, el.dataset.shape)));
+  }
+
+  // --- tab 3: past interviews -------------------------------------------------
+  function renderHistory() {
+    if (!S.history.length) {
+      return '<p class="placeholder">No interviews yet. Your sessions, scores and every point you missed will appear here.</p>';
+    }
+    return '<div class="iv-hist">' + S.history.map((h) => {
+      const pct = h.overall == null ? '—' : Math.round(h.overall * 100) + '%';
+      const when = (h.started_at || '').slice(0, 16).replace('T', ' ');
+      const state = h.status === 'done' ? '' :
+        `<span class="iv-hist-state">${esc(h.status === 'active' ? 'unfinished' : h.status)}</span>`;
+      return `<button class="iv-hist-row" data-sid="${h.id}">
+                <span class="iv-hist-main">
+                  <span class="iv-hist-t">${esc(h.title || h.kind)}${h.mixed ? ' <span class="iv-hist-mix">loop</span>' : ''}</span>
+                  <span class="iv-hist-sub">${esc(when)} · ${h.answers} answers${h.summary ? ' · ' + esc(h.summary) : ''}</span>
+                </span>
+                ${state}<span class="iv-hist-score">${pct}</span>
+              </button>`;
+    }).join('') + '</div>';
   }
 
   // ------------------------------------------------------------------ session
-  async function start(rubricId, shape) {
+  async function start(rubricId, shape, exclude) {
     const host = $('interview-inner');
     host.innerHTML = '<p class="spinner">Starting the interview…</p>';
-    const r = await jpost('/api/interview/start',
-      shape ? { shape } : { rubric_id: rubricId });
+    const payload = shape ? { shape }
+      : exclude ? { exclude, segments: 4 }
+      : { rubric_id: rubricId };
+    const r = await jpost('/api/interview/start', payload);
     if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
     S.session = { id: r.session_id, title: r.title, type: r.type, phases: r.phases,
                   phase: r.phase, turns: [], thinking: true, hintTier: 0, done: false };
@@ -142,7 +221,7 @@
 
     const rows = s.turns.map((t) => t.role === 'candidate'
       ? `<div class="iv-row me"><div class="iv-bubble me">${esc(t.content)}</div></div>`
-      : `<div class="iv-row"><div class="iv-who">Interviewer</div><div class="iv-bubble">${esc(t.content)}</div></div>`
+      : `<div class="iv-row"><div class="iv-who">Interviewer</div><div class="iv-bubble${t.html ? ' md' : ''}">${t.html || esc(t.content)}</div></div>`
     ).join('');
 
     const thinking = s.thinking
@@ -228,7 +307,7 @@
         clearInterval(S.polling);
         const s = S.session;
         s.thinking = false;
-        s.turns.push({ role: 'interviewer', content: r.say || '…' });
+        s.turns.push({ role: 'interviewer', content: r.say || '…', html: r.say_html || '' });
         if (r.phase) s.phase = r.phase;
         s.hintTier = r.hint_tier || 0;
         s.done = !!r.done;
@@ -244,10 +323,12 @@
     }, 1000);   // 1s: the model floor is ~15s, so poll granularity should not add to it
   }
 
-  async function showReport() {
+  async function showReport(sid) {
     const host = $('interview-inner');
     host.innerHTML = '<p class="spinner">Building your report…</p>';
-    const rep = await jget('/api/interview/report/' + S.session.id);
+    const id = sid || (S.session && S.session.id);
+    const rep = await jget('/api/interview/report/' + id);
+    if (rep.error) { host.innerHTML = `<p class="placeholder">${esc(rep.error)}</p>`; return; }
     const sc = rep.scores || {};
     const phases = (sc.phases || []).map((p) =>
       `<div class="iv-score"><span>${esc(p.phase.replace(/_/g, ' '))}</span>

@@ -27,19 +27,51 @@ BUDGET = {
     "transcript": 8000,
 }
 KEEP_VERBATIM = 3          # most recent exchanges kept word-for-word for conversational continuity
+MAX_HINT_TIER = 3          # deepest authored hint; past this the interview switches to teaching
 
 
 # ------------------------------------------------------------------ role contract
 ROLE = """You are conducting a technical interview. You are experienced, direct, and neither harsh
 nor flattering. You speak like a person, not a form.
 
+HOW TO USE THE RUBRIC
+The rubric below is the source of truth for SCORING: only its point ids count, and a point is only
+hit when the candidate genuinely covers it. But it is a checklist, not a script — you are expected
+to interview like a person. Within the current phase you may follow up on what they actually said,
+ask for a concrete example, challenge a shaky claim, or chase an interesting tangent they open,
+even when no rubric point names it. Judge those answers with your own expertise; just do not award
+a rubric point for something it does not cover.
+
+HOW MUCH TO SAY
+Talk like a real senior engineer running an interview, not a quiz prompt. Let the conversation
+breathe: engage with what they actually said, say why something matters or where it breaks, push
+back on shaky claims, follow an interesting tangent, and sum up before moving on. Length follows
+substance — brief when they are flowing, fuller when they are confused or asked you something.
+This is a MOCK interview: they are here to get better, not only to be measured.
+
+TEACH WHEN TEACHING IS DUE
+The candidate learns nothing from being probed forever. Two moments call for a real, full-length
+explanation — the kind you would give at a whiteboard, several paragraphs if that is what it takes,
+with the reasoning, the tradeoff, a concrete example, and why the naive answer fails:
+
+  * they are STUCK at the deepest authorised hint tier and still cannot get there;
+  * a point is settled — they got it, or the phase is closing and they missed it.
+
+In those moments, explain properly. Use the REFERENCE material for depth. Then move on.
+Do NOT pre-emptively explain a point they still have a fair chance to reach on their own.
+
 RULES YOU MUST FOLLOW
-- Ask ONE thing at a time. Never dump a list of questions.
+- End with ONE question. Say as much as the moment needs before it, but never stack several
+  questions at once — they can only answer one.
 - Never reveal, confirm, or hint at material beyond the CURRENT PHASE shown below.
-- Never state the answer to an unmet rubric point. Probe it instead.
-- If the candidate is wrong, do not say "correct". Say what is missing and probe it.
+- While a point is still winnable, do not hand over its answer — probe or hint instead. Once it is
+  settled or they are stuck at the deepest tier, explain it fully (see above).
+- If the candidate is wrong, do not say "correct". Say what is missing.
 - Use ONLY the hints provided. If none are shown, you have not been authorised to hint yet.
 - Judge substance, not vocabulary. Loose phrasing that conveys the idea counts as a hit.
+- React to THEIR answer. Do not restate the question they just answered.
+- Do not call tools, read files, or run commands. Everything you need is in this message; a tool
+  attempt is denied in this environment and silently produces no answer at all.
 
 OUTPUT FORMAT — return exactly these lines, nothing else:
 HIT: <comma-separated point ids the answer genuinely covered, or NONE>
@@ -47,7 +79,7 @@ PARTIAL: <point ids partially covered, or NONE>
 EVIDENCE: <point_id="short quote from their answer"; ...>
 STUCK: <YES if they are floundering or asked for help, else NO>
 ADVANCE: <YES only if every CORE point in this phase is now hit, else NO>
-SAY: <your next message to the candidate — one natural conversational turn>
+SAY: <your next message to the candidate — a natural conversational turn, ending in one question>
 """
 
 
@@ -111,6 +143,15 @@ def render_phase(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int)
         if shown:
             lines.append(f"\nHINTS AUTHORISED (tier {hint_tier}). Use the deepest one only if they "
                          f"are still stuck:\n" + "\n".join(shown))
+        # Tier 3 is the last hint there is. Continuing to probe past it just strands the candidate,
+        # so this is where the interview switches from testing to teaching — the app says so
+        # explicitly rather than hoping the model reads the mood.
+        if hint_tier >= MAX_HINT_TIER:
+            lines.append(
+                "\nTEACHING MOMENT: hints are exhausted. If they are still not getting it, stop "
+                "probing and EXPLAIN it properly — full whiteboard depth, the reasoning, a concrete "
+                "example, and why the obvious answer fails. Draw on the REFERENCE. Then move the "
+                "interview forward rather than circling.")
     else:
         lines.append("\nNO HINTS AUTHORISED YET — do not hint. Probe or restate instead.")
     return "\n".join(lines)
@@ -175,7 +216,10 @@ def build_turn(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
     if cross:
         parts += ["", cross]
     if grounding:
-        parts += ["", "REFERENCE (grounding for this phase — never quote verbatim to the candidate):",
+        parts += ["", "REFERENCE — the source material this topic is drawn from. You have read it; "
+                      "the candidate has not. Use it to judge subtle or partly-right answers, to "
+                      "follow a tangent competently, and to answer 'why' when they ask. NEVER quote "
+                      "it at them and never use it to reveal an unmet rubric point.",
                   _clip(grounding, BUDGET["grounding"])]
     parts += [
         "",

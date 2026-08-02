@@ -920,15 +920,23 @@ def api_interview_catalog():
 
 @app.route("/api/interview/shapes")
 def api_interview_shapes():
-    """Loop shapes for mixed rounds, with a preview of what this candidate would actually get."""
+    """Loop shapes for mixed rounds, plus the subject list the custom builder excludes from."""
     from interview import mixed
     uid = g.get("user_id") or 1
-    out = []
-    for name in mixed.SHAPES:
-        plan = mixed.compose(uid, name)
-        if plan:
-            out.append({"shape": name, "preview": mixed.describe(plan), "segments": len(plan)})
-    return jsonify({"shapes": out})
+    out = [mixed.preview(uid, name) for name in mixed.SHAPES]
+    return jsonify({"shapes": [s for s in out if s["segments"]],
+                    "subjects": mixed.available_subjects()})
+
+
+@app.route("/api/interview/preview", methods=["POST"])
+def api_interview_preview():
+    """Preview a custom loop before committing to it — what would you actually be asked."""
+    from interview import mixed
+    b = request.get_json(force=True) or {}
+    uid = g.get("user_id") or 1
+    plan = mixed.compose(uid, "mixed_full", exclude=b.get("exclude") or [],
+                         segments=int(b.get("segments") or 4))
+    return jsonify({"preview": mixed.describe(plan), "segments": len(plan)})
 
 
 @app.route("/api/interview/start", methods=["POST"])
@@ -937,9 +945,13 @@ def api_interview_start():
     from interview import session as iv
     b = request.get_json(force=True) or {}
     uid = g.get("user_id") or 1
-    # A shape composes a multi-subject loop weakness-first from the dossier; a rubric_id is a
-    # single-subject session. Both land in the same session machinery.
-    plan = mixed.compose(uid, b["shape"]) if b.get("shape") else None
+    # A shape (or a custom exclude list) composes a multi-subject loop weakness-first from the
+    # dossier; a rubric_id is a single-subject session. Both land in the same session machinery.
+    plan = None
+    if b.get("shape") or b.get("exclude") is not None:
+        plan = mixed.compose(uid, b.get("shape") or "mixed_full",
+                             exclude=b.get("exclude"),
+                             segments=int(b["segments"]) if b.get("segments") else None)
     s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"), plan=plan)
     if not s:
         return jsonify({"error": "unknown rubric"}), 404
@@ -1003,6 +1015,12 @@ def api_interview_session(sid):
     if not s:
         return jsonify({"error": "unknown session"}), 404
     return jsonify({"session": s, "turns": iv.turns(sid)})
+
+
+@app.route("/api/interview/history")
+def api_interview_history():
+    from interview import session as iv
+    return jsonify({"sessions": iv.history(g.get("user_id") or 1)})
 
 
 @app.route("/api/interview/report/<int:sid>")

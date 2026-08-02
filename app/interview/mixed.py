@@ -1,60 +1,101 @@
 """Compose a mixed interview loop — several subjects in one sitting, like a real onsite.
 
-Selection is weakness-first: given the candidate's dossier, prefer rubrics whose concepts they have
-missed or never been tested on. That is the whole point of keeping a skill model — a chat window
-would pick at random or ask you what to practise.
+Two ideas drive selection:
+
+* **Exclusion, not inclusion.** Listing everything you want is tedious and you will forget things;
+  saying "not system design today" is one click. So a loop spans every subject by default and you
+  subtract what you do not want.
+* **Weakness first, weighted by what interviews ask.** Among candidate topics, those you have missed
+  or never been tested on sort first, and a topic's interview weight breaks ties — so a loop
+  gravitates to important material you are shaky on rather than trivia you happen not to have seen.
 """
 import random
 
 import db
 
-from . import rubrics
+from . import rubrics, subjects
 
-# A loop shape: how many segments of each type, and how many phases to spend in each.
-# Kept short per segment deliberately — a 45-minute loop that spends all its time in one subject is
-# not a loop, and a phase is the smallest unit that still produces a real score.
+# Subjects a loop may draw from, in the order an onsite tends to run them.
+DEFAULT_POOL = ["os", "dbms", "cpp", "c", "py", "dsa", "cp", "aptitude", "hld", "lld", "sdfound"]
+
+# Named presets. `segments` is how many topics to visit; `phases` how deep to go in each.
+# Short segments on purpose: a loop that spends all its time in one topic is not a loop.
 SHAPES = {
-    "cs_round": [("FUND", 3)],                                  # fundamentals viva
-    "dsa_round": [("CP", 2)],                                   # technique discussion
-    "mixed_short": [("FUND", 2), ("CP", 2)],
-    "mixed_full": [("FUND", 2), ("CP", 2), ("HLD", 3)],         # closest to a real onsite
-    "design_round": [("HLD", 4)],
+    "mixed_full":   {"label": "Full loop", "segments": 4, "phases": 3,
+                     "exclude": [], "sub": "Anything — fundamentals, DSA, design"},
+    "mixed_core":   {"label": "Core mixed", "segments": 3, "phases": 3,
+                     "exclude": ["aptitude", "sdfound", "lld"],
+                     "sub": "CS fundamentals + DSA + one design"},
+    "cs_round":     {"label": "CS fundamentals", "segments": 3, "phases": 4,
+                     "exclude": ["hld", "lld", "sdfound", "cp", "dsa", "aptitude"],
+                     "sub": "OS · DBMS · C++ · C · Python"},
+    "dsa_round":    {"label": "DSA round", "segments": 2, "phases": 4,
+                     "exclude": [s for s in DEFAULT_POOL if s not in ("dsa", "cp")],
+                     "sub": "Explain your approach, get critiqued"},
+    "design_round": {"label": "Design round", "segments": 2, "phases": 4,
+                     "exclude": [s for s in DEFAULT_POOL if s not in ("hld", "lld", "sdfound")],
+                     "sub": "System design, end to end"},
+    "aptitude_round": {"label": "Aptitude round", "segments": 3, "phases": 3,
+                       "exclude": [s for s in DEFAULT_POOL if s != "aptitude"],
+                       "sub": "Quant, reasoning, puzzles"},
 }
 
 
-def _weakness_rank(user_id: int) -> dict:
-    """rubric_id -> mean mastery (lower = weaker). Untested rubrics get None and sort first."""
-    rows = db.connect().execute(
-        "SELECT concept_key, mastery FROM skill WHERE user_id=?", (user_id,)).fetchall()
+def _mastery(user_id: int) -> dict:
+    """rubric_id -> mean mastery. Absent = never tested."""
     agg = {}
-    for r in rows:
-        rid = r["concept_key"].split(":", 1)[0]
-        agg.setdefault(rid, []).append(r["mastery"])
+    for r in db.connect().execute(
+            "SELECT concept_key, mastery FROM skill WHERE user_id=?", (user_id,)):
+        agg.setdefault(r["concept_key"].split(":", 1)[0], []).append(r["mastery"])
     return {k: sum(v) / len(v) for k, v in agg.items()}
 
 
-def compose(user_id: int, shape: str = "mixed_full", seed: int = None) -> list:
-    """Build a plan: [{"rubric_id":..., "phases":[...]}, ...]."""
-    spec = SHAPES.get(shape)
-    if not spec:
-        return []
-    rng = random.Random(seed)
-    mastery = _weakness_rank(user_id)
-    by_type = {}
-    for meta in rubrics.summaries():
-        by_type.setdefault(meta["type"], []).append(meta)
+def available_subjects() -> list[dict]:
+    """Subjects that actually have rubrics, for the exclusion UI."""
+    counts = {}
+    for m in rubrics.summaries():
+        counts[m["subject"]] = counts.get(m["subject"], 0) + 1
+    out = [{"key": k, "label": subjects.subject_label(k), "count": n,
+            "order": subjects.SUBJECTS.get(k, {}).get("order", 99)}
+           for k, n in counts.items()]
+    out.sort(key=lambda s: s["order"])
+    return out
 
-    plan, used = [], set()
-    for typ, n_phases in spec:
-        pool = [m for m in by_type.get(typ, []) if m["id"] not in used]
-        if not pool:
+
+def compose(user_id: int, shape: str = "mixed_full", exclude: list = None,
+            segments: int = None, phases: int = None, seed: int = None) -> list:
+    """Build a plan: [{"rubric_id":..., "phases":[...]}, ...].
+
+    `exclude` overrides the shape's own exclusions, so the UI can offer either a preset or a
+    custom "everything except X, Y" loop through one code path.
+    """
+    spec = SHAPES.get(shape) or SHAPES["mixed_full"]
+    excl = set(exclude if exclude is not None else spec["exclude"])
+    n_seg = segments or spec["segments"]
+    n_ph = phases or spec["phases"]
+
+    pool = [m for m in rubrics.summaries() if m["subject"] not in excl]
+    if not pool:
+        return []
+
+    rng = random.Random(seed)
+    mastery = _mastery(user_id)
+    rng.shuffle(pool)                                   # so equal candidates vary run to run
+    # Never-tested (-1) first, then weakest; interview weight breaks ties.
+    pool.sort(key=lambda m: (mastery.get(m["id"], -1.0), -m["weight"]))
+
+    # Spread across subjects before repeating one — that is what makes a loop feel like a loop.
+    # But when the pool is narrow by design (a single-subject round like Aptitude), refusing to
+    # repeat a subject would cut the round down to one topic, so fall back to filling from the pool.
+    n_subjects = len({m["subject"] for m in pool})
+    plan, used_subject = [], set()
+    for m in pool:
+        if len(plan) >= n_seg:
+            break
+        if m["subject"] in used_subject and len(used_subject) < min(n_seg, n_subjects):
             continue
-        # Weakest first; never-tested counts as weakest (-1) so new ground is explored.
-        rng.shuffle(pool)                       # break ties randomly so loops are not identical
-        pool.sort(key=lambda m: mastery.get(m["id"], -1.0))
-        pick = pool[0]
-        used.add(pick["id"])
-        plan.append({"rubric_id": pick["id"], "phases": pick["phases"][:n_phases]})
+        used_subject.add(m["subject"])
+        plan.append({"rubric_id": m["id"], "phases": m["phases"][:n_ph]})
     return plan
 
 
@@ -64,3 +105,10 @@ def describe(plan: list) -> str:
         r = rubrics.load(seg["rubric_id"]) or {}
         parts.append(r.get("title", seg["rubric_id"]))
     return " → ".join(parts)
+
+
+def preview(user_id: int, shape: str) -> dict:
+    plan = compose(user_id, shape)
+    spec = SHAPES.get(shape, {})
+    return {"shape": shape, "label": spec.get("label", shape), "sub": spec.get("sub", ""),
+            "preview": describe(plan), "segments": len(plan)}

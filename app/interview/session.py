@@ -19,10 +19,19 @@ import db
 
 from . import context, dossier, rubrics
 
-# Stuck-signals needed before the next hint tier is authorised. Deliberately >1 so a single hesitant
-# turn does not trigger help — an interview where hints arrive too early teaches nothing.
-STUCK_PER_TIER = 2
+# Stuck-signals needed to reach each hint tier: 1st signal -> tier 1, 3rd -> tier 2, 5th -> tier 3.
+# Saying "I'm stuck" must DO something immediately, or the candidate learns that asking for help is
+# pointless. Depth is still earned: the deep hints need sustained struggle, not one hesitation.
+TIER_AT = (1, 3, 5)
 MAX_TIER = 3
+
+
+def _tier_for(stuck: int) -> int:
+    t = 0
+    for i, need in enumerate(TIER_AT, start=1):
+        if stuck >= need:
+            t = i
+    return min(t, MAX_TIER)
 
 
 def _now():
@@ -120,8 +129,13 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     # the candidate is actually in, so the interviewer never grades against the previous subject.
     last = tl[-1]
     answer = last["content"] if last["role"] == "candidate" else ""
+    # Ship the ORIGINAL notes/research section alongside the rubric. Without it the interviewer can
+    # only score a checklist; with it it can engage a tangent, judge a subtle claim, or answer "why"
+    # the way someone who has actually read the chapter would. Latency is unaffected — measured, the
+    # model call is auth-dominated, not token-dominated (a two-token reply still costs ~14s).
     return context.build_turn(r, s["current_phase"], _checkoff_map(session_id, s["current_phase"]),
-                              s["hint_tier"], dos, tl[:-1] if answer else tl, answer)
+                              s["hint_tier"], dos, tl[:-1] if answer else tl, answer,
+                              grounding=rubrics.source_text(s["rubric_id"]))
 
 
 def _checkoff_map(session_id: int, phase: str) -> dict:
@@ -153,8 +167,7 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
     if parsed["stuck"]:
         stuck += 1
         # App-side escalation: the model cannot grant itself a deeper hint.
-        if stuck >= STUCK_PER_TIER * (tier + 1) and tier < MAX_TIER:
-            tier += 1
+        tier = max(tier, _tier_for(stuck))
 
     # Advancement is a function of stored evidence, never of the model's ADVANCE flag alone.
     score = dossier.phase_score(user_id, session_id, r, phase)
@@ -164,7 +177,12 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
         _close_phase(user_id, session_id, r, phase)
         nxt, rubric_id, seg_idx = _next_step(s, r, phase)
         if nxt:
-            phase, tier, stuck, advanced = nxt, 0, 0, True   # hints reset each phase
+            # New phase = new question, so hints step back — but NOT to zero when the candidate has
+            # been struggling. Dropping straight to "no hints" right after they earned help reads as
+            # the interviewer taking support away, and they must re-earn it from scratch.
+            phase, advanced = nxt, True
+            tier = max(0, tier - 1)
+            stuck = TIER_AT[tier - 1] if tier > 0 else 0
         else:
             _finish(user_id, session_id, s)
             phase, advanced = None, True
@@ -176,9 +194,23 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
 
     say = parsed["say"] or "Go on."
     add_turn(session_id, user_id, "interviewer", say, phase, tier)
-    return {"say": say, "phase": phase, "hint_tier": tier, "advanced": advanced,
-            "phase_score": score, "hit": hit, "partial": partial,
+    return {"say": say, "say_html": render_md(say), "phase": phase, "hint_tier": tier,
+            "advanced": advanced, "phase_score": score, "hit": hit, "partial": partial,
             "done": phase is None}
+
+
+def render_md(text: str) -> str:
+    """Interviewer turns contain code, formulas and lists — render them.
+
+    Reuses the judge's own renderer, which escapes HTML (verified against script/img payloads) and
+    converts LaTeX to Unicode, so untrusted model output is safe to inject and `vector<int>`,
+    fenced code and O(n^2) all display correctly instead of as literal markdown.
+    """
+    try:
+        from runner import md
+        return md.render(text or "")
+    except Exception:
+        return ""
 
 
 def _next_step(s, r, phase) -> tuple:
@@ -242,6 +274,38 @@ def _finish(user_id: int, session_id: int, s) -> None:
         "UPDATE interview_session SET status='done', ended_at=?, score_json=?, summary=? WHERE id=?",
         (_now(), json.dumps({"overall": overall, "phases": scores}), summary, session_id))
     db.connect().commit()
+
+
+def history(user_id: int, limit: int = 50) -> list[dict]:
+    """Past interviews, newest first — every session is already stored, this just surfaces them.
+
+    Includes active/abandoned ones so a session interrupted by the worker dying (WSL down, laptop
+    asleep) is visible and resumable rather than silently lost.
+    """
+    out = []
+    for r in db.connect().execute(
+            "SELECT id, kind, rubric_id, started_at, ended_at, status, current_phase, score_json, "
+            "summary, plan_json FROM interview_session WHERE user_id=? "
+            "ORDER BY started_at DESC LIMIT ?", (user_id, limit)):
+        s = dict(r)
+        rs = _rubrics_in(s)
+        title = " + ".join(x.get("title", "") for x in rs) if rs else s["rubric_id"]
+        overall = None
+        if s["score_json"]:
+            try:
+                overall = json.loads(s["score_json"]).get("overall")
+            except Exception:
+                pass
+        n_turns = db.connect().execute(
+            "SELECT COUNT(*) AS n FROM interview_turn WHERE session_id=? AND role='candidate'",
+            (s["id"],)).fetchone()["n"]
+        out.append({
+            "id": s["id"], "kind": s["kind"], "title": title, "started_at": s["started_at"],
+            "ended_at": s["ended_at"], "status": s["status"], "phase": s["current_phase"],
+            "overall": overall, "summary": s["summary"], "answers": n_turns,
+            "mixed": bool(s["plan_json"]),
+        })
+    return out
 
 
 def _was_walked(session_id: int, phase: str) -> bool:
