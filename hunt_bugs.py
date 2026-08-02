@@ -27,6 +27,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, ".bughunt")
+# Interview agents run with --force ("run everything"), which is required for headless command
+# execution. They get a DISPOSABLE COPY of the repo rather than the real checkout: an earlier fleet
+# wrote a shim named `ls` (containing `exec python3 "$@"`) into the working directory, which is
+# exactly the environment-tampering that must never touch real source.
+SANDBOX = os.environ.get("OAJ_HUNT_SANDBOX", "/tmp/huntwt")
 MODEL = os.environ.get("OAJ_HUNT_MODEL", "cursor-grok-4.5-high")
 
 # THE BAR. This system exists only to beat one alternative: opening a single Gemini chat, pasting in
@@ -308,7 +313,9 @@ lives in app/interview/session.py and context.py, the wording of the interviewer
 the ROLE string in context.py, the questions themselves are JSON under problems/_interview/rubrics/.
 Name the specific cause where you can.
 
-Do not modify any file.
+STRICT: do not create, modify, delete or move ANY file in the repository, and do not run git. The
+only writes you may cause are the scratch database at /tmp/hunt_{tid}.db that the CLI creates for
+you. Read anything you like.
 
 {output}"""
 
@@ -353,16 +360,31 @@ Return [] only if you genuinely found nothing worth changing."""
 def run(task, timeout):
     if task["mode"] == "interview":
         uid = 91000 + int(task["id"].split("-")[-1])
-        p = INTERVIEW_PROMPT.format(contract=CONTRACT, cwd=HERE, tid=task["id"], uid=uid,
+        p = INTERVIEW_PROMPT.format(contract=CONTRACT, cwd=SANDBOX, tid=task["id"], uid=uid,
                                     rubric=task["rubric"], persona=PERSONAS[task["persona"]],
                                     output=OUTPUT_SPEC)
     else:
         p = AUDIT_PROMPT.format(contract=CONTRACT, path=task["path"], focus=task["focus"])
     t0 = time.time()
     try:
+        # Interview tasks must RUN the CLI, so they cannot use --mode ask: it rejects every command
+        # before it executes, and the first fleet came back in 30 seconds having done nothing but
+        # explain that it could not. Agent mode gets a scratch DB and an explicit "do not modify any
+        # file"; the repo is committed and pushed, so git status afterwards catches anything that
+        # ignores that. Audit tasks stay read-only, which is correct for them.
+        # Interview tasks need --force. Verified by experiment: without it, headless cursor-agent
+        # refuses every shell command and asks for UI approval that never comes — the first two
+        # fleets came back having run nothing at all. `--trust` alone is not enough.
+        #
+        # --force means "run everything", so the guards are: a scratch DB per agent, an explicit
+        # instruction not to modify anything, and a `git status` check after the run (the repo is
+        # committed and pushed, so any edit is both visible and revertible).
+        cmd = ["cursor-agent", "-p", "--model", MODEL]
+        cmd += ["--force"] if task["mode"] == "interview" else ["--trust", "--mode", "ask"]
+        wd = SANDBOX if (task["mode"] == "interview" and os.path.isdir(SANDBOX)) else HERE
         r = subprocess.run(
-            ["cursor-agent", "-p", "--trust", "--mode", "ask", "--model", MODEL, p],
-            cwd=HERE, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+            cmd + [p],
+            cwd=wd, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
         out = (r.stdout or "") + (r.stderr or "")
     except subprocess.TimeoutExpired:
         out = "__TIMEOUT__"

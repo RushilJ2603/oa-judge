@@ -77,6 +77,13 @@ def generate(prompt: str, timeout: int = 90, model: str = "") -> tuple[str | Non
     reason = cand.get("finishReason")
     if not text:
         return None, f"gemini api: empty reply (finishReason={reason})", 0.0
-    if reason == "MAX_TOKENS":
-        return None, "gemini api: reply hit maxOutputTokens — raise OAJ_GEMINI_MAX_TOKENS", 0.0
+    # ALLOWLIST, not a blocklist. Only STOP means the model finished saying what it meant to say.
+    # SAFETY, RECITATION, BLOCKLIST, PROHIBITED_CONTENT and SPII all cut generation off mid-reply
+    # while LEAVING the text produced so far in place — so blocklisting MAX_TOKENS alone let a
+    # half-written turn through as if it were complete. The student would see an explanation that
+    # stops mid-sentence, and the grading block attached to it would be applied as final.
+    # (A missing finishReason is treated as fine: it means the field was simply not sent.)
+    if reason not in (None, "", "STOP"):
+        hint = (" — raise OAJ_GEMINI_MAX_TOKENS" if reason == "MAX_TOKENS" else "")
+        return None, f"gemini api: reply cut short (finishReason={reason}){hint}", 0.0
     return text, None, 0.0
