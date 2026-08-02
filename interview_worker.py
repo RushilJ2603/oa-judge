@@ -35,27 +35,30 @@ WRAPPER = os.path.expanduser(
 MODEL = os.environ.get("OAJ_INTERVIEW_MODEL", "gemini-3.6-flash-high")
 # API path model id (different namespace from agy tier names).
 API_MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-2.5-flash")
-# Adaptive polling. A fixed idle interval was adding up to its full length to EVERY reply: the
-# candidate hits send, and the worker may not look for work again for that long. Measured 36s per
-# turn against 15s of actual generation.
+# LONG POLL. The worker asks for work once and the SERVER holds that request open until a turn
+# appears, so pickup is immediate rather than "whenever the next poll lands".
 #
-# So: poll fast while a session is clearly live, and back off geometrically once nothing has come in
-# for a while. During an interview the site is being used anyway (the Fly machine is already awake),
-# so fast polling then is free; the backoff is what keeps an unattended worker from holding the
-# machine up and costing money.
-POLL_FAST = 0.7         # right after work — a live session
-POLL_MAX = 20.0         # fully idle
-BACKOFF = 1.6
+# What this replaced, and why it mattered more than it looks: the lease used to be a client poll that
+# backed off geometrically while idle, so an unattended worker would not hold the Fly machine awake.
+# But a real interview is mostly idle — the candidate spends a minute or two thinking — so by the
+# time they hit send the worker had eased out to a 20-second interval, and their answer waited up to
+# 20s just to be NOTICED. That was routinely longer than the model call it was waiting for.
+#
+# Holding the connection also sends FEWER requests than polling did, and a worker only runs when the
+# host has deliberately switched the interviewer on.
+LEASE_WAIT = 25.0       # how long the server may hold one lease request
+POLL_FAST = 0.4         # gap between long polls while an interview is live
+POLL_IDLE = 3.0         # nothing live — the hold already absorbed the wait, just don't spin
 LEASE_TIMEOUT = 300
 
 
-def _post(server, path, token, payload):
+def _post(server, path, token, payload, timeout=45):
     req = urllib.request.Request(
         server.rstrip("/") + path,
         data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json", "X-Worker-Token": token},
         method="POST")
-    with urllib.request.urlopen(req, timeout=45) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode() or "{}")
 
 
@@ -67,9 +70,13 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
     The HTTP API skips the per-call CLI handshake entirely and answers in roughly 1-3s, so this is
     the single biggest response-time win available. Falls back to the CLI when no key is present.
     """
+    # maxOutputTokens has to clear the LONGEST legitimate turn, not the average one. The role
+    # contract explicitly asks for full whiteboard-depth explanations when a candidate is stuck at
+    # the deepest hint tier, and a truncated explanation is exactly the quality loss this path
+    # exists to avoid — so the cap sits well above the ~400-token typical reply.
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.6, "maxOutputTokens": 1200},
+        "generationConfig": {"temperature": 0.6, "maxOutputTokens": 3000},
     }).encode()
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{API_MODEL}:generateContent?key={key}")
@@ -107,8 +114,13 @@ def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str 
         #     nothing useful when stdin is a non-TTY, so stdin is closed and argv carries the text;
         #  2. FLAG ORDER MATTERS — `--print --model X <prompt>` loses the prompt (agy answers a
         #     generic "the active model is..."), while `--model X --print <prompt>` works.
+        #  3. --disable-slash-commands: the prompt is a large blob containing rubric text and the
+        #     candidate's UNTRUSTED answer. In print mode agy expands slash commands and skills out
+        #     of the prompt, so a candidate typing "/something" would be reaching agy's command
+        #     surface rather than being graded. The interviewer never wants expansion. (Its effect
+        #     on latency was within noise — 13.0s vs 13.8s over two runs each; this is for safety.)
         r = subprocess.run(
-            ["agy", "--model", MODEL, "--print", prompt],
+            ["agy", "--model", MODEL, "--disable-slash-commands", "--print", prompt],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
             timeout=timeout, cwd=scratch)
     except subprocess.TimeoutExpired:
@@ -187,7 +199,6 @@ def main():
     pool = ThreadPoolExecutor(max_workers=a.concurrency)
     inflight = set()
     idle_logged = False
-    delay = POLL_FAST
     print(f"concurrency: {a.concurrency} simultaneous turns\n")
     while True:
         inflight = {f for f in inflight if not f.done()}
@@ -195,15 +206,19 @@ def main():
             time.sleep(POLL_FAST)
             continue
         try:
+            # `wait` asks the server to hold this request until work arrives. `--once` does not
+            # wait: it is a smoke test, and should report "nothing queued" rather than hang.
             job = _post(a.server, "/api/interview/worker/lease", token,
-                        {"worker_id": worker_id, "version": "1"})
+                        {"worker_id": worker_id, "version": "1",
+                         "wait": 0 if a.once else LEASE_WAIT},
+                        timeout=LEASE_WAIT + 20)
         except urllib.error.HTTPError as e:
             print(f"lease failed: HTTP {e.code} {e.reason}")
-            time.sleep(POLL_MAX)
+            time.sleep(POLL_IDLE)
             continue
         except Exception as e:
             print(f"lease failed: {e}")
-            time.sleep(POLL_MAX)
+            time.sleep(POLL_IDLE)
             continue
 
         if not job or not job.get("job_id"):
@@ -213,14 +228,12 @@ def main():
             if a.once and not inflight:
                 pool.shutdown(wait=True)
                 return 0
-            # Stay responsive while peers are still generating (more work is likely imminent),
-            # otherwise ease off toward the idle ceiling.
-            delay = POLL_FAST if inflight else min(POLL_MAX, delay * BACKOFF)
-            time.sleep(delay)
+            # The server already absorbed the waiting. This gap only stops a tight loop if the hold
+            # returns early; it stays short while a session is live so pickup remains immediate.
+            time.sleep(POLL_FAST if (inflight or job.get("live")) else POLL_IDLE)
             continue
 
         idle_logged = False
-        delay = POLL_FAST                     # a live session: snap back to responsive
         inflight.add(pool.submit(handle, job))
         if a.once:
             pool.shutdown(wait=True)

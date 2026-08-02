@@ -622,16 +622,19 @@
     poll(r.job_id);
   }
 
+  const POLL_MS = 450;              // see the note at the bottom of this function
+  const POLL_GIVE_UP_MS = 300000;   // 5 min — a stalled host, not a slow turn
+
   function poll(jobId) {
     clearInterval(S.polling);
-    let waited = 0, inFlight = false;
+    const startedAt = Date.now();
+    let inFlight = false;
     S.polling = setInterval(async () => {
       // A turn takes ~15s, so a naive 2s interval puts ~7 requests in flight at once. They would
       // all arrive as "done" together — hence the interviewer's message appearing many times.
       // One request at a time.
       if (inFlight) return;
       inFlight = true;
-      waited += 1;
       let r;
       try { r = await jget('/api/interview/poll/' + jobId); }
       catch (e) { return; }
@@ -648,7 +651,7 @@
         s.done = !!r.done;
         renderSession();
         if (s.done) loadFinalScore(s.id);
-      } else if (r.error || waited > 300) {
+      } else if (r.error || Date.now() - startedAt > POLL_GIVE_UP_MS) {
         clearInterval(S.polling);
         const s = S.session;
         s.thinking = false;
@@ -656,7 +659,12 @@
           content: '⚠ ' + (r.error || 'The interviewer did not respond. Is the host machine still running?') });
         renderSession();
       }
-    }, 1000);   // 1s: the model floor is ~15s, so poll granularity should not add to it
+      // Poll granularity is pure added latency on top of the model call — the reply is already
+      // sitting on the server by the time we ask. One request at a time is enforced above, so a
+      // short interval costs a few small JSON round trips and nothing else. The give-up check is
+      // wall-clock, not a tick count, so changing this interval cannot silently shorten the
+      // timeout (at a 1s tick the old count meant 5 minutes; at 450ms it would have meant 2¼).
+    }, POLL_MS);
   }
 
   /* The overall score is computed server-side when the session closes, so it is fetched rather than

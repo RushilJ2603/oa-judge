@@ -139,6 +139,9 @@ def main():
     # ---- history is ordered by last interaction, not creation ---------
     check_history_order(rid)
 
+    # ---- worker pickup latency ----------------------------------------
+    check_long_poll()
+
     # ---- catalog completion state -------------------------------------
     check_topic_progress()
 
@@ -226,6 +229,63 @@ def check_history_order(rid):
           str([h["id"] for h in iv.history(uid)][:2]))
     check("history: exposes the timestamp it sorted on",
           all(h.get("last_at") for h in iv.history(uid)))
+
+
+def check_long_poll():
+    """The worker must see a queued turn immediately, and never see the same one twice.
+
+    This is the latency that used to dominate a turn. The lease was a client poll that backed off
+    geometrically while idle — and an interview is mostly idle, because the candidate is thinking —
+    so by the time they hit send the worker was on a 20s interval and their answer waited ~10s on
+    average just to be noticed, often longer than the model call itself.
+    """
+    import threading
+    import time as _t
+    from interview import jobs
+    from interview import session as iv
+    uid = 3310
+    sid = iv.start(uid, rubrics.list_ids()[0])["session_id"]
+    iv.add_turn(sid, uid, "candidate", "thinking", "recognition")
+    check("long poll: an active session reads as live", jobs.sessions_live() is True)
+
+    # A turn queued mid-hold must be picked up essentially at once.
+    threading.Timer(0.4, lambda: jobs.enqueue(uid, sid, "PROMPT", "turn")).start()
+    t0 = _t.monotonic()
+    r = jobs.lease_waiting("w-lp", "1", max_wait=10.0)
+    took = _t.monotonic() - t0
+    check("long poll: returns the job, not an empty response", bool(r.get("job_id")), str(r)[:80])
+    check("long poll: pickup is under a second after the turn is queued", took < 1.4,
+          f"{took:.2f}s")
+    if r.get("job_id"):
+        jobs.complete(r["job_id"], "ok")
+
+    # An empty hold must respect its deadline rather than blocking the worker forever.
+    t0 = _t.monotonic()
+    r = jobs.lease_waiting("w-lp", "1", max_wait=1.0)
+    took = _t.monotonic() - t0
+    check("long poll: an empty hold ends at its deadline", 0.9 <= took <= 2.2, f"{took:.2f}s")
+    check("long poll: reports liveness so the worker knows whether to idle", r.get("live") is True)
+
+    # The claim must stay exclusive now that several holds can wake at the same instant.
+    for i in range(6):
+        jobs.enqueue(uid, sid, f"p{i}", "turn")
+    got, lock = [], threading.Lock()
+
+    def take(n):
+        j = jobs.lease_waiting(f"w{n}", "1", max_wait=3.0)
+        if j.get("job_id"):
+            with lock:
+                got.append(j["job_id"])
+
+    ts = [threading.Thread(target=take, args=(i,)) for i in range(8)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    check("long poll: concurrent holds never lease the same turn twice",
+          len(got) == len(set(got)), str(sorted(got)))
+    check("long poll: still honours the concurrency cap", len(got) <= jobs.MAX_CONCURRENT,
+          f"{len(got)} > {jobs.MAX_CONCURRENT}")
 
 
 def check_topic_progress():

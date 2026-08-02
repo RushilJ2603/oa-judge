@@ -10,6 +10,7 @@ small concurrency limit keep one person from draining it or fork-bombing the lap
 import datetime
 import os
 import json
+import time
 
 import db
 
@@ -23,6 +24,10 @@ MAX_CONCURRENT = int(os.environ.get("OAJ_INTERVIEW_CONCURRENCY", "6"))
 DAILY_PER_USER = 120          # turns/day/user
 MAX_QUEUE = 200               # backstop; well above 16 users' in-flight turns
 ONLINE_WINDOW_S = 60          # a beat newer than this means "Interviewer online"
+# How long after its last turn a session still counts as LIVE. Long enough to cover someone thinking
+# hard about a system-design question, short enough that an interview abandoned mid-way stops holding
+# the worker — and therefore the Fly machine — awake.
+LIVE_WINDOW_S = 1800
 
 
 def _now():
@@ -74,6 +79,60 @@ def used_today(user_id: int) -> int:
 
 
 # ------------------------------------------------------------------ lease / result (worker side)
+def sessions_live() -> bool:
+    """Is anyone actually mid-interview right now?
+
+    Used to decide whether the worker should stay hot. Derived from the newest turn rather than from
+    `started_at`, so a session someone is still thinking about counts as live while one abandoned an
+    hour ago does not.
+    """
+    cutoff = _iso(_now() - datetime.timedelta(seconds=LIVE_WINDOW_S))
+    return db.connect().execute(
+        "SELECT 1 FROM interview_session s WHERE s.status='active' AND "
+        "COALESCE((SELECT MAX(t.created_at) FROM interview_turn t WHERE t.session_id = s.id), "
+        "         s.started_at) > ? LIMIT 1", (cutoff,)).fetchone() is not None
+
+
+def _queued_waiting() -> bool:
+    """Cheap read: is there a job to take? Keeps the wait loop's tick nearly free, so it can run
+    often enough that pickup is effectively instant."""
+    return db.connect().execute(
+        "SELECT 1 FROM interview_job WHERE status='queued' LIMIT 1").fetchone() is not None
+
+
+WAIT_TICK_S = 0.15
+WAIT_MAX_S = 25.0             # below any sane proxy idle timeout, above a comfortable poll period
+
+
+def lease_waiting(worker_id: str, version: str = "", max_wait: float = 0.0) -> dict:
+    """Lease a job, holding the request open until one appears.
+
+    This replaced a client-side poll that backed off geometrically while idle. The backoff existed to
+    let the Fly machine sleep, but it had a perverse effect during a real interview: the candidate
+    spends a minute or two thinking, the worker sees no work and eases out to a 20s poll, and their
+    NEXT answer then waits up to 20 seconds just to be noticed — often longer than the model call
+    itself. Holding the connection instead makes pickup immediate and sends *fewer* requests than
+    polling did.
+    """
+    job = lease(worker_id, version)                # also beats + reclaims expired leases
+    if job:
+        return {**job, "live": True}
+    if max_wait <= 0:
+        return {"live": sessions_live()}
+    deadline = time.monotonic() + min(max_wait, WAIT_MAX_S)
+    last_beat = time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(WAIT_TICK_S)
+        if _queued_waiting():
+            job = lease(worker_id, version)
+            if job:
+                return {**job, "live": True}
+        elif time.monotonic() - last_beat >= ONLINE_WINDOW_S / 3:
+            beat(worker_id, version)               # "Interviewer online" must not lapse mid-hold
+            last_beat = time.monotonic()
+    return {"live": sessions_live()}
+
+
 def lease(worker_id: str, version: str = "") -> dict | None:
     """Hand the caller one job and mark it leased. Also records the heartbeat.
 

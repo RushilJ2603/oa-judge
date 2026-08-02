@@ -1098,8 +1098,15 @@ def api_interview_worker_lease():
         return jsonify({"error": "bad worker token"}), 401
     from interview import jobs
     b = request.get_json(force=True) or {}
-    return jsonify(jobs.lease(str(b.get("worker_id", ""))[:80],
-                              str(b.get("version", ""))[:20]) or {})
+    # `wait` turns this into a long poll: the worker asks once and we hold the request until a turn
+    # appears. One held thread per worker, and a worker only runs when the host has switched the
+    # interviewer on, so this cannot hold the machine awake unattended.
+    try:
+        wait = min(float(b.get("wait") or 0), jobs.WAIT_MAX_S)
+    except (TypeError, ValueError):
+        wait = 0.0
+    return jsonify(jobs.lease_waiting(str(b.get("worker_id", ""))[:80],
+                                      str(b.get("version", ""))[:20], wait))
 
 
 @app.route("/api/interview/worker/result", methods=["POST"])
