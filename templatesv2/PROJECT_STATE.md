@@ -283,10 +283,30 @@ it on, so holding the connection is affordable.
 executed because no key exists. Adding `GEMINI_API_KEY=…` to `.env` is sufficient — the launcher
 does `set -a && . ./.env`. Expected ~13.8s → ~2s.
 
-**Dead ends, do not retry:** warm/pre-spawned agy processes (`--prompt-interactive` needs a real TTY
-— `bubbletea: could not open TTY` — so it cannot be fed a later prompt headlessly, and driving a TUI
-through a pty to parse a scoring block is far too fragile). Reducing prompt size (measured
-irrelevant). Lower `--effort` / a weaker tier (that is a quality compromise, which was ruled out).
+### A REAL turn (13.8 KB prompt, `hq01_url_shortener`, stream-json instrumentation)
+| Part | Time | Detail |
+|---|---|---|
+| Bootstrap | ~10.5s | before any model call |
+| `agent_response` | 4.5s | 2029 output tokens — **1888 of them thinking** |
+| `checkpoint` | 1.4s | a SECOND model call agy makes for conversation bookkeeping we discard |
+| **Total** | **16.5s** | |
+
+### Every CLI lever, tested (2026-08-02) — all closed
+| Lever | Result |
+|---|---|
+| Prompt size | **Irrelevant.** A 2-token reply costs the same ~14s |
+| `--continue` (resume conversation) | 12.6s vs 13.6s — **no bootstrap skip** |
+| Warm / pre-spawned process | **Impossible.** `--prompt-interactive` needs a real TTY; under a pty it renders a full-screen TUI (`ESC[?1049h`) and `--output-format` applies to *print mode only*, so there is no JSON to parse |
+| Model tier `high` → `medium` | 17.0s → 16.0s — **within noise** |
+| Model tier `high` → `low` | 17.0s → 14.1s, but **thinking_tokens 1456 → 0**. Saves 3s by doing no reasoning at all, on a task whose job is deciding which rubric points an answer covered. Ruled out |
+| Streaming the reply | **Pointless.** Thinking precedes visible text, so there is almost nothing to stream early |
+| DNS (WSL resolver) | Cached, ~0.00s — not a factor |
+| agy config / MCP servers | `mcp_config.json` empty, nothing tunable |
+| `--disable-slash-commands` | Within noise (13.0s vs 13.8s) — kept for SAFETY, not speed |
+
+**Conclusion: the agy CLI path has a hard ~12–14s floor and nothing in its surface can move it.**
+The API path is the only fix — it skips both the bootstrap and the checkpoint call, leaving roughly
+the 4.5s of real generation.
 
 ## Known Issues / Tech Debt
 - **No JS runtime in WSL** (`node`/`deno`/`bun` all absent), so `interview.js` cannot even be
