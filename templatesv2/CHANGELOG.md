@@ -4,7 +4,17 @@
 ## [2026-08-02] — session 8: interview fixes from real use | By: Claude (Opus 5, Claude Code)
 
 ### Done This Session
-Four asks, all from actually sitting interviews. Two further bugs fell out of verifying them.
+Five asks, all from actually sitting interviews. Two further bugs fell out of verifying them.
+
+- **Completion state, and the score where you can see it.** The report was already strong — overall %,
+  a meter per phase, every missed point with your own words quoted back — but it lived behind a button
+  or in the history list, and **the catalog showed no completion state whatsoever**: all 322 topic
+  cards looked the same whether you had never opened one or aced it three times. Cards now carry a
+  mastery badge (✓ solid / ↻ shaky), a strip counts "N of 322 attempted · M solid", and four chips
+  filter to Not started / Needs work / Solid. Finishing an interview now shows the score on the
+  completion panel instead of only "Interview complete".
+  Progress is derived from **checkoffs**, not `interview_session.rubric_id` — that column holds only
+  the segment a session stopped in, so counting from it would credit one topic for a 4-topic loop.
 
 - **Raw LaTeX reaching the reader** (`($\text{RT} = \text{WT}$)` shown literally). Two causes.
   `md.py` only understood `\(…\)` — authored statements can be rewritten offline, live model output
@@ -38,7 +48,7 @@ Four asks, all from actually sitting interviews. Two further bugs fell out of ve
   `rebuild_skills` replays an order-dependent EMA over checkoffs written in one tight loop.
 
 ### Verification
-- `test_interview.py`: **17 → 53 invariants**, all passing.
+- `test_interview.py`: **17 → 61 invariants**, all passing.
 - `smoke_test.py`: **ALL GOOD** — every reference ACs, every stub correctly fails.
 - Endpoints exercised through a real `test_client()`: rendered turns on session/resume, delete →
   history and weak spots both empty, double-delete → 404, weak-spot drill starts a MIXED plan.

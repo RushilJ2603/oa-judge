@@ -12,7 +12,7 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets: **style.css v36, interview.js v9, sheets.js v25, app.js v16, editor.js v17**.
+  persistent volume `/data`. Static assets: **style.css v37, interview.js v10, sheets.js v25, app.js v16, editor.js v17**.
 - **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
   (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
@@ -53,18 +53,33 @@ quality is still enforced by the same tooling gates.
   - **Weak spots tab** — the accumulated rubric misses, rolled up per topic, worst first, each one
     clickable to drill, plus "drill the top 4 in one loop". Previously this evidence only steered loop
     composition invisibly.
+  - **Completion state in the catalog** — every topic card carries a badge (✓ + mastery when solid,
+    ↻ when attempted but shaky), a strip counts "N of 322 attempted · M solid", and filter chips
+    narrow to Not started / Needs work / Solid. Derived from **checkoffs**, not
+    `interview_session.rubric_id` (that column holds only the segment a session stopped in, so a
+    4-topic loop would credit exactly one topic).
+  - **The score is on the completion panel**, fetched from the server when a session closes — not
+    accumulated client-side, and no longer hidden one click away behind "see report".
   - **Cross-session topic recall** — starting a topic you have sat before injects prior-attempt COUNTS
     (how many times, when, what you scored, how many of its points are still weak) but never point ids
     or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    **53 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
+    **61 invariants** in `test_interview.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
 ## Shipped this session (session 8, 2026-08-02)
-Four asks, all from using the thing for real.
+Five asks, all from using the thing for real.
+- **Completion state — "can I see that I've done this?"** The report was already strong (overall %,
+  a meter per phase, every missed point with the candidate's own words quoted back) but it was only
+  reachable from history or from behind a button, and **the catalog had no completion state at all**:
+  322 cards identical whether never opened or aced three times, which is the worst property a list
+  that long can have. Cards now carry a mastery badge, a strip counts "N of 322 attempted · M solid",
+  and chips filter to Not started / Needs work / Solid. The completion panel shows the score itself.
+  Progress comes from **checkoffs**, not `interview_session.rubric_id` — that column holds only the
+  segment a session stopped in, so a 4-topic loop would have credited exactly one topic.
 - **Raw LaTeX in interviewer replies (`$\text{RT} = \text{WT}$`).** Two causes. (1) `md.py` only
   understood `\(…\)`; authored statements can be rewritten offline but *live model output cannot*, so
   `$…$`/`$$…$$` are now handled — with strict boundaries (opening `$` followed by non-space, closing
