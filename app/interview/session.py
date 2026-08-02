@@ -14,6 +14,7 @@ Consequences that fall out of that split:
 """
 import datetime
 import json
+import re
 
 import db
 
@@ -24,6 +25,26 @@ from . import context, dossier, rubrics
 # pointless. Depth is still earned: the deep hints need sustained struggle, not one hesitation.
 TIER_AT = (1, 3, 5)
 MAX_TIER = 3
+
+
+# An explicit "I'm stuck" must work on the turn it is typed, not the turn after.
+#
+# The stuck counter is only updated once the MODEL has replied and reported STUCK, so a candidate
+# asking for help got "NO HINTS AUTHORISED YET" on that very turn and help only on the next one.
+# Two audit agents flagged the result from real transcripts: help-seeking is stonewalled, the next
+# question is harder, and the student learns that asking is pointless.
+#
+# So the app reads the request itself. Deliberately narrow — explicit statements of being unable to
+# proceed, NOT "can you give an example?" or "why does that matter?", which are curiosity and are
+# answered without spending a hint tier.
+_ASKING_FOR_HELP = re.compile(
+    r"\b(i(?:'|’)?m stuck|i am stuck|i(?:'|’)?m lost|i don(?:'|’)?t know|i dont know|no idea|"
+    r"not a clue|i give up|give me (?:a |the )?hint|can i (?:get|have) a hint|hint please|"
+    r"help me out|can you help|i(?:'|’)?m blanking|drawing a blank)\b", re.I)
+
+
+def asked_for_help(text: str) -> bool:
+    return bool(_ASKING_FOR_HELP.search(text or ""))
 
 
 def _tier_for(stuck: int) -> int:
@@ -183,8 +204,12 @@ def build_prompt(user_id: int, session_id: int) -> str | None:
     # Tell the model when this is the last phase there is, so it can close rather than end the
     # interview on a question the student will never get to answer.
     nxt, _rid, _seg = _next_step(s, r, s["current_phase"])
+    # If they just said they are stuck, release the tier NOW rather than one turn late.
+    tier = s["hint_tier"]
+    if answer and asked_for_help(answer):
+        tier = max(tier, _tier_for(s["stuck_signals"] + 1))
     return context.build_turn(r, s["current_phase"], _checkoff_map(session_id, s["current_phase"]),
-                              s["hint_tier"], dos, tl[:-1] if answer else tl, answer,
+                              tier, dos, tl[:-1] if answer else tl, answer,
                               grounding=rubrics.source_text(s["rubric_id"]), recall=recall,
                               is_last=(nxt is None))
 

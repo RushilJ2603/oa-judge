@@ -323,6 +323,30 @@ def check_no_circling():
     check("circling: a question is answered, not graded as an answer",
           "WHEN THEY ASK YOU SOMETHING" in ctx)
 
+    # Asking for help must work on the turn it is typed. The stuck counter only updates after the
+    # model replies, so an explicit request used to get "no hints authorised" and help one turn
+    # late — teaching the student that asking is pointless.
+    import re as _re
+    sid_h = iv.start(uid, rid)["session_id"]
+    iv.add_turn(sid_h, uid, "interviewer", "What are the requirements?", first)
+    iv.add_turn(sid_h, uid, "candidate", "I'm stuck, can you give me a hint?", first)
+    ph = iv.build_prompt(uid, sid_h)
+    check("help: an explicit 'I'm stuck' releases a hint on the SAME turn",
+          "HINTS AUTHORISED (tier 1)" in ph,
+          (_re.search(r"(NO HINT[^\n]*|HINTS AUTHORISED[^\n]*)", ph) or [""])[0][:60])
+    check("help: curiosity does NOT spend a hint tier",
+          not iv.asked_for_help("can you give an example?")
+          and not iv.asked_for_help("why does that matter?"))
+    check("help: a normal answer does not trigger it",
+          not iv.asked_for_help("Reads dominate writes about 100 to 1."))
+    # The old directive was a permissions denial the model could parrot at the student. It is now
+    # phrased as what to DO, plus an explicit instruction never to mention hint levels at all.
+    check("help: the bureaucratic refusal wording is gone",
+          "NO HINTS AUTHORISED YET — do not hint" not in ctx, ctx[ctx.find("NO HINT"):][:70])
+    check("help: the model is told not to mention hint levels to the student",
+          "never tell them a hint is 'not authorised'" in ctx.lower()
+          and "Re-frame the question" in ctx)
+
     # (3) The FLOOR. TAUGHT is the clean exit, but a model that never emits it would still loop
     # forever — so the app closes a stalled phase on its own once hints are exhausted.
     sid3 = iv.start(uid, rid)["session_id"]

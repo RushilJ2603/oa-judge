@@ -222,7 +222,14 @@ def render_phase(rubric: dict, phase_name: str, checkoffs: dict, hint_tier: int,
                 "example, and why the obvious answer fails. Draw on the REFERENCE. Then move the "
                 "interview forward rather than circling.")
     else:
-        lines.append("\nNO HINTS AUTHORISED YET — do not hint. Probe or restate instead.")
+        # Phrased as what to DO, not as a permissions denial. Agents reading real transcripts found
+        # the interviewer stonewalling in language no human would use, so a student who asked for
+        # help got a bureaucratic refusal and a harder question — and learned not to ask again.
+        lines.append(
+            "\nNO HINT YET — they have not hit a wall, so do not hand over any part of the answer. "
+            "Re-frame the question, narrow it, ask what they DO know about it, or ask them to think "
+            "aloud. Never tell them a hint is 'not authorised' or refer to hint levels at all; that "
+            "is bookkeeping, and it is not their business.")
 
     # The interview ENDS the moment this phase's core points are settled, and the app cannot rewrite
     # what was said — so a turn that both settles the last point and ends on a new question leaves
