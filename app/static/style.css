@@ -1360,3 +1360,14 @@ select option { background: var(--bg-elev); color: var(--text); }
 .iv-bubble.md blockquote { margin: 0 0 10px; padding-left: 11px; border-left: 3px solid var(--border);
     color: var(--text-muted); }
 .iv-bubble.md .math { font-family: var(--mono); }
+/* Dictation: the listening state must be unmistakable — a mic you think is off but isn't is worse
+   than no mic at all. */
+.iv-composer-actions { display: flex; align-items: center; gap: 8px; }
+.iv-mic { white-space: nowrap; }
+.iv-mic.on { color: var(--error); border-color: color-mix(in srgb, var(--error) 50%, var(--border));
+    background: color-mix(in srgb, var(--error) 12%, transparent); animation: ivmic 1.4s infinite; }
+@keyframes ivmic { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@media (max-width: 900px) {
+    .iv-composer-actions { width: 100%; }
+    .iv-composer-actions .btn { flex: 1; }
+}

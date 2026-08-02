@@ -244,7 +244,11 @@
            <div class="iv-composer-bar">
              <span class="iv-hint-state">${s.hintTier > 0
                ? `hint level ${s.hintTier} unlocked` : 'no hints yet — say if you are stuck'}</span>
-             <button class="btn btn-primary" id="iv-send" ${s.thinking ? 'disabled' : ''}>Send</button>
+             <span class="iv-composer-actions">
+               <button class="icon-btn iv-mic" id="iv-mic" title="Dictate your answer"
+                 ${s.thinking ? 'disabled' : ''}>🎤 Speak</button>
+               <button class="btn btn-primary" id="iv-send" ${s.thinking ? 'disabled' : ''}>Send</button>
+             </span>
            </div>
          </div>`;
 
@@ -269,6 +273,7 @@
       ta.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
       });
+      wireMic(ta);
       // Keep the candidate in flow: focus returns the moment it is their turn again.
       if (!s.thinking) ta.focus();
     }
@@ -279,6 +284,7 @@
 
   async function send() {
     const s = S.session, ta = $('iv-answer');
+    stopMic();                       // a live mic would keep appending into the next turn
     const text = (ta.value || '').trim();
     if (!text || s.thinking) return;
     s.turns.push({ role: 'candidate', content: text });
@@ -349,7 +355,69 @@
     $('iv-back').addEventListener('click', leave);
   }
 
+  // ------------------------------------------------------------------ speech to text
+  /* Browser-native Web Speech API: no key, no server cost, and speaking your answer is what a real
+     interview actually is. Notes on the design:
+       - interim results are shown live but only the FINAL transcript is committed, so the textarea
+         does not churn while you are mid-sentence;
+       - dictation APPENDS to whatever you typed rather than replacing it, so the two mix freely;
+       - Chrome ends recognition on its own after a pause — for an interview answer that is mid-
+         thought, so it is restarted automatically until you switch it off.
+     Chrome/Edge route audio through Google's servers; unsupported browsers simply never see the
+     button rather than getting one that silently fails. */
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, recOn = false, recBase = '';
+
+  function micSupported() { return !!SpeechRec; }
+
+  function stopMic() {
+    recOn = false;
+    if (rec) { try { rec.stop(); } catch (e) { } rec = null; }
+    const b = $('iv-mic');
+    if (b) { b.classList.remove('on'); b.textContent = '🎤 Speak'; }
+  }
+
+  function wireMic(ta) {
+    const btn = $('iv-mic');
+    if (!btn) return;
+    if (!micSupported()) { btn.style.display = 'none'; return; }
+    btn.addEventListener('click', () => (recOn ? stopMic() : startMic(ta)));
+  }
+
+  function startMic(ta) {
+    if (!SpeechRec) return;
+    rec = new SpeechRec();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-IN';
+    recOn = true;
+    recBase = ta.value ? ta.value.replace(/\s*$/, '') + ' ' : '';
+    const btn = $('iv-mic');
+    if (btn) { btn.classList.add('on'); btn.textContent = '● Listening'; }
+
+    rec.onresult = (e) => {
+      let done = '', interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) done += t + ' '; else interim += t;
+      }
+      if (done) recBase += done;
+      ta.value = recBase + interim;
+      ta.scrollTop = ta.scrollHeight;
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        stopMic();
+        const b = $('iv-mic');
+        if (b) b.title = 'Microphone permission denied — allow it in the address bar';
+      }
+    };
+    rec.onend = () => { if (recOn) { try { rec.start(); } catch (e) { } } };  // pause != finished
+    try { rec.start(); } catch (e) { stopMic(); }
+  }
+
   function leave() {
+    stopMic();
     clearInterval(S.polling);
     S.session = null;
     render();
