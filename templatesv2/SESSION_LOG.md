@@ -19,6 +19,121 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 7 — 2026-08-01 → 08-02 (+3 gated problems, statement-rendering fix, and a full mock-interview system)
+
+**AI:** Claude (Opus 4.8, via Claude Code) — with **Grok `cursor-grok-4.5-high`** doing build-time bulk
+extraction and **agy / Gemini 3.6 Flash** as the *runtime* interviewer only.
+**Start → End:** 2026-08-01 ~22:00 IST → 2026-08-02 ~14:00 IST (~16 h, several long unattended batches)
+**Goal at start:** add two Arcesium problems. It grew into the interview system after the bank work landed.
+
+### What we set out to do
+Two Arcesium OA problems, then a POTD statement that rendered raw LaTeX. Those closed quickly, and the
+session turned into the "big next chapter" the user had been circling: a **mock interviewer grounded in
+their own notes, with memory of them across sessions**, hosted at $0 and usable by 10–16 friends at once.
+
+### Files touched (major)
+**Bank (`oa-problems`)**
+- `problems/arcesium-max-campaign-score/**` — NEW, gated Hard. Top-k of all n(n+1)/2 window spreads.
+- `problems/arcesium-banquet-seating/**` — NEW, gated Medium. Circular seating; feasible iff
+  `m ≥ n + (S − minD) + maxD`.
+- 8 × `statement.md` (deshaw-*, oahelper-*) — `$…$` LaTeX → backticks + Unicode.
+- `problems/_interview/**` — NEW: 194 research + notes sections, **322 gated rubrics**, `SCHEMA.md`.
+
+**App (`oa-judge`)**
+- `app/interview/{__init__,rubrics,context,dossier,session,jobs,mixed,subjects}.py` — NEW package.
+- `app/migrations/010_interview.sql`, `011_interview_mixed.sql` — NEW.
+- `app/server.py` — 12 interview endpoints + worker-token auth; waitress threads 8 → 24.
+- `app/static/interview.js` (NEW), `style.css` (v28 → v35), `index.html`, `sheets.js` (v23 → v25).
+- `interview_worker.py`, `gate_rubric.py`, `extract_rubrics.py`, `audit_rubrics.py`,
+  `test_interview.py`, `loadtest_interview.py`, `INTERVIEW.md`, `Start Interviewer.bat` — NEW.
+
+### Chronological narrative
+1. **Arcesium ×2.** Verified the user's own worked example (`[1,2,5,3,4], k=4 → 15`) with a brute force
+   before writing anything; both PASS with 100 % mutation. Their PQ approach was the trap — the task is
+   top-k over all window spreads, not a sweep.
+2. **POTD raw LaTeX.** Found 8 statements using `$…$`; the renderer has no TeX. Converted corpus-wide.
+3. **CP-sheet scaffolding + a duplicate audit** — 274 URLs appeared >1×; user chose "keep best-fit".
+4. **Interview design.** Discovered `oa-staging/{sd,cp}_research` — **180 k words already
+   interview-shaped** (`Core concepts to master`, `Deep dives & the 2–3 tradeoffs interviewers probe`,
+   `Common follow-ups / gotchas`). That is what made grounding cheap.
+5. **Built the quality machinery first** — schema → gate → extractor, deliberately in that order.
+6. **Two batches** (128 sd/cp + 215 notes sections) ran ~6 h in parallel; 8 quarantined, all recovered.
+7. **Then the hard part:** duplicate turns, latency, concurrency, subjects, history, speech (below).
+
+### What went right
+- **The gate caught a real hallucination.** `dsa_s26_mental_math` invented the number **3971** —
+  0 occurrences in its source. Rule 8 (every multi-digit number must appear in the source) rejected it.
+  That is the failure mode that reads perfectly fine to a human.
+- **The rubric, not the model, is what makes it good.** Bare Flash called a 1-of-4 MVCC answer
+  *"correct"*; the same model family with a rubric returned `HIT: 1 / MISSED: 2,3,4` and probed the
+  top gap. Proved again end-to-end: a deliberately weak URL-shortener answer scored 0.17 → 0.33 → 0.50
+  and never advanced.
+- **Memory works across sessions.** A new session on *caching* opened carrying
+  `KNOWN WEAK AREAS: NFRs… (mastery 50 %)` earned in a *URL-shortener* session.
+- **343 → 322 rubrics, 100 % gated**, re-gated from scratch at the end: 322 pass, 0 fail.
+
+### What went wrong / what got redone
+- **Duplicated interviewer turns (user-reported, 11×).** `/api/interview/poll` was not idempotent and
+  the client polled every 2 s regardless of in-flight requests; ~7 polls all saw `done` and each ran
+  `apply_turn`. Fixed **server-first** (conditional `done → applying` UPDATE) *and* client-side.
+- **36 s per turn.** Measured: 0.3 s process start + ~5 s auth + ~8 s generation, no warm-up, no usable
+  streaming. The thief was the worker's **fixed 20 s idle poll** — after send it could sit idle that
+  long. Adaptive backoff → **16.1 s**, ~1 s of overhead over the model floor.
+- **`agy --print --model X <prompt>` silently LOSES the prompt.** It answers a generic "the active
+  model is…". `--model X --print <prompt>` works. Found only by testing orderings.
+- **I broke agy by removing the plugin wrapper**: the prompt is **argv, not stdin**.
+- **Catalog "all over the place"** had two real data faults: 21 C topics duplicated under `cpp_` *and*
+  `c_` (my copy walked `C++_OOPs`, which *contains* `C programming`) — byte-identical, deduped; and the
+  aptitude set lives inside the DSA notes tree with **interleaved** section numbers (`dsa_s26` is both
+  *Advanced String Algorithms* and *Mental Math*), so subject must be decided by title, not id.
+- **Weight bug:** a bare `"reference"` in the low-value list demoted *Rvalue References* and *Passing by
+  Reference* to 1/5.
+- **Past interviews wouldn't open** — `renderHistory()` read `live` one line above its `const`. A TDZ
+  ReferenceError threw mid-render, so the list was empty while the tab still said "(1)". Endpoints were
+  fine throughout; needed a browser to find, not curl.
+- **`/api/interview/shapes` took 18 s** — `summaries()` rebuilt from 322 files on the slow `/mnt/c`
+  mount, ~8× per request. Cached → 2.7 s cold, 0.03 s warm.
+- **Killed my own test server repeatedly** by `rm`-ing its DB while running, then `_already_running`
+  made the replacement exit — so requests hit a server holding a deleted inode with zero tables.
+
+### Decisions made (with rationale)
+| Decision | Why | Reversible? |
+|---|---|---|
+| agy = **runtime interviewer only**; Grok does build-time bulk | Production must never need a generator installed or logged in | Yes |
+| Context assembled **server-side per turn**, agy kept stateless | Auditable, survives WSL dying, bounded, no cross-user bleed | Yes |
+| **No workspace for agy** (verified: file tools auto-denied headless) | Friends' text reaches that machine; injection must hit an agent with nothing to read | Yes |
+| Ship the **full source section** as REFERENCE each turn | Closes the "agy reading my notes" gap; measured free (16.5 s vs 16.1 s) | Yes |
+| Scores computed by the app from point ids | No typed text can move a number | No (core) |
+| **Exclusion**-based mixed loops | "Not system design today" is one click; listing what you want is tedious | Yes |
+| Browser neural TTS over Sarvam/ElevenLabs | Hosted TTS needs a key + per-char billing + another round-trip | Yes — hook is isolated |
+
+### Surprises / things learned
+- **Latency is auth-dominated, not token-dominated.** A two-token reply costs ~14 s; quadrupling the
+  prompt cost 0.4 s. That is why full-source grounding was free.
+- **agy's file tools are auto-denied in headless `--print`** — and a denied tool attempt returns
+  **no output at all**, so `looks_valid()` + retry is load-bearing.
+- Grok occasionally returns a **bare phase object** instead of a rubric; "first balanced `{}`" is the
+  wrong extraction rule — prefer the object that actually has `phases` + `id`.
+- Word-overlap grounding **under-scores formula-heavy topics** (mental math 40 %, algebra 52 %) while
+  the numeric check reports zero ungrounded numbers. Documented so a flag reads as "go look", not "drift".
+
+### Loose ends / deferred
+- **FTS5 retrieval over the 1.4 M-word notes** — the one thing raw file access would still add is
+  reading *other* topics mid-interview.
+- `GEMINI_API_KEY` path is implemented but **never exercised** (no key) — would take 16 s → ~1–3 s.
+- CP-sheet dedup (312 cross-topic copies) — analysed, user chose best-fit, **not executed**.
+- Mixed-loop tests aren't in `test_interview.py` (verified manually).
+- Prod `OAJ_INTERVIEW_CONCURRENCY=12`; the launcher passes `--concurrency 12`. Keep them in step.
+
+### Time-rough breakdown
+- interview infra (schema/gate/extractor/corpus): ~35 %
+- runtime (context, dossier, session, worker, API): ~25 %
+- UI (catalog, session, history, speech): ~20 %
+- debugging (duplication, latency, concurrency, TDZ): ~15 %
+- bank work (Arcesium, LaTeX): ~5 %
+
+---
+
 ## Session 6 — 2026-07-27 (reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems)
 
 **AI:** Claude (Opus 4.8) via Claude Code. All authoring, gating, deploying, and this write-up were mine — no delegation (the 6 problems were the user's, for their personal section, so the authoring-delegation-boundary applied).

@@ -1,0 +1,48 @@
+{
+  "_schema": "ai-context-bridge/session-v1",
+  "_note": "Auto-generated at session end. Do not edit manually. Before regenerating, the AI must archive the previous version of this file to .context/sessions/<generated_at-ISO>.json so machine-readable history is preserved. Commit with CHANGELOG.md, PROJECT_STATE.md, and SESSION_LOG.md.",
+  "generated_at": "2026-07-27T20:00:00+05:30",
+  "session_by": "Claude (Opus 4.8, via Claude Code)",
+  "session_summary": "Session 6: resumed after a context loss and reconciled state, then closed two gaps and added 6 problems. FOUND during a standing-check that work had landed past the session-5 templatesv2 cutoff (bd67f36): a built-in code compiler + per-problem scratchpad + standalone Compiler tab (reusable Monaco OAEditor.create() factory; commits f0efead, f48daf5), a Dockerfile safe.directory fix (35c33d9) so dubious-ownership can't break Sync, and batch9 (10 gated OA-Helper problems) merged into the bank (6fceac2). GAP 1: the live volume bank was 10 behind (123 vs pushed 133) -- batch9 had never been synced to production. GAP 2: templatesv2 was stale at session 5. Fixed gap 1 (pulled + reindexed the live volume -> 133). Then AUTHORED + GATED 6 new Microsoft OA problems under Iris-Personal (company 'Microsoft', source gyan): q1 valid-parentheses-with-limited-replacements (greedy count+forced-upgrade), q2 dynamic-network-strength (INCREMENTAL DSU -- the user's own DSU TLE'd 8/15 because it recomputed the whole sum each second; the fix is O((n+m)a) incremental), q3 password-strength-classifier, q4 compare-flat-json (hand-rolled quote-scanning parser), q5 min-abs-diff-pairs (sort+dedup, adjacent gaps), q6 maximize-binary-reverse-append (constructive: the reverse-append procedure is a fixed position-permutation, so the max final string is the multiset sorted descending and the input permutation is its unique preimage via the O(n) deque trick). Each: reference.cpp + independent Python brute + deterministic generator + >=5 edges incl max-scale, GATE: PASS at 100% mutation. Q6's THEORY was verified exhaustively against brute-force over all permutations for every binary string of length 1..9 (0 theory failures, optimum always unique). NOTE: the user's transcribed Q6 sample 1 was WRONG (claimed 00001 optimal; the true optimum is 00010 -> 10000) -- shipped the corrected sample. Bank 133 -> 139; pushed; live pulled + reindexed to 139. Finally updated templatesv2 to session 6.",
+  "current_phase": "Live & multi-user. Judge + built-in compiler/scratchpad are stable; CP + System Design sheets and the deterministic per-user contest tracker are the newer surfaces. Bank growth continues via gated authoring.",
+  "build_state": "Hosted at https://oa123.fly.dev (Fly app oa123, scale-to-zero, GitHub OAuth, DB + bank on the persistent volume /data). Two public repos: RushilJ2603/oa-judge (app; HEAD f48daf5) + oa-problems (bank; HEAD 732e6de). Live bank = 139 problems (a real git checkout on the volume). Static assets at v19 (style.css/sheets.js), editor.js v14. Quality gates unchanged (verify_all + audit + mutation_test + gate_candidate).",
+  "blocking_issue": null,
+  "files_modified_this_session": [
+    "problems/microsoft-q1-valid-parentheses-replacements/ (NEW gated: greedy; 21 hidden gz tests; 100% mutation)",
+    "problems/microsoft-q2-dynamic-network-strength/ (NEW gated: incremental DSU, fixes the sum-recompute TLE; 20 hidden; 100% mutation)",
+    "problems/microsoft-q3-password-strength/ (NEW gated: weak/strong classifier; needed a boundary edge to kill a c<='9' mutant; 21 hidden; 100% mutation)",
+    "problems/microsoft-q4-compare-flat-json/ (NEW gated: hand-rolled quote-scanning JSON parser; 20 hidden; 100% mutation)",
+    "problems/microsoft-q5-min-abs-diff-pairs/ (NEW gated: sort+dedup adjacent gaps; 21 hidden; 100% mutation)",
+    "problems/microsoft-q6-maximize-binary-reverse-append/ (NEW gated: constructive deque + unique-preimage; theory verified over all perms n<=9; 21 hidden; 100% mutation)",
+    "templatesv2/* (session-6 context update: PROJECT_STATE, CHANGELOG, SESSION_LOG, dead_ends, session.json archived+regenerated)"
+  ],
+  "files_from_lost_context_this_cycle": [
+    "app/static/editor.js + sheets.js + index.html + style.css (built-in C++/Python compiler + per-problem scratchpad + standalone Compiler tab; reusable OAEditor.create() Monaco factory; assets v16->v19, editor.js ->v14) -- commits f0efead, f48daf5",
+    "Dockerfile (git safe.directory for bank paths, fixes dubious-ownership breaking Sync) -- commit 35c33d9",
+    "problems/* batch9 (10 gated OA-Helper problems, grok-authored, re-gated clean) -- bank commit 6fceac2"
+  ],
+  "commands_run": [
+    "curl /api/health (standing check: live was 123, later 139)",
+    "git log/status on oa-judge + oa-problems (found session-6 work past bd67f36; both repos fully pushed)",
+    "python3 gate_candidate.py problems/microsoft-q{1..6}-* --allow-no-anchor (all GATE: PASS)",
+    "python3 make_hidden.py microsoft-q{1..6}-* 14 (committed hidden tests)",
+    "offline exhaustive verify: Q6 method vs brute-force over all binary strings length 1..9 (0 theory failures, 0 non-unique)",
+    "python3 audit.py (whole bank clean; warnings only on older problems)",
+    "git commit + push oa-problems (732e6de: 6 Microsoft problems)",
+    "fly ssh console -a oa123 -C 'git -C /data/problems -c safe.directory=/data/problems pull --ff-only origin main' (pull batch9 gap + 6 Microsoft into live volume)",
+    "fly ssh console -a oa123 -C 'cd /app/app && python3 -c \"import store; from runner import problems; store.reindex_problems(problems.all_meta())\"' (rebuild live index -> 139)"
+  ],
+  "decisions_made": [
+    { "decision": "The 6 user-supplied Microsoft problems were AUTHORED BY CLAUDE directly (not delegated to Grok/agy), each fully gated (reference.cpp + independent Python brute + generator + >=5 edges, 100% mutation)", "rationale": "User handed the problems for adding to their personal Iris section; authoring-delegation-boundary applies. Gate guarantees quality regardless of author", "locked": true },
+    { "decision": "Q6 (maximize-binary-reverse-append) ships with the CORRECTED sample: for 00001 the true optimum is 00010 (final 10000), not the user's transcribed 00001 (final 00001)", "rationale": "The reverse-append procedure is a fixed position-permutation (verified by the user's own example-2 walkthrough); under it 00010 -> 10000 strictly beats 00001. Confirmed by exhaustive brute-force over all permutations for n<=9. Shipping a self-inconsistent sample would be wrong", "locked": true },
+    { "decision": "Q6 is graded by exact/token compare on the single output permutation (no special judge)", "rationale": "For the unique maximum final string the input permutation is the unique preimage (transform is a bijection), so there is exactly one correct answer -- a normal comparator suffices", "locked": true },
+    { "decision": "To push a bank change to live WITHOUT the logged-in UI: fly ssh -> git pull on /data/problems (with -c safe.directory=/data/problems) -> reindex inline via `cd /app/app && python3 -c \"import store; from runner import problems; store.reindex_problems(problems.all_meta())\"`", "rationale": "All /api/ write routes (bank/sync, reindex) require GitHub OAuth, unusable headless; the app does NOT auto-pull or reindex-on-boot (only reindexes if the index is empty). The DB is a shared SQLite file, so an out-of-process reindex is picked up by the server", "locked": false }
+  ],
+  "errors_encountered": [
+    { "error": "fly ssh git pull on the volume: 'detected dubious ownership in repository at /data/problems'", "resolved": true, "resolution": "The Dockerfile safe.directory applies to the app's runtime user/HOME, not an ad-hoc root ssh session. Pass it inline: git -C /data/problems -c safe.directory=/data/problems pull" },
+    { "error": "Live reindex one-liner: ModuleNotFoundError: No module named 'problems'", "resolved": true, "resolution": "There is no problems.py; the module is runner.problems (server does `from runner import ... problems`). Correct: `cd /app/app && python3 -c \"import store; from runner import problems; store.reindex_problems(problems.all_meta())\"`" },
+    { "error": "Q3 password-strength: a boundary mutant survived (c<='9' -> c<'9'), score 97.1%", "resolved": true, "resolution": "Added an edge case with passwords made of only the range endpoints (999999/000000/ZZZZZZ/AAAAAA/zzzzzz/aaaaaa) so any endpoint-excluding mutant flips a verdict; re-gate 100%" },
+    { "error": "fly ssh failed with 'app oa123 has no started VMs'", "resolved": true, "resolution": "Machine was scaled to zero; hit /api/health first to auto-start it, then ssh" }
+  ],
+  "next_action": "Optional, 'just say which': (1) the user may want a virtual-contest / timed-set button; (2) the still-parked older batch9 staging notes are now moot (batch9 is merged + live); (3) keep authoring gated problems; (4) optional clist.by key for one-call multi-site contests. Live bank = 139, both repos pushed, templatesv2 current."
+}

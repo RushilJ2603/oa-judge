@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-07-27 20:00 IST (session 6 — reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems; bank 133 → 139 live) | By: Claude (Opus 4.8, via Claude Code)
+# Last Updated: 2026-08-02 14:00 IST (session 7 — +3 gated problems, statement-render fix, and a full MOCK INTERVIEW system: 322 gated rubrics, per-user memory, 16-user concurrency) | By: Claude (Opus 4.8, via Claude Code)
 
 ## Current Phase
 **Live & multi-user; the judge + built-in compiler are stable and the newer surface area is learning
@@ -12,11 +12,11 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets at **v19** (style.css/sheets.js), **editor.js v14**.
+  persistent volume `/data`. Static assets: **style.css v35, interview.js v8, sheets.js v25, app.js v16, editor.js v17**.
 - **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
   (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
-- **Bank: 139 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
+- **Bank: 142 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
   (`oa-helper`)**. Sidebar groups by **source ▸ company**; company names are canonicalized at index
   time (de shaw/DE Shaw → DE Shaw) and unknown/blank companies fall into a single **Practice** company.
   Iris — Personal now includes a **Microsoft** company (6 gated problems, session 6).
@@ -30,12 +30,51 @@ quality is still enforced by the same tooling gates.
 - **Contest Tracker (deterministic, per-user, $0):** link CF/AtCoder/LeetCode/CodeChef handles → auto
   rating trajectory vs a target line (CM by 2027-05-31), cadence, a **multi-site upcoming-contest feed
   (keyless, all four judges)**, `.ics`, and a rating-band **"Recommended for you"** (CF always included).
+- **MOCK INTERVIEW (session 7, the big one).** An interviewer grounded in the user's OWN notes that
+  **remembers them between sessions** — the thing a chat window cannot do. Tab: `Interview`.
+  - **Corpus: 322 gated rubrics** in `problems/_interview/` — CS Fundamentals 194 (their OS/DBMS/C++/C/
+    Python/DSA/Aptitude notes), CP 65, SD foundations 27, HLD 18, LLD 18. Built from
+    `oa-staging/{sd,cp}_research` (180k words, already interview-shaped) + 194 notes sections.
+  - **The app owns judgement; the model only supplies language.** Scores are computed from rubric point
+    ids, so no typed text can move a number. Phase scoping means later phases are *physically absent*
+    from the prompt. Hint tiers 1→3 release on an app-side stuck counter.
+  - **Context is rebuilt per turn from a budget** and is FLAT: ~4,140 tokens at turn 14 and still 4,141
+    at turn 120 (role + dossier + current phase + full source section + compacted transcript).
+  - **Dossier** = skill model (EMA mastery per concept) + behavioural profile + standing facts; drives
+    weakness-first question selection and "last time you couldn't explain X".
+  - **Mixed loops** span subjects like a real onsite, built by EXCLUSION ("not system design today").
+  - **Host mode = running the worker.** `Start Interviewer.bat` on the Desktop (Windows→WSL bridge).
+    Heartbeat drives "Interviewer online"; stopping it lets Fly sleep (~$0.09/mo). 24/7 ≈ $3/mo.
+  - **Speech both ways:** dictation (Web Speech) + interviewer TTS with ranked neural-voice selection.
+  - **Past interviews** are listed, scored, and **resumable** — a session stranded by the worker dying
+    re-queues its pending turn instead of being lost.
+  - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
+    17 invariants in `test_interview.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
-## Shipped this session (session 6, 2026-07-27)
+## Shipped this session (session 7, 2026-08-01 → 08-02)
+- **+2 gated Arcesium problems** (Iris — Personal): `arcesium-max-campaign-score` (Hard — top-k of all
+  n(n+1)/2 window spreads; the user's PQ sweep was the trap) and `arcesium-banquet-seating` (Medium —
+  feasible iff `m ≥ n + (S − minD) + maxD`, cross-checked against exhaustive circular permutations).
+  Earlier in the session: `goldman-min-refueling-stops`. Bank **139 → 142 live**.
+- **Statement rendering fix** — 8 statements used `$…$` LaTeX the renderer cannot process (today's POTD
+  among them); converted corpus-wide to backticks + Unicode.
+- **CP-sheet scratchpad** now seeds the standalone compiler's starter scaffold (shared `ccStarter`),
+  and Python/C/Java/Kotlin got their own templates instead of the wrong one.
+- **THE MOCK INTERVIEW SYSTEM** — see "What is live right now". New: `app/interview/` package,
+  migrations 010/011, 12 endpoints, `interview.js`, `interview_worker.py`, `gate_rubric.py`,
+  `extract_rubrics.py`, `audit_rubrics.py`, `test_interview.py`, `loadtest_interview.py`,
+  `INTERVIEW.md`, `Start Interviewer.bat`.
+- **Bugs fixed that mattered:** duplicated interviewer turns (poll was not idempotent), 36s → 16.1s per
+  turn (worker's fixed idle poll), an 18s `/shapes` endpoint (uncached corpus scan), a TDZ
+  ReferenceError that silently emptied Past Interviews, 21 duplicated C topics, and a weight bug where
+  `"reference"` demoted *Rvalue References*.
+
+## Shipped in prior sessions
+### Session 6 (2026-07-27)
 - **Reconciled a mid-project context loss.** A standing-check surfaced work past the session-5
   templatesv2 cutoff (`bd67f36`): the **built-in compiler + scratchpad + Compiler tab** (Monaco
   `OAEditor.create()` factory; assets v16→v19, editor.js→v14), a **Dockerfile `safe.directory` fix**
@@ -50,7 +89,6 @@ quality is still enforced by the same tooling gates.
   perms n≤9; **corrected the user's wrong sample** `00001`→`00010`). Bank **133 → 139 live**.
 - **Gap 2 fixed** — this templatesv2 update (session 6).
 
-## Shipped in prior sessions
 ### Session 5 (2026-07-26)
 - **CP sheet + System Design sheet**, authored via a **106-agent Grok research fan-out** (Grok beat agy
   10/10 vs 7/10 on deep-research-with-link-verification) and synthesized by `synth.py`. CP is
@@ -94,14 +132,21 @@ quality is still enforced by the same tooling gates.
 - **NONE** for the app or the deployment.
 
 ## Next Session Must Start With
-> **User's direction**, all optional / "just say which":
-> 1. **Scale Grok authoring** beyond the pilot (up to 25 agents), each package gated by
->    `gate_candidate.py` in isolated staging — pull more graphs/DP/greedy **medium+hard** from
->    TUF+/OA-Helper (skip easy-mislabeled ones).
-> 2. **Ship valid-number-partitions**: convert to a **mod-1e9+7 C++ reference** (re-anchor) or add
->    **Python mutation support** to the gate. Staging copy kept in `../oa-staging/agentD/out/`.
-> 3. If the bank must grow well past **~3,500 problems**, **cap max-scale hidden-test size** in
->    `make_hidden` (lossy — trades some TLE coverage; gzip alone is only ~2.9×).
+> **The interview system is live and complete; nothing is blocking.** Highest-value next steps, in order:
+> 1. **FTS5 retrieval over the 1.4M-word notes.** The one capability raw file access would still add is
+>    reading *other* topics mid-interview (a tangent outside the current rubric's source). Server-side
+>    retrieval keeps auditability, phase scoping and the agy sandbox — do NOT solve this by giving agy a
+>    workspace (see Recent Decisions).
+> 2. **Exercise the `GEMINI_API_KEY` path.** Implemented in `interview_worker.py` (`run_api`) but never
+>    run — no key exists. It would take a turn from **16s → ~1–3s**, the single biggest UX win left.
+>    Check whether an AI Studio key is actually available (the Pro subscription is a *chat* product and
+>    does not include API access).
+> 3. **CP-sheet dedup** — 312 cross-topic duplicate copies analysed, user chose "keep best-fit",
+>    **not executed**. `app/sheets/cp.json`; the 3 digest/ladder sections re-list by design.
+> 4. **Mixed-loop tests** — `_next_step`/segment-hop is verified manually but has no entry in
+>    `test_interview.py`.
+> 5. Optional: judged **DSA interview round** (wire the interview to the real judge so code is actually
+>    run against hidden tests during a session).
 
 ## Environment Notes
 - OS: Windows 11 + WSL2; app at `C:\Users\jishu\Desktop\oa-judge` (= `/mnt/c/Users/jishu/Desktop/oa-judge`).
@@ -116,6 +161,13 @@ quality is still enforced by the same tooling gates.
 ## Recent Decisions (recent sessions)
 | Decision | Rationale | Date |
 |---|---|---|
+| **agy = runtime interviewer ONLY**; Grok does build-time bulk; Claude builds/verifies the rest | Production must never need a generator installed or logged in to serve an interview | 2026-08-02 |
+| Interview context is **assembled server-side every turn**; agy stays stateless (no `--continue`) | Auditable + replayable, survives WSL dying mid-turn, stays bounded, and cannot bleed between friends sharing one agy install | 2026-08-02 |
+| **Never give agy a workspace**, even though it is agentic | Friends' typed answers reach that machine; verified its file tools are auto-denied headless. A workspace turns an injected answer into a real exfiltration path, and lets it read later-phase hints off disk | 2026-08-02 |
+| Ship the **full source section** as REFERENCE in every turn | Closes the "as good as agy reading my notes?" gap. Measured free: 4x prompt cost 16.5s vs 16.1s — the call is auth-dominated, not token-dominated | 2026-08-02 |
+| Rubrics reject **any number not present in the source** (gate rule 8) | Caught a real hallucination (`3971`, 0 occurrences). A wrong-but-plausible figure is the failure most likely to survive human review | 2026-08-02 |
+| Mixed loops configured by **exclusion**, not inclusion | "Not system design today" is one click; enumerating what you DO want is tedious and easy to under-specify | 2026-08-02 |
+| **Browser neural TTS**, not Sarvam/ElevenLabs/Gemini TTS | Hosted TTS needs a key + per-character billing + another round-trip on top of the 15s model call. Ranking picks Microsoft "Online (Natural)" over the legacy default | 2026-08-02 |
 | The 6 Microsoft problems are **authored by Claude directly** (not Grok/agy), fully gated | User handed them for their personal Iris section; authoring-delegation-boundary applies. The gate guarantees quality regardless of author | 2026-07-27 |
 | **Correct a transcribed sample when the reference proves it wrong** (Q6 `00001`→`00010`) | Verification-discipline: reference + exhaustive brute is ground truth, not the OA photo. Shipping a self-inconsistent sample is worse than "matching the source" | 2026-07-27 |
 | Push bank to live headless via **`fly ssh` git pull + out-of-process reindex** (`runner.problems`), not curl/restart | `/api/` writes need OAuth; the app doesn't auto-pull or reindex-on-boot. The DB is a shared SQLite file so an external reindex is picked up | 2026-07-27 |
@@ -129,6 +181,15 @@ quality is still enforced by the same tooling gates.
 | Hidden tests **gzipped**; deploy the `.gz` reader **before** the compressed bank | ~2.9× smaller ≈ doubles the volume ceiling; ordering keeps the live app readable | 2026-07-25 |
 
 ## Known Issues / Tech Debt
+- **Interview latency floor is ~16s** on the agy CLI path (0.3s spawn + ~5s auth + ~8s generation; no
+  warm-up, and `--output-format stream-json` is parsed as prompt text so streaming is unavailable).
+  `GEMINI_API_KEY` would fix it; see Next Session.
+- **`agy --print --model X <prompt>` silently LOSES the prompt** (answers a generic "the active model
+  is..."). Correct order is `--model X --print <prompt>`, and the prompt is **argv, not stdin**.
+- **Grounding audit under-scores formula-heavy topics** (mental math 40%, algebra 52%) because it counts
+  shared words; `gate_rubric.py` reports zero ungrounded numbers for both. A flag means "go read it".
+- **`_already_running` + deleting a test DB** is a footgun: the replacement server exits, and the old
+  process keeps serving a deleted inode with zero tables. Kill servers before removing their DB.
 - **valid-number-partitions DEFERRED** — Python bignum reference; `mutation_test` mutates C++ only, so
   its suite strength can't be certified. Fix: mod-1e9+7 C++ ref, or Python mutation support.
 - **gzip is only ~2.3–2.9×** on max-scale numeric data (high entropy). Past ~3,500 problems, cap

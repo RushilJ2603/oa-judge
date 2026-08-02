@@ -1,6 +1,86 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-08-02 14:00 IST] — session 7: +3 gated problems, statement-render fix, and a full MOCK INTERVIEW system | By: Claude (Opus 4.8, Claude Code)
+
+### Done This Session
+- **+2 gated Arcesium problems** (Iris — Personal), both **GATE: PASS, 100% mutation**:
+  `arcesium-max-campaign-score` (Hard — the answer is the sum of the k largest `max−min` window
+  spreads; the user's priority-queue sweep was the trap, and their worked example `[1,2,5,3,4], k=4
+  → 15` was verified with a brute force before anything was written) and `arcesium-banquet-seating`
+  (Medium — feasible iff `m ≥ n + (S − minD) + maxD`; cross-checked on 400 cases against exhaustive
+  circular permutations, 0 mismatches). With `goldman-min-refueling-stops` earlier: bank **139 → 142**.
+- **Statement rendering fix.** 8 statements (incl. that day's POTD) wrapped constraints in `$…$`
+  LaTeX, which the renderer does not process, so they displayed raw. Converted corpus-wide to
+  backticks + Unicode (`\le`→≤, `\cdot`→·, `\binom{4}{2}`→`C(4, 2)`).
+- **CP-sheet scratchpad parity** — per-question pads now seed the standalone compiler's starter
+  scaffold via a shared `ccStarter()`; Python was blank and C/Java/Kotlin were getting the wrong
+  template.
+
+### MOCK INTERVIEW SYSTEM (the bulk of the session)
+- **Corpus: 322 gated rubrics** in `problems/_interview/` — CS Fundamentals 194 (the user's own
+  OS/DBMS/C++/C/Python/DSA/Aptitude notes), CP 65, SD foundations 27, HLD 18, LLD 18. Sources:
+  `oa-staging/{sd,cp}_research` (180k words, already interview-shaped) + 194 notes sections.
+- **`gate_rubric.py`** — 8 rules incl. **rule 8: every multi-digit number in a rubric point must
+  appear in its source**. Caught a genuine hallucination (`dsa_s26_mental_math` invented `3971`,
+  0 occurrences in source). 8/343 quarantined initially; all recovered, four by switching generator
+  model (`gpt-5.3-codex-high`) rather than relaxing the gate. **Re-gated from scratch: 322 pass, 0 fail.**
+- **`audit_rubrics.py`** — corpus-wide semantic drift check (median 78% term overlap with source).
+- **`app/interview/`** — `rubrics` (corpus + source loader), `context` (turn assembly), `dossier`
+  (persistent memory), `session` (orchestration), `jobs` (queue + liveness), `mixed` (loop
+  composition), `subjects` (taxonomy + interview weights). Migrations **010** and **011**.
+- **The app owns judgement.** Scores are computed from rubric point ids, so no candidate text can move
+  a number; a model claiming `ADVANCE: YES` with core points unmet is overridden. Later phases are
+  *physically absent* from the prompt (the leak guard), and hint tiers 1→3 release on an app-side
+  stuck counter.
+- **Context is flat:** ~4,140 tokens at turn 14, still 4,141 at turn 120 (role + dossier + current
+  phase + full source section + compacted transcript).
+- **`interview_worker.py`** — outbound-only, thread-pooled, agy with no workspace / empty cwd /
+  `--sandbox` / never `--yolo`. Starting it IS the host toggle. `GEMINI_API_KEY` path implemented.
+- **UI** (`interview.js`, style.css v28→v35): loops / by-topic / past-interviews tabs, exclusion-based
+  custom loops, resumable sessions, dictation + neural TTS, markdown+code+LaTeX rendering.
+- **`Start Interviewer.bat`** on the Desktop — Windows→WSL bridge, token from gitignored `.env`.
+
+### Bugs Found & Fixed
+- **Duplicated interviewer turns (user saw the opening message 11×).** `/api/interview/poll` was not
+  idempotent while the client polled every 2s regardless of in-flight requests, so ~7 polls all saw
+  `done` and each ran `apply_turn`. Fixed server-first (conditional `done → applying` UPDATE) *and*
+  client-side. Verified: 10 concurrent polls → exactly 1 turn.
+- **36s → 16.1s per turn.** Measured the CLI: 0.3s spawn + ~5s auth + ~8s generation, no warm-up, no
+  usable streaming. The thief was the worker's fixed 20s idle poll. Adaptive backoff + direct agy call
+  + 1s browser poll.
+- **`agy --print --model X <prompt>` silently loses the prompt**; correct order is
+  `--model X --print <prompt>`, and the prompt is **argv, not stdin**.
+- **Lease race** — two worker threads could claim the same turn; now a conditional UPDATE.
+- **21 duplicated C topics** (`cpp_` and `c_`, byte-identical — the copy walked `C++_OOPs`, which
+  contains `C programming`), and the **aptitude set interleaved with DSA** by section number
+  (`dsa_s26` is both *Advanced String Algorithms* and *Mental Math*) → subject decided by title.
+- **Weight bug** — a bare `"reference"` in the low-value list demoted *Rvalue References* to 1/5.
+- **Past interviews wouldn't open** — a TDZ `ReferenceError` (`live` read above its `const`) threw
+  mid-render, emptying the list while the tab still said "(1)".
+- **`/api/interview/shapes` took 18s** — uncached `summaries()` rebuilt from 322 files on `/mnt/c`,
+  ~8× per request. Now 2.7s cold / 0.03s warm.
+- **Hint escalation felt broken** — needed 2 stuck signals for tier 1 (so the first "I'm stuck" did
+  nothing) and a phase advance reset the tier to 0, wiping earned help. Now first signal → tier 1,
+  and a phase change steps back one tier.
+
+### Verified
+- **16 users × 2 turns:** 0 errors, 0 double-leased jobs, 0 cross-user leakage (`loadtest_interview.py`).
+- **17 invariants** pass (`test_interview.py`): phase scoping, hint gating, flat cost, injection
+  resistance, mastery evolution.
+- **Real end-to-end quality:** a deliberately weak URL-shortener answer scored 0.17 → 0.33 → 0.50,
+  was never told "correct", never advanced — and a NEW session on *caching* opened carrying
+  `KNOWN WEAK AREAS: NFRs… (mastery 50%)` earned in the earlier session.
+- **agy's file tools are auto-denied headless** (tested directly) — the sandbox is real.
+
+### Deployed
+Fly **v35+** (`style.css v35, interview.js v8, sheets.js v25`); corpus synced to `/data/problems`.
+Secrets set: `OAJ_WORKER_TOKEN`, `OAJ_INTERVIEW_CONCURRENCY=12`, `OAJ_HTTP_THREADS=24`.
+
+### Deferred
+FTS5 retrieval over the 1.4M-word notes · exercising the `GEMINI_API_KEY` path (16s → ~1–3s) ·
+CP-sheet dedup (312 copies, analysed not executed) · mixed-loop unit tests · judged DSA round.
+
 ## [2026-07-27 20:00 IST] — session 6: reconciled a context loss, closed 2 gaps, +6 gated Microsoft problems (bank 133 → 139 live) | By: Claude (Opus 4.8, Claude Code)
 
 ### Done This Session
