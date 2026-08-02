@@ -1,6 +1,58 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-08-02] — session 8: interview fixes from real use | By: Claude (Opus 5, Claude Code)
+
+### Done This Session
+Four asks, all from actually sitting interviews. Two further bugs fell out of verifying them.
+
+- **Raw LaTeX reaching the reader** (`($\text{RT} = \text{WT}$)` shown literally). Two causes.
+  `md.py` only understood `\(…\)` — authored statements can be rewritten offline, live model output
+  cannot — so `$…$`/`$$…$$` are handled now, with boundaries strict enough that "it costs $5 and $10"
+  stays prose. And **reopened interviews rendered nothing at all**: only raw markdown is stored and
+  the live turn was rendered at apply-time, so resume showed literal `**bold**` and fences.
+  `_math_inner` became ONE `\name` lookup pass (a LaTeX command name is letters only, so it ends at
+  the first non-letter — per-command `\b` anchors failed on `\sum_{i=1}` because `_` is a word
+  character, and the sigma silently never appeared). Code spans are lifted out before every other
+  rule, which also fixed `*` inside backticks being italicised.
+  **Measured: 166 user-facing files, 56 leftover LaTeX artefacts → 0, 0 injected tags.**
+- **Deletable past interviews, ordered by last interaction.** Delete hard-removes the session,
+  transcript, evidence and queued jobs, then **rebuilds the skill model from surviving evidence** —
+  read-time filtering would have been cheaper and wrong, since mastery is an accumulated EMA.
+  Ordering moved to `MAX(turn.created_at)` with a relative "3 hours ago" label.
+- **Weak spots made visible.** The evidence already steered loop composition invisibly; now it is a
+  tab — per-topic mastery, "3 of 7 points still shaky", click to drill, or one loop from the top 4.
+- **Context management.** `record_behavior` had **zero callers**, so the behavioural profile was dead
+  code and INTERVIEW HABITS never rendered; it is now written at session close from stored turns and
+  the app's own stuck counter, as instructions rather than raw numbers. `topic_recall` gives the
+  interviewer prior-attempt context for a topic it has asked before — counts only, never point ids or
+  text, since the dossier deliberately drops the live rubric to avoid leaking answers.
+- **Cross-segment answer leak (found while verifying the above).** The dossier dropped only the live
+  rubric, so in a mixed loop a weak-area line could name a point from segment 3 — previewing it. Not
+  incidental: weak-spot drills compose loops from exactly the topics that rank weakest. Reproduced
+  with 3 leaked points, 0 after. Pinned by an invariant that also asserts the dossier is still
+  populated, so the guard cannot pass by quietly emptying it.
+- **Progress rail highlighted the wrong step** in mixed loops (`indexOf` over repeated phase names).
+  Walked a 3-segment loop end to end: the old logic gave `[0,1,0,1,0,1]`. Server now sends the step.
+- **Timestamps to microseconds** — the ordering key must be finer than the events it orders, and
+  `rebuild_skills` replays an order-dependent EMA over checkoffs written in one tight loop.
+
+### Verification
+- `test_interview.py`: **17 → 53 invariants**, all passing.
+- `smoke_test.py`: **ALL GOOD** — every reference ACs, every stub correctly fails.
+- Endpoints exercised through a real `test_client()`: rendered turns on session/resume, delete →
+  history and weak spots both empty, double-delete → 404, weak-spot drill starts a MIXED plan.
+- Deployed to Fly **v47**; `/api/interview/weak` answers **401, not 404**, on the live host, and the
+  live `interview.js?v=9` carries the new code.
+
+### Not Done / Deferred
+- **The mixed-loop rail still shows repeated phase names** ("recognition, approach" ×3) with no
+  indication of which topic each belongs to. The *highlight* is now correct; the labels are ambiguous.
+- **`interview.js` still cannot be run or even syntax-checked locally** — no `node`/`deno`/`bun` in
+  WSL. Server-side behaviour was driven through Python; client-only bugs remain browser-only finds.
+
+---
+
 ## [2026-08-02 14:00 IST] — session 7: +3 gated problems, statement-render fix, and a full MOCK INTERVIEW system | By: Claude (Opus 4.8, Claude Code)
 
 ### Done This Session
