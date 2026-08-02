@@ -37,6 +37,7 @@ VOCAB = {
     "LLD": ["requirements", "entities", "class_design", "implementation", "extensibility", "concurrency"],
     "CONCEPT": ["fundamentals", "mechanics", "tradeoffs", "application"],
     "CP": ["recognition", "approach", "implementation", "complexity", "pitfalls"],
+    "FUND": ["fundamentals", "mechanics", "tradeoffs", "application"],
 }
 # Point-id prefixes per phase, so ids are stable and readable in a transcript (req1, est2, ...).
 PREFIX = {
@@ -58,13 +59,17 @@ def is_content(rel):
     correctly quarantines. Excluding them by naming convention is cheaper and clearer than letting
     the gate reject them.
     """
+    if rel.startswith("fund/"):
+        return True                      # notes sections are pre-filtered when copied in
     name = os.path.basename(rel)
     return bool(re.match(r"^(hq|lq|h\d|l\d|m\d|\d)", name))
 
 
 def classify(rel):
-    """rel is like 'sd/hq01_url_shortener.md' or 'cp/10_dp_1_linear__deep.md'."""
+    """rel is like 'sd/hq01_url_shortener.md', 'cp/10_dp_1_linear__deep.md', 'fund/os_06_deadlocks.md'."""
     sub, name = rel.split("/", 1)
+    if sub == "fund":
+        return "FUND"
     if sub == "cp":
         return "CP"
     if name.startswith("hq"):
@@ -77,6 +82,22 @@ def classify(rel):
 def build_prompt(stem, typ, body, failures=None):
     phases = VOCAB[typ]
     pref = ", ".join(f"{p}->{PREFIX[p]}N" for p in phases)
+    if typ == "FUND":
+        # Subject notes (OS/DBMS/C++/C/Python/DSA) are teaching material, not interview research:
+        # they carry no "Interview relevance"/"Prereqs"/"Where it appears" lines. Asking for fields
+        # that do not exist in the source is how a model gets nudged into inventing them.
+        meta_rules = (
+            '- "difficulty": one of "campus", "mid", "senior" — judge how deep the material goes.\n'
+            '- "relevance": one line on why this topic gets asked in SDE interviews/OAs.\n'
+            '- "prereqs": [] (empty array).\n'
+            '- "company_notes": "" (empty string) unless the file names companies.\n'
+            '- "title": a clean human topic title (e.g. "Deadlocks", "Virtual memory"), not the filename.')
+    else:
+        meta_rules = (
+            '- "difficulty": one of "campus", "mid", "senior" — judge from the Interview relevance line.\n'
+            '- "relevance": one line drawn from the file\'s Interview relevance.\n'
+            '- "prereqs": array of ids from the file\'s Prereqs line (empty array if none).\n'
+            '- "company_notes": summarize the file\'s "Where it appears" (empty string if absent).')
     p = f"""Convert the research file below into a STRUCTURED INTERVIEW RUBRIC as JSON.
 
 You are producing data for an automated interviewer. It will be machine-validated and REJECTED if it
@@ -88,10 +109,7 @@ TOP-LEVEL KEYS — exactly these 10, nothing added, renamed, or nested elsewhere
 FIELD RULES
 - "id": exactly "{stem}" (lowercase, verbatim).
 - "type": exactly "{typ}".
-- "difficulty": one of "campus", "mid", "senior" — judge from the Interview relevance line.
-- "relevance": one line drawn from the file's Interview relevance.
-- "prereqs": array of ids from the file's Prereqs line (empty array if none).
-- "company_notes": summarize the file's "Where it appears" (empty string if absent).
+{meta_rules}
 
 "phases": an array. Use ONLY these phase values, in this order, and only those the file supports:
   {phases}
@@ -164,32 +182,43 @@ def extract_json(text):
             return json.loads(m.group(1))
         except Exception:
             pass
-    start = t.find("{")                             # 3. first balanced object
-    if start < 0:
-        return None
-    depth, in_str, esc = 0, False, False
-    for k in range(start, len(t)):
-        c = t[k]
-        if in_str:
-            if esc:
-                esc = False
-            elif c == "\\":
-                esc = True
-            elif c == '"':
-                in_str = False
-            continue
-        if c == '"':
-            in_str = True
-        elif c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                try:
-                    return json.loads(t[start:k + 1])
-                except Exception:
-                    return None
-    return None
+    # 3. Scan for balanced objects and pick the RUBRIC, not merely the first object.
+    #    Observed: a response can lead with a single phase object (or an illustrative fragment)
+    #    before the real rubric. Taking the first balanced object then yields a structurally valid
+    #    but wrong document, which the gate rejects as "unexpected top-level keys" — three times in
+    #    a row, quarantining a file that was never actually bad. So collect every candidate and
+    #    prefer one that looks like a rubric; fall back to the largest.
+    best = None
+    for start in (i for i, c in enumerate(t) if c == "{"):
+        depth, in_str, esc = 0, False, False
+        for k in range(start, len(t)):
+            c = t[k]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                continue
+            if c == '"':
+                in_str = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(t[start:k + 1])
+                    except Exception:
+                        break
+                    if isinstance(obj, dict):
+                        if "phases" in obj and "id" in obj:
+                            return obj                  # unambiguous rubric
+                        if best is None or len(t[start:k + 1]) > best[0]:
+                            best = (len(t[start:k + 1]), obj)
+                    break
+    return best[1] if best else None
 
 
 def gate(path, source):
@@ -247,7 +276,7 @@ def main():
     os.makedirs(RUBRICS, exist_ok=True)
     os.makedirs(QUAR, exist_ok=True)
     todo = []
-    for sub in ("sd", "cp"):
+    for sub in ("sd", "cp", "fund"):
         d = os.path.join(RESEARCH, sub)
         if not os.path.isdir(d):
             continue

@@ -26,6 +26,10 @@ PHASE_VOCAB = {
     "LLD": ["requirements", "entities", "class_design", "implementation", "extensibility", "concurrency"],
     "CONCEPT": ["fundamentals", "mechanics", "tradeoffs", "application"],
     "CP": ["recognition", "approach", "implementation", "complexity", "pitfalls"],
+    # CS fundamentals drawn from the user's own subject notes (OS, DBMS, C++, C, Python, DSA).
+    # Same shape as CONCEPT but kept a separate type so the catalog can group "OS / DBMS / C++"
+    # apart from the system-design foundations, which are a different kind of round.
+    "FUND": ["fundamentals", "mechanics", "tradeoffs", "application"],
 }
 DIFFICULTY = {"campus", "mid", "senior"}
 PID_RE = re.compile(r"^[a-z]{2,4}[0-9]+$")
