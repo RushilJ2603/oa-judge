@@ -183,11 +183,13 @@
       return '<p class="placeholder">No interviews yet. Your sessions, scores and every point you missed will appear here.</p>';
     }
     return '<div class="iv-hist">' + S.history.map((h) => {
+      // `live` must be declared before the template literals that read it — a const used above its
+      // declaration throws a TDZ ReferenceError, which killed the whole history list silently.
+      const live = h.status === 'active';
       const pct = h.overall == null ? '—' : Math.round(h.overall * 100) + '%';
       const when = (h.started_at || '').slice(0, 16).replace('T', ' ');
       const state = h.status === 'done' ? '' :
         `<span class="iv-hist-state">${live ? '▸ continue' : esc(h.status)}</span>`;
-      const live = h.status === 'active';
       return `<button class="iv-hist-row" data-sid="${h.id}" data-active="${live ? 1 : 0}"
                 title="${live ? 'Continue this interview' : 'See the report'}">
                 <span class="iv-hist-main">
