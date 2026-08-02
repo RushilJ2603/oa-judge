@@ -277,7 +277,13 @@ def apply_turn(user_id: int, session_id: int, raw_model_output: str) -> dict:
 
     conn = db.connect()
     tier, stuck = s["hint_tier"], s["stuck_signals"]
-    if parsed["stuck"]:
+    # The app counts an explicit request itself rather than waiting to be told. build_prompt already
+    # releases the tier on the turn they ask; without matching it here the STORED tier stays 0, so
+    # the composer keeps saying "no hints yet — say if you are stuck" to someone who just did, and
+    # they have to ask again next turn to get the same help.
+    recent = turns(session_id)
+    said = next((t["content"] for t in reversed(recent) if t["role"] == "candidate"), "")
+    if parsed["stuck"] or asked_for_help(said):
         stuck += 1
         # App-side escalation: the model cannot grant itself a deeper hint.
         tier = max(tier, _tier_for(stuck))
