@@ -80,6 +80,15 @@
 :root { --app-h: 100vh; }
 @supports (height: 100dvh) { :root { --app-h: 100dvh; } }
 html, body { height: var(--app-h); margin: 0; }
+/* Nothing may scroll past the app into empty page. `overflow: hidden` on the body alone was not
+   enough: the browser will still let you PAN when the layout is wider or taller than the screen, and
+   overscroll gives a rubber-band into the same void. Wide content is unaffected — code blocks and
+   tables carry their own overflow-x and scroll inside themselves, which is where scrolling belongs. */
+html { overflow: hidden; overscroll-behavior: none; }
+/* Every pane that scrolls does so on its OWN. Without this, reaching the end of one hands the
+   gesture to whatever is behind it, which is the second way you end up looking at empty page. */
+.pane-scroll, .sheet-content, .tracker-view, .interview-view, .sidebar, .drawer-body,
+.modal-body, .sheet-rail { overscroll-behavior: contain; }
 body {
     font-family: var(--sans);
     color: var(--text);
@@ -93,6 +102,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    overscroll-behavior: none;
 }
 
 /* ===== header ===== */
@@ -349,6 +359,16 @@ body {
 .pane-switch button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 @media (max-width: 900px) {
+    /* The section nav is six items wide — more than a phone screen — and it was told never to
+       shrink, so the HEADER ended up wider than the viewport and the entire page could be panned
+       sideways into black. It now scrolls within itself: every item stays reachable, and the page
+       stops being wider than the device. */
+    .header-left { min-width: 0; flex-wrap: nowrap; }
+    .topnav { flex-shrink: 1; min-width: 0; overflow-x: auto; scrollbar-width: none;
+        -webkit-overflow-scrolling: touch; }
+    .topnav::-webkit-scrollbar { display: none; }
+    .topnav-item { flex-shrink: 0; white-space: nowrap; }
+    .header-right { flex-wrap: wrap; justify-content: flex-end; }
     .workspace { flex-direction: column; overflow-x: hidden; }
     .pane-switch { display: flex; }
     .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
