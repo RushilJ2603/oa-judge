@@ -22,6 +22,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -34,7 +35,7 @@ WRAPPER = os.path.expanduser(
     "~/.claude/plugins/marketplaces/antigravity-for-claude-code/scripts/agy-delegate.sh")
 MODEL = os.environ.get("OAJ_INTERVIEW_MODEL", "gemini-3.6-flash-high")
 # API path model id (different namespace from agy tier names).
-API_MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-2.5-flash")
+API_MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-3.6-flash")
 # LONG POLL. The worker asks for work once and the SERVER holds that request open until a turn
 # appears, so pickup is immediate rather than "whenever the next poll lands".
 #
@@ -62,13 +63,24 @@ def _post(server, path, token, payload, timeout=45):
         return json.loads(r.read().decode() or "{}")
 
 
-def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str | None]:
-    """Gemini API path — used when GEMINI_API_KEY is set.
+def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str | None, float]:
+    """Gemini API path. Returns (text, error, retry_after_seconds).
 
-    Measured: the agy CLI costs ~15s per turn regardless of prompt size or model tier
-    (0.3s process start + ~5s auth handshake + ~8s generation) and does not warm up across calls.
-    The HTTP API skips the per-call CLI handshake entirely and answers in roughly 1-3s, so this is
-    the single biggest response-time win available. Falls back to the CLI when no key is present.
+    MEASURED on a real 13.6 KB interview turn (2026-08-02), against agy's 16.1s for the same prompt:
+
+        gemini-3.6-flash     5.52s / 5.34s      think=704 / 640
+        gemini-3.5-flash     5.36s / 5.92s      think=1071 / 1198
+
+    ~3x faster, and it produced the SAME grading decision as agy on the same turn (identical HIT and
+    PARTIAL point ids, same ADVANCE) — which is the part that has to match, since those drive the
+    score and phase advancement.
+
+    Two things the measurement changed:
+      * `gemini-2.5-flash` — the previous default here — returns 404 "no longer available to new
+        users". It would have failed on every single turn.
+      * The free tier rate-limits HARD: three calls in quick succession returned 429. That is fine
+        at interview pace but not for several people at once, so the fallback to agy is not a nicety,
+        it is load-bearing.
     """
     # maxOutputTokens has to clear the LONGEST legitimate turn, not the average one. The role
     # contract explicitly asks for full whiteboard-depth explanations when a candidate is stuck at
@@ -79,22 +91,34 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
         "generationConfig": {"temperature": 0.6,
                              "maxOutputTokens": int(os.environ.get("OAJ_GEMINI_MAX_TOKENS", "3000"))},
     }).encode()
+    # Key goes in a HEADER, never the query string: URLs end up in proxy logs, server access logs
+    # and error reports, and this one is a live credential. It is also the form Google's own
+    # quickstart uses for current-generation keys.
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{API_MODEL}:generateContent?key={key}")
-    req = urllib.request.Request(url, data=body,
-                                 headers={"Content-Type": "application/json"}, method="POST")
+           f"{API_MODEL}:generateContent")
+    req = urllib.request.Request(url, data=body, method="POST",
+                                 headers={"Content-Type": "application/json",
+                                          "X-goog-api-key": key})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             d = json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         detail = ""
         try:
-            detail = e.read().decode()[:200]
+            detail = e.read().decode()[:400]
         except Exception:
             pass
-        return None, f"gemini api HTTP {e.code}: {detail}"
+        # A 429 usually carries Google's own RetryInfo. Honour it instead of guessing a cooldown —
+        # backing off too little re-triggers the limit, too much wastes the fast path.
+        wait = 0.0
+        m = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', detail)
+        if m:
+            wait = float(m.group(1))
+        elif e.code in (429, 503):
+            wait = API_COOLDOWN_S
+        return None, f"gemini api HTTP {e.code}: {detail[:200]}", wait
     except Exception as e:
-        return None, f"gemini api: {e}"
+        return None, f"gemini api: {e}", 0.0
     # Join EVERY text part rather than taking parts[0]. A reasoning model can emit several parts,
     # and the first one may be a thought rather than the answer — taking [0] would silently hand the
     # server a fragment that fails to parse into the HIT/PARTIAL block, which reads downstream as
@@ -103,18 +127,18 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
         cand = (d.get("candidates") or [])[0]
     except IndexError:
         fb = (d.get("promptFeedback") or {}).get("blockReason")
-        return None, f"gemini api: no candidates{f' (blocked: {fb})' if fb else ''}"
+        return None, f"gemini api: no candidates{f' (blocked: {fb})' if fb else ''}", 0.0
     parts = ((cand.get("content") or {}).get("parts") or [])
     text = "".join(p["text"] for p in parts if isinstance(p, dict) and "text" in p
                    and not p.get("thought"))
     reason = cand.get("finishReason")
     if not text:
-        return None, f"gemini api: empty reply (finishReason={reason})"
+        return None, f"gemini api: empty reply (finishReason={reason})", 0.0
     if reason == "MAX_TOKENS":
         # Truncation would lose the SAY block mid-explanation. Fail loudly so the turn is retried
         # instead of the candidate receiving half an answer.
-        return None, "gemini api: reply hit maxOutputTokens — raise OAJ_GEMINI_MAX_TOKENS"
-    return text, None
+        return None, "gemini api: reply hit maxOutputTokens — raise OAJ_GEMINI_MAX_TOKENS", 0.0
+    return text, None, 0.0
 
 
 def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str | None]:
@@ -161,9 +185,56 @@ def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str 
     return r.stdout, None
 
 
+# Which path answers a turn:
+#   auto (default) — the API when a key is present and healthy, otherwise agy
+#   api            — prefer the API, but still fall back rather than fail a live interview
+#   agy            — never touch the API, even with a key set
+INTERVIEW_PATH = os.environ.get("OAJ_INTERVIEW_PATH", "auto").strip().lower()
+# After a rate limit, stop asking for a while. Retrying every turn wastes a round trip and, on a
+# free tier, digs the hole deeper — meanwhile agy still answers, just slower.
+API_COOLDOWN_S = float(os.environ.get("OAJ_API_COOLDOWN", "120"))
+_api_blocked_until = 0.0
+_RATE_LIMIT_HINTS = ("http 429", "http 503", "resource_exhausted", "quota", "rate limit",
+                     "overloaded", "unavailable")
+
+
+def _rate_limited(err: str) -> bool:
+    e = (err or "").lower()
+    return any(h in e for h in _RATE_LIMIT_HINTS)
+
+
 def generate(prompt: str) -> tuple[str | None, str | None]:
+    """Answer one turn: fast path when it is available, slow path when it is not.
+
+    MEASURED on the same real interview turn: API `gemini-3.6-flash` 5.4s vs agy 16.1s, producing
+    identical HIT/PARTIAL point ids and the same ADVANCE — so this is a 3x speed-up that does not
+    move a single score.
+
+    The catch is that the free tier rate-limits after very few requests in quick succession. At
+    interview pace (one turn per minute or two) that is invisible; with several people at once it is
+    not. So a 429 is not an error here — it is a routing decision. The turn goes to agy, which is
+    slower but always available, and the interview never notices.
+    """
+    global _api_blocked_until
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("OAJ_GEMINI_API_KEY")
-    return run_api(prompt, key) if key else run_agy(prompt)
+
+    if INTERVIEW_PATH == "agy":
+        return run_agy(prompt)
+    if INTERVIEW_PATH == "api" and not key:
+        return None, "OAJ_INTERVIEW_PATH=api but no GEMINI_API_KEY is set"
+
+    if key and time.monotonic() >= _api_blocked_until:
+        out, err, retry_after = run_api(prompt, key)
+        if out:
+            return out, None
+        if retry_after or _rate_limited(err):
+            # Prefer the API's OWN RetryInfo over a guess; it knows when the window resets.
+            wait = retry_after or API_COOLDOWN_S
+            _api_blocked_until = time.monotonic() + wait
+            print(f"  api rate-limited — routing to agy for {wait:.0f}s")
+        else:
+            print(f"  api failed ({err[:100]}) — falling back to agy")
+    return run_agy(prompt)
 
 
 def looks_valid(text: str) -> bool:

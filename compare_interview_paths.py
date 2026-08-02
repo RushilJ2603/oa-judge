@@ -54,7 +54,8 @@ def _key() -> str:
 def list_models(key: str) -> list[dict]:
     """What the key can actually reach. This is the only authoritative answer to 'is the same model
     available?' — everything else is inference."""
-    req = urllib.request.Request(f"{API_ROOT}/models?key={key}&pageSize=200")
+    req = urllib.request.Request(f"{API_ROOT}/models?pageSize=200",
+                                 headers={"X-goog-api-key": key})
     with urllib.request.urlopen(req, timeout=30) as r:
         d = json.loads(r.read().decode())
     out = []
@@ -95,6 +96,9 @@ def run_agy(prompt: str) -> tuple[str, float]:
     return (r.stdout or r.stderr or "").strip(), time.monotonic() - t0
 
 
+LAST_USAGE: dict = {}
+
+
 def run_api(prompt: str, key: str, model: str, thinking: int | None) -> tuple[str, float]:
     gen = {"temperature": 0.6, "maxOutputTokens": 3000}
     if thinking is not None:
@@ -104,9 +108,10 @@ def run_api(prompt: str, key: str, model: str, thinking: int | None) -> tuple[st
         gen["thinkingConfig"] = {"thinkingBudget": thinking}
     body = json.dumps({"contents": [{"parts": [{"text": prompt}]}],
                        "generationConfig": gen}).encode()
-    req = urllib.request.Request(f"{API_ROOT}/models/{model}:generateContent?key={key}",
-                                 data=body, headers={"Content-Type": "application/json"},
-                                 method="POST")
+    req = urllib.request.Request(f"{API_ROOT}/models/{model}:generateContent",
+                                 data=body, method="POST",
+                                 headers={"Content-Type": "application/json",
+                                          "X-goog-api-key": key})
     t0 = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
@@ -116,6 +121,13 @@ def run_api(prompt: str, key: str, model: str, thinking: int | None) -> tuple[st
     except Exception as e:
         return f"__ERROR__ {e}", time.monotonic() - t0
     took = time.monotonic() - t0
+    # Reasoning effort is the crux of the comparison: agy's "(High)" tier spent 1456-1888 thinking
+    # tokens on this workload, so an API call that thinks far less is doing a different job.
+    u = d.get("usageMetadata") or {}
+    LAST_USAGE.clear()
+    LAST_USAGE.update({"think": u.get("thoughtsTokenCount", 0),
+                       "out": u.get("candidatesTokenCount", 0),
+                       "in": u.get("promptTokenCount", 0)})
     cands = d.get("candidates") or []
     if not cands:
         return f"__ERROR__ no candidates: {str(d)[:180]}", took
@@ -143,8 +155,10 @@ def show(r: dict) -> None:
     if r.get("error"):
         print(f"  {r['label']:34} {r['took']:6.2f}s  ERROR: {r['error']}")
         return
-    print(f"  {r['label']:34} {r['took']:6.2f}s  hit={r['hit'] or '-'} partial={r['partial'] or '-'} "
-          f"advance={r['advance']} stuck={r['stuck']} say={r['say_len']}ch "
+    u = r.get("usage") or {}
+    think = f" think={u['think']}" if u.get("think") is not None and u else ""
+    print(f"  {r['label']:30} {r['took']:6.2f}s  hit={r['hit'] or '-'} partial={r['partial'] or '-'} "
+          f"advance={r['advance']} say={r['say_len']}ch{think}"
           f"{'' if r['parsed'] else '  <-- DID NOT PARSE'}")
 
 
@@ -191,8 +205,10 @@ def main() -> int:
     for m in models:
         for i in range(a.repeat):
             raw, took = run_api(prompt, key, m, None if a.thinking < 0 else a.thinking)
-            rows.append(summarise(f"api {m}", raw, took))
-            show(rows[-1])
+            r = summarise(f"api {m}", raw, took)
+            r["usage"] = dict(LAST_USAGE)
+            rows.append(r)
+            show(r)
 
     ok = [r for r in rows if not r.get("error") and r["parsed"]]
     if len(ok) >= 2:
