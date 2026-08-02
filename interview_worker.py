@@ -76,7 +76,8 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
     # exists to avoid — so the cap sits well above the ~400-token typical reply.
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.6, "maxOutputTokens": 3000},
+        "generationConfig": {"temperature": 0.6,
+                             "maxOutputTokens": int(os.environ.get("OAJ_GEMINI_MAX_TOKENS", "3000"))},
     }).encode()
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{API_MODEL}:generateContent?key={key}")
@@ -94,10 +95,26 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
         return None, f"gemini api HTTP {e.code}: {detail}"
     except Exception as e:
         return None, f"gemini api: {e}"
+    # Join EVERY text part rather than taking parts[0]. A reasoning model can emit several parts,
+    # and the first one may be a thought rather than the answer — taking [0] would silently hand the
+    # server a fragment that fails to parse into the HIT/PARTIAL block, which reads downstream as
+    # "the interviewer said nothing" rather than as an error.
     try:
-        return d["candidates"][0]["content"]["parts"][0]["text"], None
-    except Exception:
-        return None, f"gemini api: unexpected response {str(d)[:160]}"
+        cand = (d.get("candidates") or [])[0]
+    except IndexError:
+        fb = (d.get("promptFeedback") or {}).get("blockReason")
+        return None, f"gemini api: no candidates{f' (blocked: {fb})' if fb else ''}"
+    parts = ((cand.get("content") or {}).get("parts") or [])
+    text = "".join(p["text"] for p in parts if isinstance(p, dict) and "text" in p
+                   and not p.get("thought"))
+    reason = cand.get("finishReason")
+    if not text:
+        return None, f"gemini api: empty reply (finishReason={reason})"
+    if reason == "MAX_TOKENS":
+        # Truncation would lose the SAY block mid-explanation. Fail loudly so the turn is retried
+        # instead of the candidate receiving half an answer.
+        return None, "gemini api: reply hit maxOutputTokens — raise OAJ_GEMINI_MAX_TOKENS"
+    return text, None
 
 
 def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str | None]:
