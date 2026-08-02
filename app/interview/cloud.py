@@ -60,8 +60,10 @@ def _run_one(job: dict) -> None:
         with _lock:
             _blocked_until = max(_blocked_until, time.monotonic() + retry_after)
         _stats["rate_limited"] += 1
-        # Put it straight back rather than burning an attempt on a limit that is not the job's fault.
-        jobs.complete(job["job_id"], error=err or "rate limited")
+        # Back on the queue WITHOUT spending an attempt — the quota is exhausted, the turn is fine.
+        # A host machine running agy can take it immediately; otherwise it waits for the window.
+        jobs.requeue(job["job_id"],
+                     "the cloud interviewer is rate-limited — retrying automatically")
         return
     if err or not _looks_valid(out):
         _stats["failed"] += 1

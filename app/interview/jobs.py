@@ -61,8 +61,16 @@ def poll(user_id: int, job_id: int) -> dict:
     if not row:
         return {"status": "unknown"}
     out = {"status": row["status"]}
+    # `error` is TERMINAL — the client stops polling and prints it into the transcript. A job that is
+    # merely waiting for a rate limit to lift is still queued and will be answered, so its reason is
+    # a `note` instead. Reporting it as an error meant a 429 looked like a dead interview when it was
+    # only a pause.
     if row["error"]:
-        out["error"] = row["error"]
+        if row["status"] == "failed":
+            out["error"] = row["error"]
+        else:
+            out["note"] = row["error"]
+            out["retrying"] = True
     if row["result_json"]:
         try:
             out["output"] = json.loads(row["result_json"]).get("output", "")
@@ -183,6 +191,23 @@ def lease(worker_id: str, version: str = "", heartbeat: bool = True) -> dict | N
             payload = json.loads(row["payload_json"])
             return {"job_id": row["id"], "prompt": payload.get("prompt", "")}
     return None
+
+
+def requeue(job_id: int, note: str = "") -> None:
+    """Put a turn back WITHOUT spending one of its attempts.
+
+    The attempt counter exists to stop an genuinely broken turn retrying forever. A rate limit is not
+    that: nothing is wrong with the job, the quota is simply exhausted for a minute. Counting it
+    meant three 429s killed a perfectly good turn — and on a free tier during real use, three is
+    easy to reach. The turn now waits for the window to lift, or for a host machine running agy to
+    pick it up, and the candidate's answer is never lost.
+    """
+    conn = db.connect()
+    conn.execute(
+        "UPDATE interview_job SET status='queued', lease_until=NULL, error=?, updated_at=?, "
+        "attempts = CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END WHERE id=?",
+        (note[:400], _iso(), job_id))
+    conn.commit()
 
 
 def complete(job_id: int, output: str = "", error: str = "") -> None:

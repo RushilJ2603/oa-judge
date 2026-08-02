@@ -141,6 +141,7 @@ def main():
 
     # ---- who can answer a turn ----------------------------------------
     check_cloud_path()
+    check_rate_limit_survivable()
 
     # ---- worker pickup latency ----------------------------------------
     check_long_poll()
@@ -283,6 +284,57 @@ def check_cloud_path():
         os.environ.pop("GEMINI_API_KEY", None)
     else:
         os.environ["GEMINI_API_KEY"] = key_before
+
+
+def check_rate_limit_survivable():
+    """A free-tier 429 must be a pause, never the end of an interview.
+
+    Two things were wrong and both are easy to reintroduce. A rate limit spent one of the turn's
+    three attempts, so three 429s — trivially reachable on a free tier — killed a perfectly good
+    turn. And the reason was reported to the browser as an `error`, which is TERMINAL: the client
+    stopped polling and printed it into the transcript, so the automatic retry never reached the
+    candidate even though the job was still queued.
+    """
+    from interview import jobs
+    from interview import session as iv
+    uid = 5580
+    sid = iv.start(uid, rubrics.list_ids()[0])["session_id"]
+    job = jobs.enqueue(uid, sid, "P", "turn")["job_id"]
+
+    for _ in range(10):
+        leased = jobs.lease("cloud", "cloud", heartbeat=False)
+        if not leased:
+            break
+        jobs.requeue(leased["job_id"], "rate-limited — retrying automatically")
+
+    row = db.connect().execute("SELECT status, attempts FROM interview_job WHERE id=?",
+                               (job,)).fetchone()
+    st = jobs.poll(uid, job)
+    check("rate limit: ten 429s do not spend the retry budget", row["attempts"] == 0,
+          f"attempts={row['attempts']}")
+    check("rate limit: the turn stays queued rather than failing", row["status"] == "queued",
+          row["status"])
+    check("rate limit: reported as retrying, NOT as a terminal error",
+          st.get("retrying") is True and not st.get("error"), str(st))
+    check("rate limit: the client is told why it is waiting", bool(st.get("note")), str(st))
+
+    # The whole point of keeping the laptop path: it can take the turn the cloud cannot.
+    leased = jobs.lease("a-laptop", "1")
+    check("rate limit: a host machine can pick up the very same turn",
+          bool(leased and leased.get("job_id") == job), str(leased))
+    if leased:
+        jobs.complete(leased["job_id"], output="HIT: NONE\nSTUCK: NO\nADVANCE: NO\nSAY: carry on")
+        check("rate limit: and it completes normally", jobs.poll(uid, job)["status"] == "done")
+
+    # Attempts still exist for their real purpose.
+    job2 = jobs.enqueue(uid, sid, "P2", "turn")["job_id"]
+    for _ in range(5):
+        leased = jobs.lease("cloud", "cloud", heartbeat=False)
+        if leased:
+            jobs.complete(leased["job_id"], error="model output did not match the required block")
+    st2 = jobs.poll(uid, job2)
+    check("rate limit: a genuinely broken turn still gives up",
+          st2["status"] == "failed" and bool(st2.get("error")), str(st2))
 
 
 def check_long_poll():

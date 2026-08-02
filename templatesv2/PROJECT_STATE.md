@@ -72,7 +72,7 @@ quality is still enforced by the same tooling gates.
     (how many times, when, what you scored, how many of its points are still weak) but never point ids
     or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    **79 invariants** in `test_interview.py` + 12 in `test_worker_routing.py`; 322/322 re-gated from scratch.
+    **86 invariants** in `test_interview.py` + 12 in `test_worker_routing.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:

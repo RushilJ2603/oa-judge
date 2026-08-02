@@ -545,7 +545,7 @@
     const thinking = s.thinking
       ? `<div class="iv-row"><div class="iv-who">Interviewer</div>
            <div class="iv-bubble iv-thinking"><span></span><span></span><span></span>
-           <em>thinking…</em></div></div>` : '';
+           <em>${esc(s.waitNote || 'thinking…')}</em></div></div>` : '';
 
     // The headline number belongs ON the completion panel, not one click away behind "see report".
     // Finishing an interview and being told only "complete" is the moment you most want the score.
@@ -640,6 +640,7 @@
     if (!text || s.thinking) return;
     s.turns.push({ role: 'candidate', content: text });
     s.thinking = true;
+    s.waitNote = '';                 // a note from the previous turn must not leak into this one
     renderSession();
     const r = await jpost('/api/interview/answer', { session_id: s.id, answer: text });
     if (r.error) { s.thinking = false; s.turns.push({ role: 'interviewer', content: '⚠ ' + r.error }); renderSession(); return; }
@@ -667,6 +668,7 @@
         clearInterval(S.polling);
         const s = S.session;
         s.thinking = false;
+        s.waitNote = '';
         s.turns.push({ role: 'interviewer', content: r.say || '…', html: r.say_html || '' });
         speak(r.say || '');
         if (r.phase) s.phase = r.phase;
@@ -675,6 +677,12 @@
         s.done = !!r.done;
         renderSession();
         if (s.done) loadFinalScore(s.id);
+      } else if (r.retrying || r.note) {
+        // A pause, not a failure: the turn is still queued and will be answered — by the cloud once
+        // its rate-limit window lifts, or straight away by a host machine running agy. Saying so
+        // beats a silent spinner, and giving up here would abandon a turn that is about to succeed.
+        const s = S.session;
+        if (s.waitNote !== r.note) { s.waitNote = r.note; renderSession(); }
       } else if (r.error || Date.now() - startedAt > POLL_GIVE_UP_MS) {
         clearInterval(S.polling);
         const s = S.session;
