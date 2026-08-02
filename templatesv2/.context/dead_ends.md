@@ -14,6 +14,58 @@
 
 ---
 
+## [2026-08-02] — Rewriting the rubric corpus to fix "weak hint ladders" or "vendor-locked points"
+**What was tried:** Audit agents complained the rubrics force a checklist tour and that hints give
+away too much too early. I turned those into metrics and got two confident numbers — **94 weak hint
+ladders (7%)** and **186 vendor-locked points (3.4%)** — proposed fixing both, and got approval.
+**Why rejected:** Both numbers were artefacts of my own measurement rules, and opening the files to
+start editing showed it.
+  * The "weak ladder" test flagged any ladder whose tier 3 was SHORTER than tier 1. Shorter is not
+    shallower — it is usually the opposite, because the deepest hint is the specific formula
+    ("when [L,R] is valid add R-L+1 subarrays"). Re-measured with a rule that means what it claims
+    (a tier >70% textually identical to the one before): **2 of 1436 phases**, and both are the
+    deliberate `Say:` convention that **227 tier-3 hints** use.
+  * The "vendor-locked" test flagged any point containing Redis/PostgreSQL/Kafka. Those ARE the
+    subject: `dbms_09_dbadmin` teaching PostgreSQL WAL is the user's own notes, `h03_caching` is a
+    Memcached-vs-Redis comparison, and `hq18_leaderboard` has 12 Redis points because "sorted set,
+    Redis ZSET" is the answer a real interviewer wants. Genericising would make the corpus vaguer,
+    harder to grade, and would penalise the right answer.
+**If user brings it up again:** the 322 rubrics are in better shape than any agent claims. Do not
+run a corpus-wide rewrite off a metric without opening ~10 of the flagged files first. The ONE item
+from that cluster that may be real is **phase ordering** in some HLD rubrics (Snowflake ID bit layout
+asked during capacity estimation, before a generator has been proposed) — that needs the user's
+judgement on 2–3 topics they have actually sat, not a script.
+
+## [2026-08-02] — Measuring interviewer repetition by question similarity
+**What was tried:** Scoring the circling complaint with `difflib` similarity between interviewer
+questions (near-duplicate rate).
+**Why rejected:** It caught **1 near-duplicate in the whole 89-turn CPU-scheduling session** the user
+complained about twice. The circling was SEMANTIC — the same ground reworded each time — so surface
+similarity is blind to it.
+**Use instead:** **stall length** — the longest run of consecutive interviewer turns inside one phase.
+That session: **17**. Four fresh interviews after the fix: **4–7**. It matches what the user actually
+felt. `simulate_interview.py::measure()` computes both; trust `longest_stall`.
+
+## [2026-08-02] — Warm/pre-spawned agy processes to hide the ~13.8s bootstrap
+**What was tried:** Pay agy's session bootstrap during the candidate's thinking time by keeping a
+warm process and feeding it the prompt later.
+**Why rejected:** `--prompt-interactive` needs a real TTY (`bubbletea: could not open TTY`). Given a
+pty it renders a full-screen **TUI** (`ESC[?1049h`, screen clears) because `--output-format` applies
+to *print mode only* — there is no JSON to parse, just terminal escape codes. Also ruled out by
+measurement: `--continue` does not skip the bootstrap (12.6s vs 13.6s), prompt size is irrelevant (a
+2-token reply costs the same ~14s), and the `low` tier is no faster (13.9s) while doing ZERO
+reasoning. **The API path is the only fix**, and it works: 5.4s vs 16.1s with identical grading.
+
+## [2026-08-02] — Running `--force` cursor-agent fleets in the real checkout
+**What was tried:** Fanning audit agents over the repo with `cursor-agent -p --trust`.
+**Why rejected:** Two separate failures. (1) `--mode ask` REJECTS every shell command before it runs,
+so the first fleet returned in 30 seconds having done nothing but explain it could not; `--trust`
+alone is not enough either — headless execution needs **`--force`**. (2) With `--force`, an agent
+wrote a shim named `ls` (containing `exec python3 "$@"`) into the working directory.
+**If user brings it up again:** `hunt_bugs.py` already does it correctly — interview agents get
+`--force` and a DISPOSABLE COPY of the repo (`/tmp/huntwt`), audit agents stay read-only in
+`--mode ask`, and `git status` is checked after. Never point a `--force` fleet at real source.
+
 ## [2026-07-27] — Pushing a bank change to live headless via /api/bank/sync or /api/reindex, or expecting boot to auto-pull
 **What was tried:** After pushing the bank, tried to update the live app by (a) `curl -X POST /api/bank/sync` and (b) assuming a `fly apps restart` / cold boot would git-pull and reindex.
 **Why rejected:** (a) **Every `/api/` write route requires GitHub OAuth** (`before_request` 401s anything not in `_PUBLIC_PATHS`), so sync/reindex can't be driven headless. (b) The app does **NOT** auto-pull on boot and only reindexes if the index is **empty** (`_ensure_index`), so a restart with a populated DB is a no-op. The intended path is the logged-in UI's Sync button. **Headless recipe that works:** `fly ssh console -a oa123 -C "git -C /data/problems -c safe.directory=/data/problems pull --ff-only origin main"` then rebuild the index against the shared SQLite file: `fly ssh ... -C "sh -c 'cd /app/app && OAJ_DB=/data/judge.db OAJ_PROBLEMS_DIR=/data/problems python3 -c \"import store; from runner import problems; store.reindex_problems(problems.all_meta())\"'"`. Two gotchas that bit me: the ad-hoc ssh session needs `-c safe.directory=/data/problems` inline (the Dockerfile's global config is for the app's runtime user, not root-ssh); and the module is **`runner.problems`, not `problems`** (there is no top-level problems.py — server does `from runner import ... problems`). Also: `fly ssh` fails with "no started VMs" when scaled to zero — hit `/api/health` first to auto-start.

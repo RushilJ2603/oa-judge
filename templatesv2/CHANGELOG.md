@@ -47,12 +47,29 @@ Five asks, all from actually sitting interviews. Two further bugs fell out of ve
 - **Timestamps to microseconds** — the ordering key must be finer than the events it orders, and
   `rebuild_skills` replays an order-dependent EMA over checkoffs written in one tight loop.
 
+### Later the same session — hosting, speed, and a 66-agent hunt
+- **The interviewer became hosted.** `app/interview/cloud.py` answers turns from the Fly server, so
+  no laptop is needed: **5.0s** for a real turn with no worker running. The local agy worker remains
+  the fallback for when the free tier rate-limits (it does, quickly).
+- **~10s off every turn** by long-polling the lease. The old geometric backoff existed to let Fly
+  sleep, but an interview is mostly idle, so the worker was on a 20s interval by the time the
+  candidate hit send. **Discovery 10.0s → 0.10s**, with fewer requests than the poll.
+- **A rate limit no longer ends an interview** — it stopped spending retry attempts and stopped being
+  reported to the browser as a terminal error while the job sat queued about to succeed.
+- **A 66-agent hunt** (24 of them holding REAL interviews through `interview_cli.py`) produced 389
+  findings; **10 were real** after verification. Three were misgrading the student: correct answers
+  discarded when a phase advanced mid-exchange, `TAUGHT` clawing back earned credit, and `[PARTIAL]`
+  frozen at half credit. Also: ending mid-question, curiosity counted as being stuck, help arriving a
+  turn late, truncated SAFETY/RECITATION replies accepted as complete, and the report spinner.
+- **Mobile**: the shell claimed more height than the screen had (one wrong height, every tab), and
+  the six-item nav made the header wider than a phone so the page panned into empty space.
+
 ### Verification
-- `test_interview.py`: **17 → 61 invariants**, all passing.
+- `test_interview.py`: **17 → 105 invariants**, plus **12** in `test_worker_routing.py`.
 - `smoke_test.py`: **ALL GOOD** — every reference ACs, every stub correctly fails.
 - Endpoints exercised through a real `test_client()`: rendered turns on session/resume, delete →
   history and weak spots both empty, double-delete → 404, weak-spot drill starts a MIXED plan.
-- Deployed to Fly **v47**; `/api/interview/weak` answers **401, not 404**, on the live host, and the
+- Deployed to Fly **v47 → v59** across the session; `/api/interview/weak` answers **401, not 404**, on the live host, and the
   live `interview.js?v=9` carries the new code.
 
 ### Not Done / Deferred

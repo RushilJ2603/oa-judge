@@ -19,6 +19,77 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 8 — 2026-08-02 (the interviewer got hosted, got 3× faster, and got audited by 66 agents)
+
+**AI:** Claude (Opus 5, via Claude Code) — with **Grok `cursor-grok-4.5-high`** running a 66-agent
+audit fleet, 24 of which sat through real interviews.
+**Start → End:** 2026-08-02 ~08:00 IST → ~23:15 IST (~15 h)
+**Goal at start:** three bug reports from using the interviewer on a phone. It grew twice.
+
+### What we set out to do
+Fix raw `$…$` LaTeX in interviewer replies, add delete + recency-ordering to past interviews, and find
+the "topics you're weak in" feature. That closed by midday. The user then pushed on latency, then on
+hosting, then asked for an agent fleet to find defects that make the interviewer *worse than a plain
+chat* — which is where most of the value came from.
+
+### Files touched
+- `app/interview/cloud.py`, `gemini.py` — **NEW**. The server answers turns itself; one shared Gemini
+  client so the worker and the server cannot diverge.
+- `app/interview/session.py` — TAUGHT, cross-phase credit, advancement on `core_open`, the stall
+  floor, `asked_for_help`, `turns_for_ui`, `delete`, `step_index`, microsecond timestamps.
+- `app/interview/context.py` — `ALREADY ASKED` digest, curiosity guidance, PARTIAL-is-unfinished,
+  final-phase closing rule, `is_last`, `_short`.
+- `app/interview/dossier.py` — `rebuild_skills`, `weak_topics`, `topic_progress`, `topic_recall`,
+  `observe_session`, `core_open`, whole-loop exclusion in `weak_skills`.
+- `app/interview/jobs.py` — `lease_waiting` (long poll), `requeue`, `sessions_live`, error preserved
+  on give-up, `poll` no longer reports a queued job as a terminal error.
+- `app/runner/md.py` — `$…$`/`$$…$$`, single-pass `\name` lookup, code spans lifted out first.
+- `app/static/interview.js` v8→v15, `style.css` v35→v41, `app.js` v16→v17 (viewport), `index.html`.
+- `interview_worker.py` — path routing, RetryInfo cooldown, shared client.
+- `test_interview.py` 17→**105** invariants; `test_worker_routing.py` **NEW** (12).
+- **NEW tooling:** `interview_cli.py`, `hunt_bugs.py`, `simulate_interview.py`,
+  `compare_interview_paths.py`.
+
+### What went right
+- **Measuring before optimising.** agy's own `--log-file` showed 13.8s of a 16.5s turn is session
+  bootstrap *before the model is called*. That killed four plausible ideas at once (trim the prompt,
+  drop the tier, `--continue`, streaming) and pointed at the only real fix.
+- **Letting agents sit through interviews instead of reading code.** The three misgrading bugs were
+  invisible in source review and obvious after one session. `interview_cli.py` is the reusable part.
+- **Reproducing every finding.** 389 findings → 10 real. Everything else was noise or already fixed.
+
+### What went wrong
+- **I introduced two of the bugs I later fixed.** Fixing the circling, I put `[PARTIAL]` in the
+  never-re-ask list (freezing half-right answers at half credit) and left STUCK defined as "asked for
+  help" — which, combined with the *new* stall floor, force-closed the phase of the most curious
+  students. Both were caught by the hunt hours later. Fixing a flow bug can create a flow bug.
+- **I proposed a corpus rewrite off my own bad metrics, got approval, then cancelled it.** The "94
+  weak hint ladders" test flagged tier 3 being *shorter* than tier 1 — which usually means *more*
+  specific. The "186 vendor-locked points" test flagged PostgreSQL/Redis points that are the subject
+  matter. Re-measured properly: 2 of 1436, both a deliberate convention. I should have opened ten
+  files before proposing, not after being told to start.
+- **Two fleets returned having done nothing.** `--mode ask` rejects every shell command; `--trust` is
+  not enough either; headless execution needs `--force`. Then an agent wrote a shim named `ls` into
+  the repo, so `--force` agents now run in a disposable copy.
+- **My first repetition metric was the wrong one.** Surface similarity caught 1 near-duplicate in the
+  session the user complained about twice. Stall length (17 → 4–7) is the number that matches what
+  they actually felt.
+
+### Surprises
+- **`gemini-2.5-flash` 404s for new keys** — it was the default in `run_api`, so the API path would
+  have failed on its very first turn the moment a key appeared.
+- **The free tier is small.** Exhausted within a session of probing; every later interview ran through
+  agy at ~16s. The fallback is load-bearing, not a nicety.
+- **`--output-format` applies to print mode only**, so a pty-backed agy session renders a full TUI.
+  That closed the warm-process idea for good.
+
+### Loose ends
+- **The scroll-into-empty-page fix (v59) is unconfirmed on a device.** The keyboard fix (v58) the user
+  confirmed; this one shipped at the end of the session. No mobile browser in WSL.
+- **Rubric phase ordering** — the only survivor of the corpus audit, and it needs the user's judgement
+  on topics they have actually sat, not a script.
+- CP-sheet dedup still not executed.
+
 ## Session 7 — 2026-08-01 → 08-02 (+3 gated problems, statement-rendering fix, and a full mock-interview system)
 
 **AI:** Claude (Opus 4.8, via Claude Code) — with **Grok `cursor-grok-4.5-high`** doing build-time bulk

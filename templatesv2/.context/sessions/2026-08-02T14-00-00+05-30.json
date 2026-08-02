@@ -1,0 +1,47 @@
+{
+  "_schema": "ai-context-bridge/session-v1",
+  "_note": "Auto-generated at session end. Do not edit manually. Before regenerating, archive the previous version to .context/sessions/<generated_at-ISO>.json. Commit with CHANGELOG.md, PROJECT_STATE.md, and SESSION_LOG.md.",
+  "generated_at": "2026-08-02T14:00:00+05:30",
+  "session_by": "Claude (Opus 4.8, via Claude Code)",
+  "session_summary": "Session 7: started with two Arcesium OA problems and a POTD that rendered raw LaTeX, then became the 'big next chapter' — a MOCK INTERVIEW system grounded in the user's own notes with per-user memory. BANK: +2 gated Arcesium problems (max-campaign-score Hard: the answer is the sum of the k largest max-min window spreads, and the user's priority-queue sweep was the trap — their worked example [1,2,5,3,4] k=4 -> 15 was confirmed with a brute force first; banquet-seating Medium: feasible iff m >= n + (S - minD) + maxD, cross-checked on 400 cases against exhaustive circular permutations). With goldman-min-refueling-stops earlier, bank 139 -> 142 live. Also fixed 8 statements that wrapped constraints in $...$ LaTeX the renderer cannot process, and gave CP-sheet scratchpads the standalone compiler's starter scaffold. INTERVIEW SYSTEM: 322 gated rubrics (CS Fundamentals 194 from the user's OS/DBMS/C++/C/Python/DSA/Aptitude notes, CP 65, SD foundations 27, HLD 18, LLD 18) extracted from oa-staging/{sd,cp}_research (180k words, already interview-shaped) + 194 notes sections. Division of labour the user insisted on: agy = RUNTIME INTERVIEWER ONLY, Grok does build-time bulk, Claude builds and verifies everything else. The app owns judgement — scores are computed from rubric point ids so no typed text can move a number, a model claiming ADVANCE with core points unmet is overridden, later phases are physically absent from the prompt, and hint tiers release on an app-side stuck counter. Context is rebuilt per turn from a budget and is FLAT (~4,140 tokens at turn 14, still 4,141 at turn 120). The dossier (EMA skill model + behavioural profile + standing facts) carries weak areas across sessions — verified: a new session on caching opened carrying a weakness earned in a URL-shortener session. gate_rubric.py rule 8 (every multi-digit number must appear in the source) caught a REAL hallucination: dsa_s26_mental_math invented 3971, 0 occurrences in source. 8/343 quarantined, all recovered — four by switching generator model, never by relaxing the gate; re-gated from scratch 322 pass 0 fail. BUGS: duplicated interviewer turns (poll was not idempotent while the client polled every 2s regardless of in-flight requests — user saw the opening message 11x); 36s -> 16.1s per turn (the thief was the worker's fixed 20s idle poll, not the model); a lease race letting two threads claim one turn; 21 byte-identical duplicated C topics; aptitude interleaved with DSA by section number; a 'reference' substring demoting Rvalue References to 1/5; a TDZ ReferenceError that silently emptied Past Interviews; an 18s /shapes endpoint from an uncached 322-file scan. VERIFIED: 16 users x 2 turns with 0 errors / 0 double-leased jobs / 0 cross-user leakage; 17 invariants; agy's file tools are auto-denied headless (the sandbox is real).",
+  "current_phase": "Live & multi-user. Judge + compiler + CP/SD sheets + tracker stable; the MOCK INTERVIEW system is the newest surface and is complete and deployed.",
+  "build_state": "Hosted at https://oa123.fly.dev (Fly oa123, scale-to-zero, GitHub OAuth, DB + bank on /data). Repos: RushilJ2603/oa-judge (app; HEAD dfa6582) + oa-problems (bank; HEAD 942d632). Live bank = 142 problems + 322 interview rubrics. Static assets: style.css v35, interview.js v8, sheets.js v25, app.js v16, editor.js v17. Secrets: OAJ_WORKER_TOKEN, OAJ_INTERVIEW_CONCURRENCY=12, OAJ_HTTP_THREADS=24. Interview latency ~16s/turn on the agy CLI path.",
+  "blocking_issue": null,
+  "files_modified_this_session": [
+    "problems/arcesium-max-campaign-score/ (NEW gated Hard; 100% mutation)",
+    "problems/arcesium-banquet-seating/ (NEW gated Medium; 100% mutation)",
+    "problems/_interview/ (NEW: SCHEMA.md, 194 research+notes sources, 322 gated rubrics)",
+    "8 x problems/*/statement.md ($...$ LaTeX -> backticks + Unicode)",
+    "app/interview/{__init__,rubrics,context,dossier,session,jobs,mixed,subjects}.py (NEW package)",
+    "app/migrations/010_interview.sql, 011_interview_mixed.sql (NEW)",
+    "app/server.py (12 interview endpoints, worker-token auth, waitress threads 8->24)",
+    "app/static/interview.js (NEW), style.css (v28->v35), index.html, sheets.js (v23->v25)",
+    "interview_worker.py, gate_rubric.py, extract_rubrics.py, audit_rubrics.py (NEW)",
+    "test_interview.py (17 invariants), loadtest_interview.py (NEW)",
+    "INTERVIEW.md, 'Start Interviewer.bat' (NEW; also copied to the Desktop)",
+    "templatesv2/* (session-7 context update)"
+  ],
+  "key_decisions": [
+    "agy = runtime interviewer ONLY; Grok does build-time bulk; Claude builds and verifies the rest — production must never need a generator installed",
+    "Context assembled server-side each turn; agy kept STATELESS (no --continue) so memory is auditable, survives WSL dying, stays bounded, and cannot bleed between friends",
+    "NEVER give agy a workspace even though it is agentic — verified its file tools are auto-denied headless; a workspace would turn an injected answer into an exfiltration path and expose later-phase hints",
+    "Ship the full source section as REFERENCE every turn — closes the 'as good as agy reading my notes' gap, and measured free (4x prompt = 16.5s vs 16.1s; the call is auth-dominated)",
+    "Reject any number absent from the source (gate rule 8) — caught a real hallucination",
+    "Mixed loops configured by EXCLUSION, not inclusion",
+    "Browser neural TTS over hosted TTS (key + per-char billing + extra round-trip)"
+  ],
+  "next_session_should": [
+    "FTS5 retrieval over the 1.4M-word notes — the one thing raw file access would still add (reading OTHER topics mid-interview). Do NOT solve it by giving agy a workspace.",
+    "Exercise the GEMINI_API_KEY path in interview_worker.py (run_api) — implemented but never run; would take a turn from ~16s to ~1-3s. Check whether an AI Studio key exists (the Pro subscription is a chat product and does not include API access).",
+    "CP-sheet dedup: 312 cross-topic duplicate copies analysed, user chose keep-best-fit, NOT executed (app/sheets/cp.json; the 3 digest/ladder sections re-list by design).",
+    "Add mixed-loop tests to test_interview.py (_next_step/segment hop verified manually only).",
+    "Optional: judged DSA interview round (wire the interview to the real judge)."
+  ],
+  "gotchas": [
+    "agy: the prompt is ARGV not stdin, and '--print --model X <prompt>' SILENTLY LOSES the prompt; use '--model X --print <prompt>'.",
+    "agy tool attempts return NO output at all in headless mode, so looks_valid() + retry is load-bearing.",
+    "Do not run two extract/mutation batches plus a server on the same box unattended; /mnt/c (9p) is slow — cache anything that scans the corpus.",
+    "_already_running + deleting a test DB is a footgun: the replacement server exits and the old process keeps serving a deleted inode with zero tables. Kill servers before rm-ing their DB.",
+    "The grounding audit under-scores formula-heavy topics (mental math 40%) because it counts shared words; gate_rubric.py is the stronger check there."
+  ]
+}

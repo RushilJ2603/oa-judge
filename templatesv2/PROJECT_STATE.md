@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-08-02 (session 8 — interview polish: dollar-LaTeX in live model output, deletable/recency-ordered history with a real dossier unwind, a visible Weak-spots tab, cross-session topic recall, progress-rail fix) | By: Claude (Opus 5, via Claude Code)
+# Last Updated: 2026-08-02 (session 8 — the interviewer became HOSTED and 3x faster, and a 66-agent hunt found 10 real defects, 3 of them misgrading the student) | By: Claude (Opus 5, via Claude Code)
 
 ## Current Phase
 **Live & multi-user; the judge + built-in compiler are stable and the newer surface area is learning
@@ -12,8 +12,8 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets: **style.css v38, interview.js v12, sheets.js v25, app.js v16, editor.js v17**.
-- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `f48daf5`) + `RushilJ2603/oa-problems`
+  persistent volume `/data`. Static assets: **style.css v41, interview.js v15, app.js v17, sheets.js v25, editor.js v17**.
+- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `b47fb6d`) + `RushilJ2603/oa-problems`
   (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
 - **Bank: 142 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
@@ -72,14 +72,64 @@ quality is still enforced by the same tooling gates.
     (how many times, when, what you scored, how many of its points are still weak) but never point ids
     or point text, so continuity does not leak the answer.
   - **Verified:** 16 users × 2 turns, 0 errors / 0 double-leased jobs / 0 cross-user leakage;
-    **100 invariants** in `test_interview.py` + 12 in `test_worker_routing.py`; 322/322 re-gated from scratch.
+    **105 invariants** in `test_interview.py` + **12** in `test_worker_routing.py`; 322/322 re-gated from scratch.
 - **Four bank gates** (author identity is irrelevant to all of them):
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
 
 ## Shipped this session (session 8, 2026-08-02)
-Five asks, all from using the thing for real.
+Three acts: interview polish, then HOSTING + SPEED, then a 66-agent hunt for the defects that make
+the interviewer worse than a plain chat. Everything below was reproduced before and after; nothing
+was taken on an agent's word.
+
+### Act 2 — hosted, and 3x faster
+- **The interviewer no longer needs the host's laptop.** `app/interview/cloud.py` is a background
+  thread on Fly calling Gemini directly — measured **5.0s** for a real turn with no worker running.
+  The local agy worker stays as the fallback for when the free tier rate-limits.
+- **~10s off every turn, and it was OUR bug.** The lease was a client poll that backed off
+  geometrically so an idle worker would not hold Fly awake — but an interview is mostly idle (the
+  candidate is thinking), so by the time they hit send the worker was on a 20s interval and their
+  answer waited ~10s just to be NOTICED. Server-side long poll: **discovery 10.0s → 0.10s**, and it
+  sends FEWER requests than the poll did.
+- **A rate limit is a pause, not the end of an interview.** It used to spend one of the turn's three
+  attempts (three 429s killed a good turn) AND was reported to the browser as a terminal `error`, so
+  the client stopped polling and printed it into the transcript while the job sat queued about to
+  succeed. Ten consecutive limits now leave the retry budget untouched.
+- **Selectable path** `OAJ_INTERVIEW_PATH` = auto | api | agy, cooldown honouring Google's own
+  `retryDelay`. `gemini-2.5-flash` — the old default — **404s for new keys** and would have failed
+  every turn the moment one appeared.
+
+### Act 3 — the hunt (66 agents, 389 findings, 10 real defects)
+24 agents held REAL interviews through `interview_cli.py` (production path), then critiqued what
+they experienced and traced it to code. **Three were misgrading the student:**
+- **Correct answers discarded.** `apply_turn` scoped credit to the phase that happened to be open; a
+  phase advancing mid-exchange made the answer land nowhere and be written up as MISSED.
+- **`TAUGHT` clawed back earned credit** (stored `partial` → `missed`).
+- **`[PARTIAL]` frozen at half credit** with the interviewer forbidden to finish the thought.
+
+Plus: interview ending mid-question with no summary; curiosity counted as being stuck (which the new
+stall floor then turned into force-closing the phase of the most engaged students); help arriving a
+turn late; truncated `SAFETY`/`RECITATION` replies accepted as complete; the report spinner that
+never resolved.
+
+**Measured, before/after:** the real CPU-scheduling session stalled **17 consecutive turns in one
+phase**; four fresh agent interviews stall **4–7**. Note the metric that MATTERS is stall length —
+surface-similarity of questions caught only 1 near-duplicate in that session, because the circling
+was semantic and reworded each time.
+
+### Mobile
+- **The app claimed more height than the screen had.** `html, body { height: 100% }` resolves against
+  the LAYOUT viewport, which does not shrink for the keyboard — the browser shrinks the VISUAL
+  viewport and scrolls it down, and never restores that on dismissal. One wrong height, every tab.
+  Now sized from `visualViewport.height` via `--app-h`.
+- **Could scroll sideways and down into empty page.** `.topnav { flex-shrink: 0 }` with six nav items
+  made the HEADER wider than a phone, so the whole page panned. Nav scrolls within itself now, plus
+  `overscroll-behavior` on html and every pane.
+- Enter makes a newline on touch (there is no Shift+Enter on a phone); sticky session header (the
+  back arrow was the only way out of an interview and scrolled away with the transcript).
+
+### Act 1 — the original five asks
 - **Completion state — "can I see that I've done this?"** The report was already strong (overall %,
   a meter per phase, every missed point with the candidate's own words quoted back) but it was only
   reachable from history or from behind a button, and **the catalog had no completion state at all**:
@@ -208,24 +258,37 @@ Five asks, all from using the thing for real.
 - **NONE** for the app or the deployment.
 
 ## Next Session Must Start With
-> **The interview system is live and complete; nothing is blocking.** Highest-value next steps, in order:
-> 1. **FTS5 retrieval over the 1.4M-word notes.** The one capability raw file access would still add is
->    reading *other* topics mid-interview (a tangent outside the current rubric's source). Server-side
->    retrieval keeps auditability, phase scoping and the agy sandbox — do NOT solve this by giving agy a
->    workspace (see Recent Decisions).
-> 2. **Exercise the `GEMINI_API_KEY` path.** Implemented in `interview_worker.py` (`run_api`) but never
->    run — no key exists. It would take a turn from **16s → ~1–3s**, the single biggest UX win left.
->    Check whether an AI Studio key is actually available (the Pro subscription is a *chat* product and
->    does not include API access).
-> 3. **CP-sheet dedup** — 312 cross-topic duplicate copies analysed, user chose "keep best-fit",
->    **not executed**. `app/sheets/cp.json`; the 3 digest/ladder sections re-list by design.
-> 4. ~~Mixed-loop tests~~ — **done (session 8)**: `check_rail()` walks a 3-segment loop end to end,
->    exercising `_next_step`/segment-hop and pinning the absolute step index.
+> **Nothing is blocking. The interviewer is hosted, ~5s/turn, and 10 defects lighter.**
+>
+> **FIRST — confirm the two mobile fixes on a real phone.** There is no mobile browser in WSL, so the
+> keyboard/viewport work was verified by simulation and by reading the shipped CSS, not on a device.
+> The user confirmed the keyboard band is gone (v58); the scroll-into-empty-page fix (v59,
+> `style.css?v=41`) was shipped at the very end of the session and is **unconfirmed**. If a tab still
+> pans sideways, find the element that overflows — do not blanket-clip the page.
+>
+> Then, highest value first:
+> 1. **The free-tier Gemini quota is small.** It was exhausted within a session of probing
+>    (`429 · You exceeded your current quota`), and every interview then ran through agy at ~16s. The
+>    fallback works, but if the interviewer feels slow this is why. Worth watching what the real daily
+>    allowance is before assuming 5s is the normal experience.
+> 2. **FTS5 retrieval over the 1.4M-word notes.** Still the one capability raw file access would add:
+>    reading *other* topics mid-interview. Server-side keeps auditability, phase scoping and the agy
+>    sandbox — do NOT solve it by giving agy a workspace (see dead_ends).
+> 3. **Rubric phase ORDERING** — the only survivor of the corpus audit. Some HLD rubrics ask for detail
+>    before context (Snowflake ID bit layout during capacity estimation, before a generator has been
+>    proposed). Needs the user's judgement on 2–3 topics they have actually sat. Do NOT bulk-rewrite the
+>    corpus off a metric — see the dead_ends entry for why the other two "fixes" were cancelled.
+> 4. **CP-sheet dedup** — 312 cross-topic duplicate copies analysed, user chose "keep best-fit",
+>    **still not executed**. `app/sheets/cp.json`; the 3 digest/ladder sections re-list by design.
 > 5. Optional: judged **DSA interview round** (wire the interview to the real judge so code is actually
 >    run against hidden tests during a session).
 > 6. Optional: the mixed-loop **rail shows repeated phase names** ("recognition, approach" ×3) with no
->    indication of which topic each belongs to. The highlight is now correct; the labels are still
->    ambiguous. Grouping the rail by segment would need `_phase_labels` to return topic info.
+>    indication of which topic each belongs to. The highlight is correct; the labels are ambiguous.
+>
+> **Tooling built this session, reusable:** `interview_cli.py` (hold a real interview from the command
+> line — the fastest way to feel a change), `hunt_bugs.py` (agent fleet, RAM-safe batches),
+> `simulate_interview.py` (scripted personas + `measure()`), `compare_interview_paths.py` (diff agy vs
+> API grading before switching model).
 
 ## Environment Notes
 - OS: Windows 11 + WSL2; app at `C:\Users\jishu\Desktop\oa-judge` (= `/mnt/c/Users/jishu/Desktop/oa-judge`).
