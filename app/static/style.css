@@ -1371,3 +1371,6 @@ select option { background: var(--bg-elev); color: var(--text); }
     .iv-composer-actions { width: 100%; }
     .iv-composer-actions .btn { flex: 1; }
 }
+.iv-speak { flex-shrink: 0; font-size: 15px; line-height: 1; }
+.iv-speak.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.iv-hist-row[data-active="1"] { border-left: 3px solid var(--accent); }

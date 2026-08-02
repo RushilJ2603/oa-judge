@@ -1017,6 +1017,40 @@ def api_interview_session(sid):
     return jsonify({"session": s, "turns": iv.turns(sid)})
 
 
+@app.route("/api/interview/resume/<int:sid>", methods=["POST"])
+def api_interview_resume(sid):
+    """Pick an unfinished interview back up where it stopped.
+
+    The worker lives on a laptop and can vanish mid-turn (WSL down, machine asleep), so a session
+    can be left with the candidate's answer recorded and no reply. Resuming re-queues that turn
+    instead of stranding the session — the transcript, rubric evidence and hint tier are all still
+    in SQLite, so it continues rather than restarts.
+    """
+    from interview import jobs
+    from interview import session as iv
+    uid = g.get("user_id") or 1
+    s = iv.get(uid, sid)
+    if not s:
+        return jsonify({"error": "unknown session"}), 404
+    if s["status"] != "active":
+        return jsonify({"error": "this interview is already finished"}), 409
+    turns = iv.turns(sid)
+    out = {"session_id": sid, "title": "", "phase": s["current_phase"],
+           "hint_tier": s["hint_tier"], "turns": turns, "resumed": True}
+    r = __import__("interview.rubrics", fromlist=["x"]).load(s["rubric_id"])
+    if r:
+        out["title"] = r.get("title", "")
+        out["phases"] = iv._phase_labels(iv._plan(s), r)
+        out["type"] = s["kind"]
+    # Only re-queue when they are genuinely waiting on the interviewer.
+    if turns and turns[-1]["role"] == "candidate":
+        j = jobs.enqueue(uid, sid, iv.build_prompt(uid, sid), "turn")
+        if "error" in j:
+            return jsonify({**out, **j}), 429
+        out["job_id"] = j["job_id"]
+    return jsonify(out)
+
+
 @app.route("/api/interview/history")
 def api_interview_history():
     from interview import session as iv

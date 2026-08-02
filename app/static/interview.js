@@ -80,7 +80,8 @@
     wireLoops(status);
     wireTopics(status);
     host.querySelectorAll('.iv-hist-row').forEach((el) =>
-      el.addEventListener('click', () => showReport(+el.dataset.sid)));
+      el.addEventListener('click', () =>
+        el.dataset.active === '1' ? resume(+el.dataset.sid) : showReport(+el.dataset.sid)));
   }
 
   // --- tab 1: loops (the default — a real onsite spans subjects) ---------------
@@ -185,8 +186,10 @@
       const pct = h.overall == null ? '—' : Math.round(h.overall * 100) + '%';
       const when = (h.started_at || '').slice(0, 16).replace('T', ' ');
       const state = h.status === 'done' ? '' :
-        `<span class="iv-hist-state">${esc(h.status === 'active' ? 'unfinished' : h.status)}</span>`;
-      return `<button class="iv-hist-row" data-sid="${h.id}">
+        `<span class="iv-hist-state">${live ? '▸ continue' : esc(h.status)}</span>`;
+      const live = h.status === 'active';
+      return `<button class="iv-hist-row" data-sid="${h.id}" data-active="${live ? 1 : 0}"
+                title="${live ? 'Continue this interview' : 'See the report'}">
                 <span class="iv-hist-main">
                   <span class="iv-hist-t">${esc(h.title || h.kind)}${h.mixed ? ' <span class="iv-hist-mix">loop</span>' : ''}</span>
                   <span class="iv-hist-sub">${esc(when)} · ${h.answers} answers${h.summary ? ' · ' + esc(h.summary) : ''}</span>
@@ -209,6 +212,61 @@
                   phase: r.phase, turns: [], thinking: true, hintTier: 0, done: false };
     renderSession();
     poll(r.job_id);
+  }
+
+  // ------------------------------------------------------------------ text to speech
+  /* The interviewer reads its questions aloud (Web Speech Synthesis — browser-native, free).
+     Paired with dictation this becomes an actual spoken mock interview.
+     Choices worth knowing:
+       - CODE IS NOT READ OUT. Hearing "backtick vector less-than int greater-than" is useless, so
+         fenced blocks are replaced with a short spoken marker and you read the code on screen.
+       - speaking is cancelled when a new turn arrives or you leave, so answers never overlap;
+       - the preference persists in localStorage, because re-enabling it every session is friction;
+       - unsupported browsers hide the control instead of showing a dead one. */
+  const TTS_KEY = 'oaj_iv_tts';
+  function ttsSupported() { return 'speechSynthesis' in window; }
+  function ttsOn() { try { return localStorage.getItem(TTS_KEY) === '1'; } catch (e) { return false; } }
+  function setTts(v) { try { localStorage.setItem(TTS_KEY, v ? '1' : '0'); } catch (e) { } }
+  function stopSpeaking() { if (ttsSupported()) window.speechSynthesis.cancel(); }
+
+  function speakable(text) {
+    return String(text || '')
+      .replace(/```[\s\S]*?```/g, ' — code on screen — ')   // never read code aloud
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/^[-*]\s+/gm, '')
+      .replace(/#{1,6}\s*/g, '')
+      .trim();
+  }
+
+  function speak(text) {
+    if (!ttsSupported() || !ttsOn()) return;
+    const t = speakable(text);
+    if (!t) return;
+    stopSpeaking();                       // never let two turns talk over each other
+    const u = new SpeechSynthesisUtterance(t);
+    u.rate = 1.02;                        // conversational, not robotic-slow
+    u.pitch = 1;
+    u.lang = 'en-IN';
+    try { window.speechSynthesis.speak(u); } catch (e) { }
+  }
+
+  async function resume(sid) {
+    const host = $('interview-inner');
+    host.innerHTML = '<p class="spinner">Picking up where you left off…</p>';
+    const r = await jpost('/api/interview/resume/' + sid, {});
+    if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
+    S.session = {
+      id: r.session_id, title: r.title, type: r.type, phases: r.phases || [],
+      phase: r.phase, hintTier: r.hint_tier || 0, done: false,
+      // Rebuild the visible transcript from the server; older interviewer turns were stored as
+      // plain text, so they fall back to escaped text rather than rendered markdown.
+      turns: (r.turns || []).filter((t) => t.role !== 'system')
+                            .map((t) => ({ role: t.role, content: t.content })),
+      thinking: !!r.job_id,
+    };
+    renderSession();
+    if (r.job_id) poll(r.job_id);
   }
 
   function renderSession() {
@@ -259,11 +317,23 @@
            <h1 class="iv-stitle">${esc(s.title)}</h1>
            <div class="iv-rail">${rail}</div>
          </div>
+         <button class="icon-btn iv-speak ${ttsOn() ? 'on' : ''}" id="iv-tts"
+           title="${ttsOn() ? 'Interviewer is reading aloud — click to mute' : 'Have the interviewer read questions aloud'}"
+           >${ttsOn() ? '🔊' : '🔇'}</button>
        </div>
        <div class="iv-thread" id="iv-thread">${rows}${thinking}</div>
        ${composer}`;
 
     $('iv-back').addEventListener('click', leave);
+    const tts = $('iv-tts');
+    if (tts) {
+      if (!ttsSupported()) tts.style.display = 'none';
+      tts.addEventListener('click', () => {
+        setTts(!ttsOn());
+        if (!ttsOn()) stopSpeaking();
+        renderSession();
+      });
+    }
     if (s.done) {
       $('iv-report').addEventListener('click', showReport);
       $('iv-exit').addEventListener('click', leave);
@@ -285,6 +355,7 @@
   async function send() {
     const s = S.session, ta = $('iv-answer');
     stopMic();                       // a live mic would keep appending into the next turn
+    stopSpeaking();                  // stop mid-question readout the moment they answer
     const text = (ta.value || '').trim();
     if (!text || s.thinking) return;
     s.turns.push({ role: 'candidate', content: text });
@@ -314,6 +385,7 @@
         const s = S.session;
         s.thinking = false;
         s.turns.push({ role: 'interviewer', content: r.say || '…', html: r.say_html || '' });
+        speak(r.say || '');
         if (r.phase) s.phase = r.phase;
         s.hintTier = r.hint_tier || 0;
         s.done = !!r.done;
@@ -418,6 +490,7 @@
 
   function leave() {
     stopMic();
+    stopSpeaking();
     clearInterval(S.polling);
     S.session = null;
     render();
