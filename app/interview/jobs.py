@@ -162,8 +162,14 @@ def lease(worker_id: str, version: str = "") -> dict | None:
         if not row:
             return None
         if row["attempts"] >= MAX_ATTEMPTS:
-            conn.execute("UPDATE interview_job SET status='failed', error='max attempts', "
-                         "updated_at=? WHERE id=? AND status='queued'", (now, row["id"]))
+            # Keep the LAST REAL reason. Overwriting it with "max attempts" is what the candidate
+            # then reads in their transcript — true, and useless. "gemini api HTTP 429: quota
+            # exhausted; agy: not found" tells them (or the host) exactly what to do about it.
+            conn.execute(
+                "UPDATE interview_job SET status='failed', updated_at=?, "
+                "error = CASE WHEN error IS NOT NULL AND error != '' "
+                "             THEN error ELSE 'gave up after several attempts' END "
+                "WHERE id=? AND status='queued'", (now, row["id"]))
             conn.commit()
             continue
         cur = conn.execute(
