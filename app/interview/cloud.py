@@ -55,7 +55,11 @@ def _looks_valid(text: str) -> bool:
 
 def _run_one(job: dict) -> None:
     global _blocked_until
-    out, err, retry_after = gemini.generate(job.get("prompt", ""))
+    # Conversational shape when the job has one — the interviewer's own replies go back as model
+    # turns instead of a write-up of itself. Falls back to the flat prompt for the opening turn,
+    # which has no conversation to replay yet.
+    out, err, retry_after = gemini.generate(
+        job.get("prompt", ""), system=job.get("system", ""), history=job.get("history") or [])
     if retry_after:
         with _lock:
             _blocked_until = max(_blocked_until, time.monotonic() + retry_after)

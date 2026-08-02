@@ -969,10 +969,11 @@ def api_interview_start():
         plan = mixed.compose(uid, b.get("shape") or "mixed_full",
                              exclude=b.get("exclude"),
                              segments=int(b["segments"]) if b.get("segments") else None)
-    s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"), plan=plan)
+    depth = "deep" if str(b.get("depth", "")).lower() == "deep" else "standard"
+    s = iv.start(uid, b.get("rubric_id", ""), b.get("problem_id"), plan=plan, depth=depth)
     if not s:
         return jsonify({"error": "unknown rubric"}), 404
-    j = jobs.enqueue(uid, s["session_id"], iv.build_prompt(uid, s["session_id"]), "turn")
+    j = jobs.enqueue(uid, s["session_id"], iv.build_payload(uid, s["session_id"]), "turn")
     if "error" in j:
         return jsonify(j), 429
     return jsonify({**s, "job_id": j["job_id"], "online": jobs.online()})
@@ -991,7 +992,7 @@ def api_interview_answer():
     if s["status"] != "active":
         return jsonify({"error": "session already finished"}), 409
     iv.add_turn(sid, uid, "candidate", str(b.get("answer", ""))[:8000], s["current_phase"])
-    j = jobs.enqueue(uid, sid, iv.build_prompt(uid, sid), "turn")
+    j = jobs.enqueue(uid, sid, iv.build_payload(uid, sid), "turn")
     if "error" in j:
         return jsonify(j), 429
     return jsonify({"job_id": j["job_id"]})
@@ -1081,7 +1082,7 @@ def api_interview_resume(sid):
         out["step"] = iv.step_index(s, r, s["current_phase"])
     # Only re-queue when they are genuinely waiting on the interviewer.
     if turns and turns[-1]["role"] == "candidate":
-        j = jobs.enqueue(uid, sid, iv.build_prompt(uid, sid), "turn")
+        j = jobs.enqueue(uid, sid, iv.build_payload(uid, sid), "turn")
         if "error" in j:
             return jsonify({**out, **j}), 429
         out["job_id"] = j["job_id"]

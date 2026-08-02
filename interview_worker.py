@@ -67,7 +67,8 @@ def _post(server, path, token, payload, timeout=45):
         return json.loads(r.read().decode() or "{}")
 
 
-def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str | None, float]:
+def run_api(prompt: str, key: str, timeout: int = 90, system: str = "",
+            history: list | None = None) -> tuple[str | None, str | None, float]:
     """Delegate to the shared client in app/interview/gemini.py.
 
     Kept as a thin wrapper rather than a second implementation: the parsing is subtle (a reasoning
@@ -75,7 +76,7 @@ def run_api(prompt: str, key: str, timeout: int = 90) -> tuple[str | None, str |
     deliver half an explanation; a 429 carries its own retry window) and two copies would drift.
     The server answers turns with exactly the same code.
     """
-    return _gemini.generate(prompt, timeout=timeout)
+    return _gemini.generate(prompt, timeout=timeout, system=system, history=history)
 
 
 def run_agy(prompt: str, timeout: int = LEASE_TIMEOUT) -> tuple[str | None, str | None]:
@@ -140,7 +141,7 @@ def _rate_limited(err: str) -> bool:
     return any(h in e for h in _RATE_LIMIT_HINTS)
 
 
-def generate(prompt: str) -> tuple[str | None, str | None]:
+def generate(prompt, system: str = "", history: list | None = None) -> tuple[str | None, str | None]:
     """Answer one turn: fast path when it is available, slow path when it is not.
 
     MEASURED on the same real interview turn: API `gemini-3.6-flash` 5.4s vs agy 16.1s, producing
@@ -161,7 +162,7 @@ def generate(prompt: str) -> tuple[str | None, str | None]:
         return None, "OAJ_INTERVIEW_PATH=api but no GEMINI_API_KEY is set"
 
     if key and time.monotonic() >= _api_blocked_until:
-        out, err, retry_after = run_api(prompt, key)
+        out, err, retry_after = run_api(prompt, key, system=system, history=history)
         if out:
             return out, None
         if retry_after or _rate_limited(err):
@@ -204,7 +205,9 @@ def main():
         """One turn, start to finish. Runs on a pool thread so peers keep working meanwhile."""
         jid = job["job_id"]
         t0 = time.time()
-        out, err = generate(job.get("prompt", ""))
+        # The API path answers from the conversation; agy can only take the flat prompt.
+        out, err = generate(job.get("prompt", ""), system=job.get("system", ""),
+                            history=job.get("history") or [])
         dt = time.time() - t0
         if err or not looks_valid(out):
             reason = err or "model output did not match the required block"

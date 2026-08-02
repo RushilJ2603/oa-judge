@@ -20,6 +20,12 @@ API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
 MODEL = os.environ.get("OAJ_GEMINI_API_MODEL", "gemini-3.6-flash")
 MAX_TOKENS = int(os.environ.get("OAJ_GEMINI_MAX_TOKENS", "3000"))
 DEFAULT_COOLDOWN_S = float(os.environ.get("OAJ_API_COOLDOWN", "120"))
+# Reasoning budget, applied to EVERY interview regardless of depth — grading an answer against a
+# rubric and deciding whether to advance is the hard part of every turn, not just a deep one. It is a
+# CAP, not a target: a trivial turn spent 306 of a 2048 budget. Left unset the model defaulted to
+# 640-704 tokens, which was less than half the 1456-1888 the agy path had been doing, so moving to
+# the API quietly made the interviewer reason less.
+THINK_BUDGET = int(os.environ.get("OAJ_GEMINI_THINKING", "8192"))
 _RETRY_RE = re.compile(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"')
 
 
@@ -32,7 +38,7 @@ def available() -> bool:
 
 
 def generate(prompt: str, timeout: int = 90, model: str = "", system: str = "",
-             history: list | None = None, thinking: int = 0
+             history: list | None = None, thinking: int = -1
              ) -> tuple[str | None, str | None, float]:
     """(text, error, retry_after_seconds). retry_after is > 0 only when we should stop asking.
 
@@ -58,8 +64,9 @@ def generate(prompt: str, timeout: int = 90, model: str = "", system: str = "",
     # whiteboard-depth explanations when a candidate is stuck at the deepest hint tier, and a
     # truncated explanation is exactly the quality loss the fast path exists to avoid.
     gen = {"temperature": 0.6, "maxOutputTokens": MAX_TOKENS}
-    if thinking > 0:
-        gen["thinkingConfig"] = {"thinkingBudget": thinking}
+    budget = THINK_BUDGET if thinking < 0 else thinking
+    if budget > 0:
+        gen["thinkingConfig"] = {"thinkingBudget": budget}
     payload = {"generationConfig": gen}
     if history:
         payload["contents"] = history

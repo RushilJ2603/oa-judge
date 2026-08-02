@@ -1375,6 +1375,10 @@ select option { background: var(--bg-elev); color: var(--text); }
 .iv-progress-line { font-size: 12.5px; color: var(--text-muted); }
 .iv-progress-line b { color: var(--text); font-size: 14px; }
 .iv-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Depth: set once, remembered. An extra click before every interview is friction paid forever for
+   a choice that rarely changes. */
+.iv-depth { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    color: var(--text-muted); }
 .iv-done-badge { font-size: 10.5px; font-weight: 700; letter-spacing: .01em; padding: 1px 6px;
     border-radius: 999px; white-space: nowrap; }
 .iv-done-badge.solid { color: var(--success);

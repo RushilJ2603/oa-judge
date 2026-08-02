@@ -39,7 +39,13 @@ def _iso(dt=None):
 
 
 # ------------------------------------------------------------------ enqueue / poll (browser side)
-def enqueue(user_id: int, session_id: int, prompt: str, kind: str = "turn") -> dict:
+def enqueue(user_id: int, session_id: int, prompt, kind: str = "turn") -> dict:
+    """`prompt` is either a flat string or a payload dict {prompt, system, history}.
+
+    Both shapes are stored, because both are needed: the API path answers from the conversational
+    (system + history) shape, and the agy fallback can only take the flat string. Whichever worker
+    picks the job up finds what it can use.
+    """
     conn = db.connect()
     if used_today(user_id) >= DAILY_PER_USER:
         return {"error": "daily interview limit reached"}
@@ -49,7 +55,8 @@ def enqueue(user_id: int, session_id: int, prompt: str, kind: str = "turn") -> d
     cur = conn.execute(
         "INSERT INTO interview_job (session_id, user_id, kind, payload_json, status, created_at, "
         "updated_at) VALUES (?,?,?,?,'queued',?,?)",
-        (session_id, user_id, kind, json.dumps({"prompt": prompt}), _iso(), _iso()))
+        (session_id, user_id, kind,
+         json.dumps(prompt if isinstance(prompt, dict) else {"prompt": prompt}), _iso(), _iso()))
     conn.commit()
     return {"job_id": cur.lastrowid}
 
@@ -189,7 +196,8 @@ def lease(worker_id: str, version: str = "", heartbeat: bool = True) -> dict | N
         conn.commit()
         if cur.rowcount == 1:                # we won the claim
             payload = json.loads(row["payload_json"])
-            return {"job_id": row["id"], "prompt": payload.get("prompt", "")}
+            return {"job_id": row["id"], "prompt": payload.get("prompt", ""),
+                    "system": payload.get("system", ""), "history": payload.get("history") or []}
     return None
 
 

@@ -219,8 +219,56 @@ def add_turn(session_id: int, user_id: int, role: str, content: str,
 
 
 # ------------------------------------------------------------------ prompt building
+def build_payload(user_id: int, session_id: int) -> dict | None:
+    """Both shapes of the next turn, so either path can answer it.
+
+    `prompt` is the flat blob the agy CLI needs (it takes a single string). `system` + `history` are
+    the conversational shape the API path uses, where the interviewer's own replies go back as model
+    turns instead of being pasted into a write-up of itself.
+    """
+    flat = build_prompt(user_id, session_id)
+    if flat is None:
+        return None
+    out = {"prompt": flat}
+    conv = build_conversation_payload(user_id, session_id)
+    if conv:
+        out.update(conv)
+    return out
+
+
+def build_conversation_payload(user_id: int, session_id: int) -> dict | None:
+    s = get(user_id, session_id)
+    if not s:
+        return None
+    r = rubrics.load(s["rubric_id"])
+    if not r:
+        return None
+    tl = turns(session_id)
+    if not tl:
+        return None                      # the opening turn has no conversation to replay yet
+    last = tl[-1]
+    answer = last["content"] if last["role"] == "candidate" else ""
+    if not answer:
+        return None
+    tier = s["hint_tier"]
+    if asked_for_help(answer):
+        tier = max(tier, _tier_for(s["stuck_signals"] + 1))
+    nxt, _rid, _seg = _next_step(s, r, s["current_phase"])
+    try:
+        skipped = json.loads(s["skipped_json"]) if s.get("skipped_json") else []
+    except Exception:
+        skipped = []
+    system, history = context.build_conversation(
+        r, s["current_phase"], _checkoff_map(session_id, s["current_phase"]), tier,
+        dossier.render(user_id, exclude_rubrics=_rubric_ids(s)), tl[:-1], answer,
+        grounding=rubrics.source_text(s["rubric_id"]),
+        recall=dossier.topic_recall(user_id, s["rubric_id"], session_id),
+        is_last=(nxt is None), depth=(s.get("depth") or "standard"), skipped=skipped)
+    return {"system": system, "history": history}
+
+
 def build_prompt(user_id: int, session_id: int) -> str | None:
-    """Assemble the next turn's prompt. Called by the API when enqueuing a worker job."""
+    """Assemble the next turn's FLAT prompt (the shape agy must use)."""
     s = get(user_id, session_id)
     if not s:
         return None

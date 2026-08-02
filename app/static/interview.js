@@ -31,7 +31,9 @@
 
   const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '',
               shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [], weak: [],
-              progress: {}, topicFilter: 'all' };
+              progress: {}, topicFilter: 'all',
+              depth: (function () { try { return localStorage.getItem('oaj_iv_depth') || 'standard'; }
+                                    catch (e) { return 'standard'; } })() };
 
   // ------------------------------------------------------------------ entry
   async function render() {
@@ -223,9 +225,16 @@
 
     const chips = [['all', `All ${total}`], ['new', `Not started ${total - attempted}`],
                    ['shaky', `Needs work ${shaky}`], ['solid', `Solid ${solid}`]];
+    /* Depth is set once and remembered, rather than asked on every start — an extra click before
+       every interview is friction you pay forever for a choice that rarely changes. */
     const bar = `<div class="iv-topbar">
         <span class="iv-progress-line">
           <b>${attempted}</b> of ${total} topics attempted${attempted ? ` · <b>${solid}</b> solid` : ''}
+        </span>
+        <span class="iv-depth" title="Deep uses the harder rubric where one exists, lets the interviewer go past the checklist, and skips what you have already proven">
+          Depth
+          <button class="iv-chip ${S.depth === 'standard' ? '' : 'off'}" data-depth="standard">Standard</button>
+          <button class="iv-chip ${S.depth === 'deep' ? '' : 'off'}" data-depth="deep">Deep</button>
         </span>
         <span class="iv-filters">` + chips.map(([k, l]) =>
           `<button class="iv-chip ${S.topicFilter === k ? '' : 'off'}" data-tf="${k}">${esc(l)}</button>`
@@ -256,6 +265,12 @@
       el.addEventListener('click', () => start(el.dataset.id)));
     host.querySelectorAll('[data-tf]').forEach((el) =>
       el.addEventListener('click', () => { S.topicFilter = el.dataset.tf; renderCatalog(status); }));
+    host.querySelectorAll('[data-depth]').forEach((el) =>
+      el.addEventListener('click', () => {
+        S.depth = el.dataset.depth;
+        try { localStorage.setItem('oaj_iv_depth', S.depth); } catch (e) { }
+        renderCatalog(status);
+      }));
     const search = $('iv-search');
     if (search) search.addEventListener('input', () => {
       S.filter = search.value;
@@ -393,7 +408,7 @@
     const payload = rubricIds ? { rubric_ids: rubricIds }
       : shape ? { shape }
       : exclude ? { exclude, segments: 4 }
-      : { rubric_id: rubricId };
+      : { rubric_id: rubricId, depth: S.depth };
     const r = await jpost('/api/interview/start', payload);
     if (r.error) { host.innerHTML = `<p class="placeholder">${esc(r.error)}</p>`; return; }
     S.session = { id: r.session_id, title: r.title, type: r.type, phases: r.phases,

@@ -40,8 +40,10 @@ def load(**env):
 
 
 def stub(m, api_result, calls):
-    m.run_api = lambda p, k, timeout=90: (calls.append("api"), api_result)[1]
-    m.run_agy = lambda p, timeout=300: (calls.append("agy"), ("AGY-REPLY", None))[1]
+    # **kwargs so the stub keeps working as the real signatures grow (system/history were added when
+    # the API path started sending a real conversation instead of a flat blob).
+    m.run_api = lambda p, k, **kw: (calls.append("api"), api_result)[1]
+    m.run_agy = lambda p, **kw: (calls.append("agy"), ("AGY-REPLY", None))[1]
 
 
 def main():
