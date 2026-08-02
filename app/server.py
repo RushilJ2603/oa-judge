@@ -914,8 +914,14 @@ def api_interview_status():
 
 @app.route("/api/interview/catalog")
 def api_interview_catalog():
-    from interview import rubrics
-    return jsonify({"items": rubrics.summaries()})
+    """The topic list, plus what THIS user has already covered.
+
+    `summaries()` is shared and cached across users, so per-user progress rides alongside it as a
+    separate map rather than being merged into the cached rows.
+    """
+    from interview import dossier, rubrics
+    return jsonify({"items": rubrics.summaries(),
+                    "progress": dossier.topic_progress(g.get("user_id") or 1)})
 
 
 @app.route("/api/interview/shapes")

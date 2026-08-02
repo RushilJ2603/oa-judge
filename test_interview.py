@@ -139,6 +139,9 @@ def main():
     # ---- history is ordered by last interaction, not creation ---------
     check_history_order(rid)
 
+    # ---- catalog completion state -------------------------------------
+    check_topic_progress()
+
     # ---- a mixed loop must not preview its own later segments ---------
     check_no_cross_segment_leak()
 
@@ -223,6 +226,64 @@ def check_history_order(rid):
           str([h["id"] for h in iv.history(uid)][:2]))
     check("history: exposes the timestamp it sorted on",
           all(h.get("last_at") for h in iv.history(uid)))
+
+
+def check_topic_progress():
+    """Completion state in the catalog: attempted, how solid, and how many sittings.
+
+    The subtle one is the mixed loop. `interview_session.rubric_id` holds only the segment the
+    session happened to stop in, so counting from it would credit one topic for a loop that covered
+    four — progress is therefore derived from checkoffs, which record every segment.
+    """
+    from interview import mixed
+    from interview import session as iv
+    uid = 9120
+    check("progress: nothing attempted means no entries", dossier.topic_progress(uid) == {})
+
+    good, bad = rubrics.list_ids()[0], rubrics.list_ids()[1]
+    rg, rb = rubrics.load(good), rubrics.load(bad)
+    gp = [m["id"] for m in rg["phases"][0]["must_hit"]]
+    bp = [m["id"] for m in rb["phases"][0]["must_hit"]]
+    if len(bp) < 2:
+        return
+    for _ in range(4):                       # repeated hits: the EMA has to climb past WEAK_MAX
+        sid = iv.start(uid, good)["session_id"]
+        dossier.record_checkoffs(uid, sid, rg, rubrics.first_phase(rg), hit=gp, partial=[],
+                                 missed=[], evidence={})
+    sid = iv.start(uid, bad)["session_id"]
+    dossier.record_checkoffs(uid, sid, rb, rubrics.first_phase(rb), hit=bp[:1], partial=[],
+                             missed=bp[1:], evidence={})
+
+    p = dossier.topic_progress(uid)
+    check("progress: a mastered topic reads solid",
+          p.get(good, {}).get("mastery", 0) >= dossier.WEAK_MAX, str(p.get(good)))
+    check("progress: a half-answered topic reads shaky",
+          0 < p.get(bad, {}).get("mastery", 0) < dossier.WEAK_MAX, str(p.get(bad)))
+    check("progress: counts the sittings, not the points", p.get(good, {}).get("sessions") == 4,
+          str(p.get(good)))
+    check("progress: untouched topics are absent, not zero-scored",
+          len(p) == 2 and rubrics.list_ids()[2] not in p, str(len(p)))
+
+    plan = mixed.from_ids(rubrics.list_ids()[5:8], phases=1)
+    if len(plan) < 2:
+        return
+    sid = iv.start(uid, plan[0]["rubric_id"], plan=plan)["session_id"]
+    for seg in plan:
+        r = rubrics.load(seg["rubric_id"])
+        ph = seg["phases"][0]
+        dossier.record_checkoffs(uid, sid, r, ph, hit=[], partial=[],
+                                 missed=[m["id"] for m in rubrics.phase(r, ph)["must_hit"]],
+                                 evidence={})
+    p2 = dossier.topic_progress(uid)
+    check("progress: a mixed loop credits EVERY segment it covered",
+          all(seg["rubric_id"] in p2 for seg in plan),
+          str([seg["rubric_id"] for seg in plan if seg["rubric_id"] not in p2]))
+
+    iv.delete(uid, sid)
+    p3 = dossier.topic_progress(uid)
+    check("progress: deleting a loop un-credits every topic it covered",
+          not any(seg["rubric_id"] in p3 for seg in plan))
+    check("progress: deleting one session leaves the others intact", good in p3 and bad in p3)
 
 
 def check_no_cross_segment_leak():

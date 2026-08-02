@@ -26,7 +26,8 @@
   }
 
   const S = { view: 'catalog', session: null, polling: null, catalog: null, filter: '',
-              shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [], weak: [] };
+              shapes: [], subjects: [], excluded: new Set(), tab: 'loops', history: [], weak: [],
+              progress: {}, topicFilter: 'all' };
 
   // ------------------------------------------------------------------ entry
   async function render() {
@@ -43,6 +44,7 @@
         jget('/api/interview/weak')]);
     } catch (e) { host.innerHTML = '<p class="placeholder">Could not load interviews.</p>'; return; }
     S.catalog = cat.items || [];
+    S.progress = cat.progress || {};
     S.shapes = shapes.shapes || [];
     S.subjects = shapes.subjects || [];
     S.history = hist.sessions || [];
@@ -151,23 +153,75 @@
   }
 
   // --- tab 2: by topic, grouped by subject ------------------------------------
+  /* Every card carries its own completion state. Without it a 322-item list is undifferentiated —
+     you cannot tell what you have covered, so you re-do familiar topics and never notice the gaps.
+     SOLID_AT matches the server's WEAK_MAX (0.7): above it a topic is done, below it you have been
+     through it but it still needs work, and that distinction is the whole point of the badge. */
+  const SOLID_AT = 0.7;
+
+  function progressOf(id) { return (S.progress && S.progress[id]) || null; }
+
+  function topicState(id) {
+    const p = progressOf(id);
+    if (!p) return 'new';
+    return p.mastery >= SOLID_AT ? 'solid' : 'shaky';
+  }
+
+  function badge(id) {
+    const p = progressOf(id);
+    if (!p) return '';
+    const pct = Math.round(p.mastery * 100);
+    const st = topicState(id);
+    const times = p.sessions === 1 ? 'once' : p.sessions + ' times';
+    // Built on one line on purpose: whitespace inside an attribute value is NOT collapsed, so a
+    // tooltip broken across source lines renders with the source indentation inside it.
+    const tip = `${st === 'solid' ? 'Solid' : 'Attempted, still shaky'} — ${p.solid} of ${p.points} points solid, interviewed ${times}`;
+    return `<span class="iv-done-badge ${st}" title="${esc(tip)}">` +
+           `${st === 'solid' ? '✓' : '↻'} ${pct}%</span>`;
+  }
+
   function renderTopics() {
     const q = S.filter.toLowerCase();
     const groups = new Map();
+    let shown = 0;
     S.catalog.forEach((it) => {
       if (q && !it.title.toLowerCase().includes(q) && !it.subject_label.toLowerCase().includes(q)) return;
+      if (S.topicFilter !== 'all' && topicState(it.id) !== S.topicFilter) return;
       if (!groups.has(it.subject_label)) groups.set(it.subject_label, []);
       groups.get(it.subject_label).push(it);
+      shown++;
     });
-    let body = `<input class="iv-search" id="iv-search" type="text" placeholder="Search topics…"
+
+    // Counted over the whole catalog, not the filtered view — this is the standing picture.
+    const total = S.catalog.length;
+    let solid = 0, shaky = 0;
+    S.catalog.forEach((it) => {
+      const st = topicState(it.id);
+      if (st === 'solid') solid++; else if (st === 'shaky') shaky++;
+    });
+    const attempted = solid + shaky;
+
+    const chips = [['all', `All ${total}`], ['new', `Not started ${total - attempted}`],
+                   ['shaky', `Needs work ${shaky}`], ['solid', `Solid ${solid}`]];
+    const bar = `<div class="iv-topbar">
+        <span class="iv-progress-line">
+          <b>${attempted}</b> of ${total} topics attempted${attempted ? ` · <b>${solid}</b> solid` : ''}
+        </span>
+        <span class="iv-filters">` + chips.map(([k, l]) =>
+          `<button class="iv-chip ${S.topicFilter === k ? '' : 'off'}" data-tf="${k}">${esc(l)}</button>`
+        ).join('') + `</span>
+      </div>`;
+
+    let body = bar + `<input class="iv-search" id="iv-search" type="text" placeholder="Search topics…"
                   autocomplete="off" spellcheck="false" value="${esc(S.filter)}">`;
-    if (!groups.size) return body + '<p class="placeholder">No topics match.</p>';
+    if (!shown) return body + '<p class="placeholder">No topics match.</p>';
     groups.forEach((items, label) => {
       body += `<h2 class="iv-group">${esc(label)} <span class="iv-count">${items.length}</span></h2>
                <div class="iv-cards">` + items.map((i) => `
-          <button class="iv-card" data-id="${esc(i.id)}" title="${esc(i.relevance || '')}">
+          <button class="iv-card ${topicState(i.id)}" data-id="${esc(i.id)}" title="${esc(i.relevance || '')}">
             <span class="iv-card-t">${esc(i.title)}</span>
             <span class="iv-card-m">
+              ${badge(i.id)}
               <span class="iv-w" title="How often interviews ask this">${'★'.repeat(i.weight)}</span>
               <span class="iv-diff ${esc(i.difficulty)}">${esc(i.difficulty || '')}</span>
             </span>
@@ -180,6 +234,8 @@
     const host = $('interview-inner');
     host.querySelectorAll('.iv-card[data-id]').forEach((el) =>
       el.addEventListener('click', () => start(el.dataset.id)));
+    host.querySelectorAll('[data-tf]').forEach((el) =>
+      el.addEventListener('click', () => { S.topicFilter = el.dataset.tf; renderCatalog(status); }));
     const search = $('iv-search');
     if (search) search.addEventListener('input', () => {
       S.filter = search.value;
@@ -467,11 +523,20 @@
            <div class="iv-bubble iv-thinking"><span></span><span></span><span></span>
            <em>thinking…</em></div></div>` : '';
 
+    // The headline number belongs ON the completion panel, not one click away behind "see report".
+    // Finishing an interview and being told only "complete" is the moment you most want the score.
+    const finalPct = s.finalScore == null ? null : Math.round(s.finalScore * 100);
     const composer = s.done
       ? `<div class="iv-done">
            <p><b>Interview complete.</b></p>
+           ${finalPct == null
+             ? '<p class="iv-sub">Scoring…</p>'
+             : `<div class="iv-final">
+                  <span class="iv-final-pct">${finalPct}%</span>
+                  <span class="iv-final-sub">${esc(s.finalSummary || '')}</span>
+                </div>`}
            <div class="iv-done-actions">
-             <button class="btn btn-primary" id="iv-report">See your report</button>
+             <button class="btn btn-primary" id="iv-report">See the full report</button>
              <button class="btn btn-subtle" id="iv-exit">Back to interviews</button>
            </div>
          </div>`
@@ -582,6 +647,7 @@
         s.hintTier = r.hint_tier || 0;
         s.done = !!r.done;
         renderSession();
+        if (s.done) loadFinalScore(s.id);
       } else if (r.error || waited > 300) {
         clearInterval(S.polling);
         const s = S.session;
@@ -591,6 +657,22 @@
         renderSession();
       }
     }, 1000);   // 1s: the model floor is ~15s, so poll granularity should not add to it
+  }
+
+  /* The overall score is computed server-side when the session closes, so it is fetched rather than
+     accumulated client-side — the app owns every number, and a browser must never be able to tell
+     itself how it did. Failure is silent: the panel keeps its button, which still works. */
+  async function loadFinalScore(sid) {
+    try {
+      const rep = await jget('/api/interview/report/' + sid);
+      if (!S.session || S.session.id !== sid) return;     // they navigated away mid-fetch
+      S.session.finalScore = (rep.scores && rep.scores.overall) || 0;
+      const misses = (rep.misses || []).length;
+      S.session.finalSummary = misses
+        ? `${misses} point${misses === 1 ? '' : 's'} to review`
+        : 'clean run — nothing missed';
+      renderSession();
+    } catch (e) { }
   }
 
   async function showReport(sid) {

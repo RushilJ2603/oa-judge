@@ -230,6 +230,33 @@ def weak_topics(user_id: int, limit: int = 12, threshold: float = WEAK_MAX) -> l
     return out[:limit]
 
 
+def topic_progress(user_id: int) -> dict[str, dict]:
+    """rubric_id -> what this user has done on that topic. Powers completion state in the catalog.
+
+    Attempted-ness is derived from CHECKOFFS rather than from `interview_session.rubric_id`, because
+    a mixed loop stores only the segment it happens to be in — counting sessions by that column would
+    credit one topic for a loop that actually covered four.
+    """
+    out: dict[str, dict] = {}
+    for r in db.connect().execute(
+            "SELECT concept_key, mastery, last_tested_at FROM skill "
+            "WHERE user_id=? AND times_tested > 0", (user_id,)):
+        rid = r["concept_key"].split(":", 1)[0]
+        t = out.setdefault(rid, {"sum": 0.0, "points": 0, "solid": 0, "last_at": "", "sessions": 0})
+        t["sum"] += r["mastery"]
+        t["points"] += 1
+        t["solid"] += 1 if r["mastery"] >= WEAK_MAX else 0
+        t["last_at"] = max(t["last_at"], r["last_tested_at"] or "")
+    for r in db.connect().execute(
+            "SELECT rubric_id, COUNT(DISTINCT session_id) AS n FROM interview_checkoff "
+            "WHERE user_id=? GROUP BY rubric_id", (user_id,)):
+        if r["rubric_id"] in out:
+            out[r["rubric_id"]]["sessions"] = r["n"]
+    for t in out.values():
+        t["mastery"] = t.pop("sum") / t["points"] if t["points"] else 0.0
+    return out
+
+
 def behavior(user_id: int) -> list[dict]:
     return [dict(r) for r in db.connect().execute(
         "SELECT trait, value, observations FROM behavior WHERE user_id=? AND observations >= 2 "

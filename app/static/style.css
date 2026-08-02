@@ -1320,6 +1320,30 @@ select option { background: var(--bg-elev); color: var(--text); }
 
 .iv-w { color: var(--warn); letter-spacing: -1px; font-size: 10px; }
 
+/* Topic completion state. Deliberately quiet: the badge is information you scan for, not a reward
+   animation, and 322 loud green ticks would be worse than none. An attempted-but-shaky topic gets a
+   different mark from a solid one — that distinction is the reason the badge exists at all. */
+.iv-topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-top: 18px; flex-wrap: wrap; }
+.iv-progress-line { font-size: 12.5px; color: var(--text-muted); }
+.iv-progress-line b { color: var(--text); font-size: 14px; }
+.iv-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.iv-done-badge { font-size: 10.5px; font-weight: 700; letter-spacing: .01em; padding: 1px 6px;
+    border-radius: 999px; white-space: nowrap; }
+.iv-done-badge.solid { color: var(--success);
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--success) 38%, transparent); }
+.iv-done-badge.shaky { color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+.iv-card.solid { border-left: 3px solid color-mix(in srgb, var(--success) 60%, transparent); }
+.iv-card.shaky { border-left: 3px solid color-mix(in srgb, var(--warn) 60%, transparent); }
+
+/* The score you just earned, on the completion panel itself. */
+.iv-final { display: flex; align-items: baseline; gap: 12px; margin: 6px 0 14px; }
+.iv-final-pct { font-size: 34px; font-weight: 700; line-height: 1; }
+.iv-final-sub { font-size: 12.5px; color: var(--text-muted); }
+
 .iv-hist { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .iv-hist-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
     padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
