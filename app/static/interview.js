@@ -265,7 +265,11 @@
      the order is right without doing date arithmetic. */
   function ago(ts) {
     if (!ts) return '';
-    const t = Date.parse(/Z|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts + 'Z');
+    // Stored timestamps carry MICROseconds; the ES date format defines exactly three fractional
+    // digits, and engines differ on whether they tolerate six. Truncate rather than rely on that.
+    let s = String(ts).replace(/(\.\d{3})\d+/, '$1');
+    if (!/Z$|[+-]\d\d:?\d\d$/.test(s)) s += 'Z';         // naive string means UTC here
+    const t = Date.parse(s);
     if (isNaN(t)) return String(ts).slice(0, 16).replace('T', ' ');
     const mins = Math.round((Date.now() - t) / 60000);
     if (mins < 1) return 'just now';
