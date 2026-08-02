@@ -305,8 +305,40 @@ does `set -a && . ./.env`. Expected ~13.8s → ~2s.
 | `--disable-slash-commands` | Within noise (13.0s vs 13.8s) — kept for SAFETY, not speed |
 
 **Conclusion: the agy CLI path has a hard ~12–14s floor and nothing in its surface can move it.**
-The API path is the only fix — it skips both the bootstrap and the checkpoint call, leaving roughly
-the 4.5s of real generation.
+The API path is the only fix — it skips both the bootstrap and the checkpoint call.
+
+### API path — MEASURED with a real AI Studio key (2026-08-02)
+Same real interview turn, both paths:
+
+| Path | Time | Grading |
+|---|---|---|
+| agy `gemini-3.6-flash-high` | **16.1s** | `hit=[req1] partial=[req2] advance=False` |
+| api `gemini-3.6-flash` | **5.4s** | `hit=[req1] partial=[req2] advance=False` — **identical** |
+
+End to end through `generate()`: **6.24s**, valid block. ~3x faster with the same grading decision.
+
+**`gemini-3.6-flash-high` is an Antigravity TIER LABEL, not an API model id** — agy's log shows
+`resolver.go: not in local config, defaulting to CCPA` and `label="Gemini 3.6 Flash (High)"`
+propagated to Google's Code Assist backend. The API exposes the base model `gemini-3.6-flash`;
+"(High)" is an effort tier, which over HTTP is `thinkingConfig`. Observed thinking: agy 1456–1888
+tokens, API default 640–704.
+
+**Two findings only measurement could give:**
+1. **`gemini-2.5-flash` is 404** ("no longer available to new users") — and it was this file's
+   default. It would have failed on every turn the moment a key appeared. Now `gemini-3.6-flash`.
+2. **The free tier rate-limits hard** — three calls in quick succession, the third 429s. Invisible at
+   interview pace; not with several people at once.
+
+**Routing (`OAJ_INTERVIEW_PATH` = auto | api | agy):** a 429 is a *routing decision*, not an error —
+the turn goes to agy so a live interview never dies. Cooldown honours Google's own RetryInfo
+`retryDelay` rather than guessing, and the API is not retried while cooling. `path=api` without a key
+fails loudly instead of being silently slow. Covered by `test_worker_routing.py` (12 checks, no
+network). Key lives in gitignored `.env`, sent as the `X-goog-api-key` **header** (never a query
+string — URLs reach proxy and access logs).
+
+**Use `compare_interview_paths.py` before changing model:** `--list` shows what the key can reach,
+and a run diffs HIT/PARTIAL/ADVANCE between paths. Prose differing is fine; a different hit set is a
+different score.
 
 ## Known Issues / Tech Debt
 - **No JS runtime in WSL** (`node`/`deno`/`bun` all absent), so `interview.js` cannot even be
