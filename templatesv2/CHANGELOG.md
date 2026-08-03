@@ -1,6 +1,54 @@
 # CHANGELOG.md
 # ── Full project history — newest entry on top ─────────────────
 
+## [2026-08-03] — session 9: the Mock OA, and another Grok authoring batch | By: Claude (Opus 5, Claude Code)
+
+### Done This Session
+
+- **MOCK OA — a timed paper, not a timed problem.** The judge could already put a clock on one
+  problem (`oa_session`, client-side). An OA is a *paper*, and what it actually measures is
+  **triage**: which question you open first, when you give up on Q2 for Q3, whether you left enough
+  of the clock for the hard one. New tab `Mock OA`; new module `app/mockoa.py`, migration 013,
+  `app/static/mockoa.js`, `MOCKOA.md`, and `test_mockoa.py` (91 invariants).
+  - **15 hand-picked papers** — 5 × 1 hour, 5 × 2 hours, 5 × 3 hours, **45 distinct questions with
+    no repeats**. Not sampled: each paper ramps, no two questions in one paper want the same
+    technique, and the company papers (Microsoft, Amazon, Goldman, DE Shaw, Uber, Flipkart, Google,
+    Citadel) are built from that company's own bank problems. Two are declared **themed drills**.
+  - **Random papers from a time model**, which is what "adjust the count to the difficulty" means:
+    Easy 18 / Medium 32 / Hard 50 expected minutes, and a paper is any non-decreasing ladder of 2–4
+    questions filling 78–114% of the requested length. Three hours is four questions when two are
+    Hard. Prefers questions never solved; gives each slot a different technique family.
+  - **The clock belongs to the server.** `ends_at` is written once at start; the browser's countdown
+    is a rendering of it that re-syncs. Reloading, closing the tab or opening a second device cannot
+    buy a minute, expiry is settled server-side (a closed laptop still ends the paper on time), and
+    **a submission after the deadline does not score**.
+  - **Results are derived, never stored twice** — from the same `attempt` rows the rest of the app
+    uses, so a paper cannot disagree with your history. Partial credit is passed/total on the best
+    submission, because a near-miss is the most useful line in a report.
+  - **No technique is ever named.** Cards carry title / difficulty / company and nothing else — the
+    same rule the problem list follows by hiding `topic`. The hand-written blurbs are grepped for
+    algorithm names by an invariant, since a blurb is exactly where that rule would rot.
+  - OA mode is forced inside a paper (hidden tests), but its **one-submission lock is skipped** —
+    that lock is a practice rule; real OA platforms let you resubmit until the clock stops.
+  - Bug caught before shipping: the expiry payload had no `cards`, so the report the browser draws
+    when the clock runs out would have had **no rows on it**.
+
+- **Grok authoring batch 10 — bank 142 → 164.** 36 slugs from the OA-Helper scrape (2,951 scraped,
+  917 still eligible after de-duping against the bank and everything previously attempted).
+  Deliberately **hard-first**: every eligible Hard was taken before topping up with Mediums, because
+  the bank skewed 98 Medium / 33 Hard and a mock paper needs a hard anchor. Same untrusted-author
+  pipeline as batches 5–9: Grok writes, `gate_candidate.py` decides, nothing merges without
+  `GATE: PASS`. **22 authored, 22 passed, 22 merged** (12 Hard, 10 Medium; Hard 33 → 46), each at a
+  100% mutation score and re-verified by the repo's own tooling on the way in. Grok skipped 14 slugs
+  on its own for being too easy or ambiguous, which is the behaviour that makes the batch usable.
+
+### Fixed / new tooling
+- `store.py` gained the mock-OA lifecycle; starting a paper while one runs **abandons** the first,
+  because two live clocks would both claim the same submissions.
+- `_loop/gate_agents.sh` (new): gate a batch in waves, so finished agents can be verified while the
+  slower ones are still authoring. Detached runs need `setsid` — a plain `nohup … &` from the
+  harness dies with its process group, which is why the first gate run produced an empty file.
+
 ## [2026-08-02] — session 8: interview fixes from real use | By: Claude (Opus 5, Claude Code)
 
 ### Done This Session

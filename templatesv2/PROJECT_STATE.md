@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 # ── Living State Document — Update Every Session ────────────────
-# Last Updated: 2026-08-02 (session 8 — the interviewer became HOSTED and 3x faster, and a 66-agent hunt found 10 real defects, 3 of them misgrading the student) | By: Claude (Opus 5, via Claude Code)
+# Last Updated: 2026-08-03 (session 9 — MOCK OA: a timed paper of 2-4 questions on a server-owned clock, 15 hand-picked; plus Grok authoring batch 10) | By: Claude (Opus 5, via Claude Code)
 
 ## Current Phase
 **Live & multi-user; the judge + built-in compiler are stable and the newer surface area is learning
@@ -12,11 +12,12 @@ quality is still enforced by the same tooling gates.
 ## What is live right now
 - **Hosted:** `https://oa123.fly.dev` (Fly app `oa123`, single `shared-cpu-1x:512MB`, **scale-to-zero**
   → ~$0/mo; confirmed billing ≈ $0.01/day, mostly the volume). GitHub OAuth. DB + bank on the
-  persistent volume `/data`. Static assets: **style.css v41, interview.js v15, app.js v17, sheets.js v25, editor.js v17**.
-- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `b47fb6d`) + `RushilJ2603/oa-problems`
-  (bank, HEAD `732e6de`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
+  persistent volume `/data`. Static assets: **style.css v43, interview.js v16, app.js v18, sheets.js v26, mockoa.js v1, editor.js v17**.
+- **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `009dc0f`) + `RushilJ2603/oa-problems`
+  (bank, HEAD `bfdaeaf`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
-- **Bank: 142 problems** — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
+- **Bank: 164 problems** (142 + 22 from Grok batch 10, all gated; the batch was picked HARD-FIRST,
+  so Hard went 33 -> 46) — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
   (`oa-helper`)**. Sidebar groups by **source ▸ company**; company names are canonicalized at index
   time (de shaw/DE Shaw → DE Shaw) and unknown/blank companies fall into a single **Practice** company.
   Iris — Personal now includes a **Microsoft** company (6 gated problems, session 6).
@@ -30,6 +31,17 @@ quality is still enforced by the same tooling gates.
 - **Contest Tracker (deterministic, per-user, $0):** link CF/AtCoder/LeetCode/CodeChef handles → auto
   rating trajectory vs a target line (CM by 2027-05-31), cadence, a **multi-site upcoming-contest feed
   (keyless, all four judges)**, `.ics`, and a rating-band **"Recommended for you"** (CF always included).
+- **MOCK OA (session 9).** A timed **paper** — 2–4 questions, one clock, one score. Tab: `Mock OA`.
+  **15 hand-picked papers** (5 × 1h, 5 × 2h, 5 × 3h; 45 distinct questions, no repeats) in
+  `app/mockoa_sets.json`, plus **random papers** built from a time model (Easy 18 / Medium 32 /
+  Hard 50 min; any non-decreasing ladder of 2–4 filling 78–114% of the requested length) — that is
+  what "adjust the count to the difficulty" means: 3 hours is 4 questions when two are Hard.
+  **The clock is the server's**: `ends_at` is written once, expiry is settled server-side, and a
+  submission after the deadline does not score. Per-question results are DERIVED from `attempt`
+  rows in the window (never stored twice), with partial credit = passed/total on the best submission.
+  The running bar lives above the workspace, outside every view, because the paper is sat in the
+  judge. Cards show title/difficulty/company and never tags — and an invariant greps the hand-written
+  blurbs for algorithm names. `MOCKOA.md`, migration 013, `test_mockoa.py` (91 invariants).
 - **MOCK INTERVIEW (session 7, the big one).** An interviewer grounded in the user's OWN notes that
   **remembers them between sessions** — the thing a chat window cannot do. Tab: `Interview`.
   - **Corpus: 322 gated rubrics** in `problems/_interview/` — CS Fundamentals 194 (their OS/DBMS/C++/C/
@@ -77,6 +89,42 @@ quality is still enforced by the same tooling gates.
   `verify_all.py` (reference is correct) · `audit.py` (structure + ≥5 edges) ·
   **`mutation_test.py` (test STRENGTH — 100% killed mutants)** · **`gate_candidate.py`** (one command:
   anchor + independent brute + audit + 100% mutation; a Python-only reference is a hard FAIL).
+
+## Shipped this session (session 9, 2026-08-03)
+
+### The Mock OA
+The judge could time one problem; an OA is a **paper**, and what it measures is triage. Three
+decisions carry the feature:
+- **The clock is the server's.** `ends_at` written once at start, expiry settled server-side, and a
+  submission after the deadline scores nothing. Reload / closed tab / second device buy no time.
+  (The old per-problem OA timer was `Date.now()` in a tab, and a refresh restarted it.)
+- **Results are derived from `attempt` rows in the window**, not stored a second time, so a paper
+  can never disagree with your history or your solved badges. Partial credit = passed/total on the
+  best submission.
+- **No technique is ever named** — cards carry title/difficulty/company only, matching the problem
+  list's existing rule, and an invariant greps the hand-written blurbs for algorithm names.
+
+**15 hand-picked papers** (5 × 1h, 5 × 2h, 5 × 3h; 45 distinct questions, none repeated), chosen
+problem by problem: each ramps, no two questions in a paper want the same technique, company papers
+use that company's own problems. Two are declared themed drills. **Random papers** come from a time
+model (E 18 / M 32 / H 50 expected minutes; any non-decreasing ladder of 2–4 filling 78–114% of the
+length), which is what "adjust the count to the difficulty" means in practice.
+
+Inside a paper, OA mode is forced (hidden tests) but its one-submission lock is skipped — that lock
+is a practice rule; real OA platforms let you resubmit until the clock stops. The running bar lives
+above the workspace, outside every view, because the paper is sat in the judge.
+
+`app/mockoa.py`, `app/mockoa_sets.json`, migration 013, `app/static/mockoa.js`, `MOCKOA.md`,
+`test_mockoa.py` (91 invariants). Live at **v62**.
+
+### Grok authoring batch 10 — bank 142 → 164
+36 slugs, selected **hard-first** (every eligible Hard in the scrape before any Medium) because the
+bank skewed 98 Medium / 33 Hard and a mock paper needs a hard anchor. 22 packages authored,
+**22 gated, 22 merged** (12 Hard, 10 Medium — Hard 33 → 46) — every one at 100% mutation score,
+re-hidden and re-mutated by the repo's own tooling on merge. A clean sweep is unusual; the previous
+batches lost a third at the gate, and the difference is that Grok now self-gates before reporting. Grok's honest SKIPs ("too easy", "ambiguous") did
+their job again. New tool: `_loop/gate_agents.sh` gates a batch in waves, so finished agents are
+verified while the slower ones are still authoring.
 
 ## Shipped this session (session 8, 2026-08-02)
 Three acts: interview polish, then HOSTING + SPEED, then a 66-agent hunt for the defects that make

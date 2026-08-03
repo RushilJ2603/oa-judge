@@ -19,6 +19,86 @@
 #
 # ─────────────────────────────────────────────────────────────────
 
+## Session 9 — 2026-08-03 (the judge learned what an OA actually is)
+
+**AI:** Claude (Opus 5, via Claude Code) — with **Grok `cursor-grok-4.5-high`** authoring problem
+packages (batch 10).
+**Start → End:** 2026-08-03 ~12:15 IST → (see the end of this entry)
+**Goal at start:** two things — another Grok authoring batch from the OA-Helper scrape, and a
+**Mock OA**: pick 2–4 questions to be done in a chosen number of hours, with the count adjusted to
+the difficulty of the questions chosen, plus at least 15 hand-made papers.
+
+### What we set out to do
+Verbatim: *"use grok to add another batch of questions from oa helper scrape to judge"* and *"make a
+'mock oa' feature in judge, where it picks 2-3-4 questions to be done in lets say 2 hours, 3 hours,
+1 hour… hand make atleast 5 1 hour mock oa's, 5 2 hours and 5 3 hours, all with different questions,
+do not randomly pick questions, hand pick them for atleast these 15 oas, then we can add random pick
+oa functionality."* Mid-session: *"grok can run out of limit as well, so be careful."*
+
+### The idea the feature turned on
+The judge already had a clock — `oa_session`, per problem, started in the browser. Putting a second
+clock on a list of problems would have been a cosmetic change. The thing that makes an OA an OA is
+that **you cannot do all of it**: three questions, one deadline, and the actual skill is triage —
+which one you open first, when you abandon Q2, whether you leave the hard one enough runway. Once
+that was the goal, three design decisions followed and they are what the feature is:
+
+1. **The clock is the server's.** `ends_at` is written once at start and never touched. The browser
+   draws a countdown from it and re-syncs; expiry is settled server-side. A reload, a closed laptop,
+   a second device — none of them buy a minute, and a submission after the deadline scores nothing.
+   (Compare the old OA timer: `Date.now()` in a tab, restarted by refreshing.)
+2. **Results are derived, not stored.** Per-question outcomes come from the same `attempt` rows the
+   rest of the app already writes, filtered to the window. A paper therefore cannot disagree with
+   your history, your solved badges, or your stats — there is no second copy to drift.
+3. **Nothing names the technique.** The problem list deliberately hides `topic` so as not to hand
+   over the approach; a mock OA is the place that matters most, so the cards carry title/difficulty/
+   company and nothing else, and the hand-written blurbs get grepped for algorithm names by a test.
+
+### The 15 hand-picked papers
+Not sampled — chosen problem by problem out of the 140 runnable bank problems, and the rules I held
+myself to: each paper ramps (Q1 is the warm-up, the last one decides it), no two questions in one
+paper want the same technique, no problem appears in two papers, and a company paper uses that
+company's own bank problems. That worked out to five 1-hour, five 2-hour, five 3-hour papers and
+**45 distinct questions**. Two are declared **themed drills** (grids/graphs, DP) — those name their
+family on purpose, in the title, which is why the leak test exempts them.
+
+Amazon's 1-hour paper is two Mediums with no warm-up, and that broke my own first invariant ("no
+paper is budgeted over its length"). The paper was right and the test was wrong: Amazon's intern OA
+really is two mediums in an hour, and running out of time is part of what it measures. The rule
+became the same fill ceiling generated papers obey.
+
+### The time model (for random papers)
+Easy 18 / Medium 32 / Hard 50 expected minutes, and a paper is any **non-decreasing** ladder of 2–4
+questions summing to 78–114% of the requested length. That is the literal answer to "adjust the
+amount of questions based on the chosen questions' difficulty": 3 hours is four questions when two
+are Hard and three when they are all Hard. The budget runs deliberately under the paper length,
+because reading, debugging and resubmitting are not in the estimate.
+
+### Files touched
+- `app/mockoa.py` (new, 200 lines) — catalogue, time model, `shapes()`, `compose()`, `score_paper()`
+- `app/mockoa_sets.json` (new) — the 15 hand-picked papers
+- `app/migrations/013_mock_oa.sql` (new) — `mock_oa_attempt`
+- `app/store.py` (+108) — paper lifecycle; `mock_window_attempts` is where the deadline actually bites
+- `app/server.py` (+145) — seven endpoints, `_paper_cards` (the no-tags rule), `_paper_state`
+- `app/static/mockoa.js` (new, 380 lines) — the view, the running bar, the report
+- `app/static/app.js` — OA mode's one-submission lock is skipped inside a paper; bar repaint on submit
+- `app/static/index.html`, `sheets.js`, `style.css` (+128) — tab, view, bar placement, styles
+- `MOCKOA.md` (new), `test_mockoa.py` (new, 91 invariants)
+- `oa-staging/_loop/gate_agents.sh` (new) — gate a batch in waves
+
+### What went wrong / what I got wrong
+- **A report with no rows.** The expiry path returned the finished paper *without* its question
+  cards, and that payload is exactly what the browser draws when the clock runs out. Caught by
+  reading my own code after the tests passed, not by the tests — so an invariant now covers it.
+- **"The gate died."** I checked with `ps aux | grep … | head -5`, and three cursor-agent processes
+  (whose command line contains the entire 2 KB authoring prompt) filled the five lines. I concluded
+  the gate had died and started a second one, so the results file has duplicate verdicts. Harmless,
+  but it burned CPU for ~15 minutes against a machine that was already at load 5.
+- **The concurrency cap looked broken and wasn't.** `launch_capped.sh 6` appeared to have started 12
+  agents; the glob order is agent1, agent10, agent11, agent12, agent2, agent3 — six agents, all
+  correct. I killed three of them before working that out, so three slugs from batch 10 were never
+  attempted (saved to `scratchpad/batch10_killed_slugs.tsv`).
+- Grok's quota held for this batch — no rate-limit errors in any agent log.
+
 ## Session 8 — 2026-08-02 (the interviewer got hosted, got 3× faster, and got audited by 66 agents)
 
 **AI:** Claude (Opus 5, via Claude Code) — with **Grok `cursor-grok-4.5-high`** running a 66-agent
