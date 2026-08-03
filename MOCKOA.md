@@ -86,9 +86,10 @@ its mtime changes.
 ## Behaviour inside the judge
 
 Opening a question from the bar switches to the judge and forces **OA mode** (hidden tests), which
-is the point of an OA. Its *one-submission* lock is skipped while a paper is running: that lock is
-a practice rule for solving a single problem under self-imposed pressure, and real OA platforms let
-you resubmit until the clock stops. The clock is already the constraint.
+is the point of an OA. OA mode used to allow one submission and then lock the Submit button until
+you pressed "Reveal / Reset"; that lock is gone everywhere, because no OA platform works that way —
+you submit, you see the pass count, you fix it and submit again until the time is up. Inside a
+paper the clock is already the constraint.
 
 The running bar sits above the workspace, outside every view, because you sit the paper in the
 judge — a status bar you have to navigate away from your code to read is not a status bar.

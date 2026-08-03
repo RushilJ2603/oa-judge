@@ -43,7 +43,6 @@ const state = {
     currentProblemData: null,
     oaStartTime: null,
     oaTimerInterval: null,
-    submittedInOa: false,
     prevLang: null,
     oaSessionId: null,
 };
@@ -62,7 +61,6 @@ const els = {
     btnRun: document.getElementById('btn-run'),
     btnSubmit: document.getElementById('btn-submit'),
     btnStress: document.getElementById('btn-stress'),
-    btnResetOa: document.getElementById('btn-reset-oa'),
     btnResetStub: document.getElementById('btn-reset-stub'),
     btnCustomInputToggle: document.getElementById('btn-custom-input-toggle'),
     customInputDrawer: document.getElementById('custom-input-drawer'),
@@ -447,7 +445,6 @@ function setupEventListeners() {
     els.btnRun.addEventListener('click', handleRun);
     els.btnSubmit.addEventListener('click', handleSubmit);
     els.btnStress.addEventListener('click', handleFindFailing);
-    els.btnResetOa.addEventListener('click', handleResetOa);
     els.btnResetStub.addEventListener('click', () => {
         if (!confirm('Reset the editor to the starter code? Your changes will be lost.')) return;
         // Snapshot first, so "lost" is recoverable from the draft scrubber.
@@ -684,7 +681,6 @@ async function loadProblem(id) {
     // Flush the outgoing problem's draft before switching away from it.
     if (state.currentProblemId) saveDraftNow();
     state.currentProblemId = id;
-    state.submittedInOa = false;
     state.oaSessionId = null;
     // Deep link, so a problem can be opened (or shared) by URL.
     if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
@@ -803,25 +799,21 @@ function getMode() {
     return mode;
 }
 
+/* OA mode hides the hidden-test I/O and runs a clock. It does NOT limit you to one submission:
+   that rule was modelled on "one shot, like the real thing", but no real OA platform works that
+   way — you submit, you see the pass count, you fix it and submit again until the time is up. All
+   the one-shot lock did was make you press "Reveal / Reset" to carry on, which measured nothing. */
 function handleModeChange() {
     const mode = getMode();
+    const canSubmit = !!(state.currentProblemData && state.currentProblemData.runnable);
     if (mode === 'oa') {
         els.oaTimer.style.display = 'inline-block';
-        if (!state.submittedInOa) {
-            startOaTimer();
-            els.btnSubmit.disabled = false;
-            els.btnResetOa.style.display = 'none';
-        } else {
-            els.btnSubmit.disabled = true;
-            els.btnResetOa.style.display = 'inline-block';
-        }
+        startOaTimer();
     } else {
         els.oaTimer.style.display = 'none';
         clearInterval(state.oaTimerInterval);
-        els.btnResetOa.style.display = 'none';
-        els.btnSubmit.disabled = !state.currentProblemData || !state.currentProblemData.runnable;
-        state.submittedInOa = false;
     }
+    els.btnSubmit.disabled = !canSubmit;
 }
 
 function startOaTimer() {
@@ -841,13 +833,6 @@ function startOaTimer() {
     };
     upd();
     state.oaTimerInterval = setInterval(upd, 1000);
-}
-
-function handleResetOa() {
-    state.submittedInOa = false;
-    els.btnResetOa.style.display = 'none';
-    els.btnSubmit.disabled = false;
-    startOaTimer();
 }
 
 function openResultDrawer(title) {
@@ -903,16 +888,10 @@ async function handleSubmit() {
     // duration_s was NULL on every historical row.
     const duration = state.oaStartTime
         ? Math.round((Date.now() - state.oaStartTime) / 1000 * 10) / 10 : null;
-    // OA mode is one-shot on purpose when you're practising a single problem — it's the closest
-    // thing to the pressure of a real submit. Inside a timed mock OA paper it is exactly wrong:
-    // real OA platforms let you resubmit until the clock runs out, and the clock is already the
-    // constraint. So the lock is skipped while a paper is running.
+    // The clock keeps running through a submission in OA mode, because you are still on the
+    // problem: what it reports is time spent, and stopping it at the first submit made every
+    // resubmit look free.
     const inPaper = !!(window.OAMockOA && window.OAMockOA.running());
-    if (mode === 'oa' && !inPaper) {
-        clearInterval(state.oaTimerInterval);
-        state.submittedInOa = true;
-        els.btnResetOa.style.display = 'inline-block';
-    }
 
     saveDraftNow();   // the judged code is the draft; flush before the round-trip
 
@@ -931,7 +910,7 @@ async function handleSubmit() {
             html += '<div class="test-list">' + r.tests.map(t => renderTestRow(t, mode)).join('') + '</div>';
         }
         els.console.innerHTML = html;
-        if (mode === 'lc' || inPaper) els.btnSubmit.disabled = false;
+        els.btnSubmit.disabled = false;
         // The paper's question chips carry this submission's outcome — repaint them now rather
         // than leaving the bar stale until the next slow poll.
         if (inPaper) window.OAMockOA.refresh();
@@ -944,7 +923,7 @@ async function handleSubmit() {
         if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
     } catch (e) {
         els.console.innerHTML = `<div class="note" style="color:var(--error)">Error: ${escapeHTML(e.message)}</div>`;
-        if (mode === 'lc' || inPaper) els.btnSubmit.disabled = false;
+        els.btnSubmit.disabled = false;
     }
 }
 

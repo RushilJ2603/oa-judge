@@ -139,8 +139,10 @@
                         <label class="mode-opt"><input type="radio" name="mode" value="lc" checked><span>LC</span></label>
                         <label class="mode-opt"><input type="radio" name="mode" value="oa"><span>OA</span></label>
                     </div>
+                    <!-- "Reveal / Reset" lived here to release OA mode's one-submission lock.
+                         The lock is gone (see handleModeChange in app.js), so the button had
+                         nothing left to release. -->
                     <span class="oa-timer" id="oa-timer" title="Elapsed time">00:00</span>
-                    <button class="btn btn-ghost" id="btn-reset-oa" style="display:none">Reveal / Reset</button>
                 </div>
                 <div class="footer-right">
                     <button class="btn btn-subtle" id="btn-custom-input-toggle" title="Toggle the custom-input box">Custom Input</button>
@@ -212,7 +214,7 @@
     </div>
 
     <script src="/static/editor.js?v=17"></script>
-    <script src="/static/app.js?v=18"></script>
+    <script src="/static/app.js?v=19"></script>
     <script src="/static/interview.js?v=16"></script>
     <script src="/static/mockoa.js?v=1"></script>
     <script src="/static/sheets.js?v=26"></script>

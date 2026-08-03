@@ -175,8 +175,10 @@ Attempt log, newest first.
 - Language selector (only languages in `languages`). Load `stubs[lang]` into the editor on switch,
   but do **not** clobber unsaved edits without a confirm.
 - Buttons: **Run** (custom stdin box), **Submit** (uses the mode toggle), **Stress**.
-- **Mode toggle** LC ↔ OA. In OA mode: hide hidden-test I/O, show a running timer, and after a
-  Submit disable further Submits until the user explicitly resets (a "give up / reveal" button).
+- **Mode toggle** LC ↔ OA. In OA mode: hide hidden-test I/O and show a running timer. Submissions
+  are NOT limited — the one-shot lock (and its "Reveal / Reset" release button) was removed in
+  session 9: no OA platform works that way, and inside a Mock OA paper the clock is already the
+  constraint. The timer keeps running through a submission, because you are still on the problem.
 - Result console: colour-coded verdict, per-test rows, a dedicated **stderr** panel (the one channel
   that survives — never hide it), and compile output on CE.
 - Editor: plain but competent — monospace, line numbers, tab inserts spaces, Ctrl/Cmd+Enter submits.

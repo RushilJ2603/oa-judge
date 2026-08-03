@@ -334,14 +334,21 @@ def main():
     check("mockoa.js is loaded", "mockoa.js?v=" in html)
     check("the view switcher knows the tab", "view === 'mock'" in sheets_js and "OAMockOA" in sheets_js)
     check("the deep link works", "h === 'mock'" in sheets_js)
-    check("the judge re-enables submit during a paper", "inPaper" in app_js
-          and "mode === 'lc' || inPaper" in app_js)
+    # OA mode used to allow one submission and then lock the button until you pressed
+    # "Reveal / Reset". No OA platform behaves that way — you resubmit until the time is up — and
+    # inside a paper the clock is already the constraint. The lock is gone from both.
+    check("OA mode has no one-submission lock",
+          "submittedInOa" not in app_js and "btnResetOa" not in app_js)
+    check("submit comes back after every judgement, pass or fail",
+          app_js.count("els.btnSubmit.disabled = false;") >= 2)
     check("the judge repaints the bar after a submit", "OAMockOA.refresh()" in app_js)
     check("the bar survives a reload", "async function boot()" in js and "/api/mock-oa/active" in js)
     check("the server's clock wins", "S.left = r.running.seconds_left" in js)
     check("the bar is styled", ".mk-bar {" in css and ".mk-clock" in css)
+    # Cache-busting query strings: a stale app.js against a new API is the classic "works for me"
+    # bug, so the numbers are asserted rather than remembered.
     check("static versions were bumped",
-          "style.css?v=43" in html and "app.js?v=18" in html and "sheets.js?v=26" in html)
+          "style.css?v=43" in html and "app.js?v=19" in html and "sheets.js?v=26" in html)
 
     print()
     if FAILS:
