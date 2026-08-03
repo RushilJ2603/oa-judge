@@ -264,6 +264,11 @@ def main():
           str(active["just_finished"]["score"]["score"]))
     check("the recorded end is the deadline, not now",
           active["just_finished"]["ended_at"] == store.mock_get(paper["id"])["ends_at"])
+    # The browser draws this payload as the report without another round trip, so it has to carry
+    # the questions — a report with no rows on it is worse than no report.
+    check("the auto-finished payload can be drawn as a report",
+          len(active["just_finished"].get("cards") or []) == len(paper["problems"]),
+          str(active["just_finished"].get("cards")))
 
     # Three tabs all noticing the expiry must not rewrite the result.
     again = c.post("/api/mock-oa/finish", json={"attempt_id": paper["id"]}).get_json()

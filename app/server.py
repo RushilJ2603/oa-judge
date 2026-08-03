@@ -762,7 +762,12 @@ def api_mock_oa_active():
         return jsonify({"running": None})
     state = _paper_state(att)
     if state["expired"]:
-        return jsonify({"running": None, "just_finished": store.mock_finish(att["id"])})
+        # Carries `cards` because this IS the report the browser is about to draw — the client
+        # cannot re-fetch what it needs mid-render, and a report with no questions on it is worse
+        # than no report.
+        done = store.mock_finish(att["id"])
+        return jsonify({"running": None,
+                        "just_finished": {**done, "cards": _paper_cards(done["problems"])}})
     return jsonify({"running": state})
 
 

@@ -231,13 +231,15 @@
     } finally { S.busy = false; }
   }
 
-  async function finish(silent) {
+  async function finish() {
     const id = S.running && S.running.id;
     stopClock();
     const r = await jpost('/api/mock-oa/finish', id ? { attempt_id: id } : {});
     S.running = null;
     renderBar();
-    if (r.ok && !silent) { S.report = r.attempt; switchToMock(); renderReport(); }
+    // Handing in is the end of the exercise, so the report is where you land — including when the
+    // clock ran out while you were mid-keystroke in the judge. That is what a real OA does.
+    if (r.ok) { S.report = r.attempt; switchToMock(); renderReport(); }
     else render();
   }
 
