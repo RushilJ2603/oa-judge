@@ -732,3 +732,111 @@ def set_cp_goal(target_rating=None, deadline=None, start_rating=None, start_at=N
          pace_per_day if pace_per_day is not None else cur["pace_per_day"],
          _now()))
     conn.commit()
+
+
+# ------------------------------------------------------------------ mock OA (timed papers)
+# A mock OA is a set of problems under one server-side clock. See migrations/013_mock_oa.sql for
+# why the deadline and the frozen paper live in the row, and why per-problem results are derived
+# from `attempt` rather than stored twice.
+
+def _iso_plus(minutes: int) -> str:
+    from datetime import timedelta
+    return (datetime.now(timezone.utc) + timedelta(minutes=minutes)).isoformat(timespec="seconds")
+
+
+def indexed_rows() -> list[dict]:
+    """Every indexed problem with its tags — the pool a random paper is composed from."""
+    conn = db.connect()
+    return _hydrate(conn.execute(f"{_SEL}").fetchall(), solved_ids())
+
+
+def mock_start(set_id: str, title: str, minutes: int, problem_ids: list[str]) -> dict:
+    """Open a paper. Any paper still marked running is closed first: two live clocks would both
+    claim the same submissions, and a candidate can only sit one OA at a time."""
+    for row in _mock_rows("running"):
+        mock_finish(row["id"], status="abandoned")
+    conn = db.connect()
+    cur = conn.execute(
+        "INSERT INTO mock_oa_attempt (user_id, set_id, title, minutes, problems_json,"
+        " started_at, ends_at, status) VALUES (?,?,?,?,?,?,?,'running')",
+        (_uid(), set_id, title, int(minutes), json.dumps(list(problem_ids)),
+         _now(), _iso_plus(int(minutes))))
+    conn.commit()
+    return mock_get(int(cur.lastrowid))
+
+
+def _mock_rows(status: str | None = None, limit: int = 100) -> list[dict]:
+    sql = "SELECT * FROM mock_oa_attempt WHERE user_id = ?"
+    args: tuple = (_uid(),)
+    if status:
+        sql += " AND status = ?"
+        args += (status,)
+    sql += " ORDER BY started_at DESC, id DESC LIMIT ?"
+    return [dict(r) for r in db.connect().execute(sql, args + (limit,))]
+
+
+def mock_get(attempt_id: int) -> dict | None:
+    row = db.connect().execute(
+        "SELECT * FROM mock_oa_attempt WHERE id = ? AND user_id = ?",
+        (attempt_id, _uid())).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    d["problems"] = json.loads(d.pop("problems_json") or "[]")
+    d["score"] = json.loads(d["score_json"]) if d.get("score_json") else None
+    d.pop("score_json", None)
+    return d
+
+
+def mock_running() -> dict | None:
+    rows = _mock_rows("running", limit=1)
+    return mock_get(rows[0]["id"]) if rows else None
+
+
+def mock_window_attempts(problem_ids: list[str], started_at: str, until: str) -> list[dict]:
+    """Submissions for this paper's problems inside [started_at, until].
+
+    The upper bound is the DEADLINE, not "now": solving Q3 twenty minutes after the clock ran out
+    is practice, not a result, and must not appear on the paper.
+    """
+    if not problem_ids:
+        return []
+    marks = ",".join("?" for _ in problem_ids)
+    return [dict(r) for r in db.connect().execute(
+        "SELECT problem_id, verdict, passed, total, language, created_at FROM attempt"
+        f" WHERE user_id = ? AND problem_id IN ({marks})"
+        " AND created_at >= ? AND created_at <= ? ORDER BY created_at ASC",
+        (_uid(), *problem_ids, started_at, until))]
+
+
+def mock_finish(attempt_id: int, status: str = "finished") -> dict | None:
+    """Close a paper and freeze its result. Idempotent: finishing a finished paper returns it
+    unchanged, so a countdown hitting zero in three open tabs cannot rewrite the score."""
+    import mockoa
+    cur = mock_get(attempt_id)
+    if not cur:
+        return None
+    if cur["status"] != "running":
+        return cur
+    ended = min(_now(), cur["ends_at"])
+    rows = mock_window_attempts(cur["problems"], cur["started_at"], ended)
+    result = mockoa.score_paper(cur["problems"], rows)
+    conn = db.connect()
+    conn.execute(
+        "UPDATE mock_oa_attempt SET status = ?, ended_at = ?, score_json = ?"
+        " WHERE id = ? AND user_id = ? AND status = 'running'",
+        (status, ended, json.dumps(result), attempt_id, _uid()))
+    conn.commit()
+    return mock_get(attempt_id)
+
+
+def mock_history(limit: int = 50) -> list[dict]:
+    return [mock_get(r["id"]) for r in _mock_rows(limit=limit)]
+
+
+def mock_delete(attempt_id: int) -> bool:
+    conn = db.connect()
+    cur = conn.execute("DELETE FROM mock_oa_attempt WHERE id = ? AND user_id = ?",
+                       (attempt_id, _uid()))
+    conn.commit()
+    return cur.rowcount > 0

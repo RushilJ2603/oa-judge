@@ -903,7 +903,12 @@ async function handleSubmit() {
     // duration_s was NULL on every historical row.
     const duration = state.oaStartTime
         ? Math.round((Date.now() - state.oaStartTime) / 1000 * 10) / 10 : null;
-    if (mode === 'oa') {
+    // OA mode is one-shot on purpose when you're practising a single problem — it's the closest
+    // thing to the pressure of a real submit. Inside a timed mock OA paper it is exactly wrong:
+    // real OA platforms let you resubmit until the clock runs out, and the clock is already the
+    // constraint. So the lock is skipped while a paper is running.
+    const inPaper = !!(window.OAMockOA && window.OAMockOA.running());
+    if (mode === 'oa' && !inPaper) {
         clearInterval(state.oaTimerInterval);
         state.submittedInOa = true;
         els.btnResetOa.style.display = 'inline-block';
@@ -926,7 +931,10 @@ async function handleSubmit() {
             html += '<div class="test-list">' + r.tests.map(t => renderTestRow(t, mode)).join('') + '</div>';
         }
         els.console.innerHTML = html;
-        if (mode === 'lc') els.btnSubmit.disabled = false;
+        if (mode === 'lc' || inPaper) els.btnSubmit.disabled = false;
+        // The paper's question chips carry this submission's outcome — repaint them now rather
+        // than leaving the bar stale until the next slow poll.
+        if (inPaper) window.OAMockOA.refresh();
         fetchProblemsAndHistory();
         refreshPresence();
         updateAttemptsCount();
@@ -936,7 +944,7 @@ async function handleSubmit() {
         if (els.tabAttempts.classList.contains('active')) renderAttemptsTab();
     } catch (e) {
         els.console.innerHTML = `<div class="note" style="color:var(--error)">Error: ${escapeHTML(e.message)}</div>`;
-        if (mode === 'lc') els.btnSubmit.disabled = false;
+        if (mode === 'lc' || inPaper) els.btnSubmit.disabled = false;
     }
 }
 

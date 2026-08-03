@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=1">
-    <link rel="stylesheet" href="/static/style.css?v=42">
+    <link rel="stylesheet" href="/static/style.css?v=43">
 </head>
 <body>
     <header class="app-header">
@@ -17,6 +17,7 @@
                 <button class="topnav-item" data-view="cp">CP Sheet</button>
                 <button class="topnav-item" data-view="sd">System&nbsp;Design</button>
                 <button class="topnav-item" data-view="tracker">Tracker</button>
+                <button class="topnav-item" data-view="mock">Mock&nbsp;OA</button>
                 <button class="topnav-item" data-view="interview">Interview</button>
                 <button class="topnav-item" data-view="compiler">Compiler</button>
             </nav>
@@ -35,6 +36,11 @@
             </span>
         </div>
     </header>
+
+    <!-- Running mock-OA bar. Deliberately OUTSIDE every view: the paper is sat in the judge, so a
+         clock you have to leave your code to look at would not be a clock. Hidden unless a paper
+         is running, so it costs no layout the rest of the time. -->
+    <div class="mk-bar" id="mock-bar" style="display:none"></div>
 
     <div class="workspace">
         <!-- Mobile-only: switch the single visible pane between the statement and the editor so each
@@ -172,6 +178,11 @@
         <div class="compiler-inner" id="compiler-inner"></div>
     </section>
 
+    <!-- ===== Mock OA view (timed papers) ===== -->
+    <section class="mock-view" id="mock-view" style="display:none">
+        <div class="mock-inner" id="mock-inner"></div>
+    </section>
+
     <!-- ===== Mock interview view ===== -->
     <section class="interview-view" id="interview-view" style="display:none">
         <div class="interview-inner" id="interview-inner"></div>
@@ -201,8 +212,9 @@
     </div>
 
     <script src="/static/editor.js?v=17"></script>
-    <script src="/static/app.js?v=17"></script>
+    <script src="/static/app.js?v=18"></script>
     <script src="/static/interview.js?v=16"></script>
-    <script src="/static/sheets.js?v=25"></script>
+    <script src="/static/mockoa.js?v=1"></script>
+    <script src="/static/sheets.js?v=26"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ import auth  # noqa: E402  (GitHub OAuth; no-op when AUTH is not configured)
 import config  # noqa: E402
 import cp  # noqa: E402  (CP + System Design sheets: fetchers + deterministic tracker)
 import db  # noqa: E402
+import mockoa  # noqa: E402  (timed multi-problem OA papers: catalogue, time model, composition)
 import sharing  # noqa: E402  (Phase 5: git sync + problem authoring/publish)
 import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
 from runner import execute, md, problems, stress  # noqa: E402
@@ -648,6 +649,147 @@ def api_sheet_code_set():
     lang = (b.get("lang") or "cpp")[:16]
     store.set_sheet_code(item_id, lang, code)
     return jsonify({"ok": True})
+
+
+# ============================================================ Mock OA (timed papers)
+# Problem cards here carry title / difficulty / company and NOTHING else — no tags, no topic —
+# because that is the rule the problem list already follows: naming the technique is telling the
+# candidate the answer, and a mock OA is the one place that matters most.
+def _paper_cards(problem_ids: list[str]) -> list[dict]:
+    solved = store.solved_ids()
+    out = []
+    for pid in problem_ids:
+        m = problems.meta_only(pid)
+        out.append({
+            "id": pid,
+            "title": (m or {}).get("title", pid),
+            "difficulty": (m or {}).get("difficulty", ""),
+            "company": (m or {}).get("company", ""),
+            "runnable": bool((m or {}).get("runnable", False)),
+            "missing": m is None,
+            "solved_ever": pid in solved,
+        })
+    return out
+
+
+def _paper_state(att: dict) -> dict:
+    """A running paper as the browser needs it: the frozen questions, live per-question status, and
+    the seconds left — computed from the stored deadline, never from a client clock."""
+    import datetime as _dt
+    now = store._now()
+    until = min(now, att["ends_at"])
+    rows = store.mock_window_attempts(att["problems"], att["started_at"], until)
+    live = mockoa.score_paper(att["problems"], rows)
+    ends = _dt.datetime.fromisoformat(att["ends_at"])
+    left = (ends - _dt.datetime.now(_dt.timezone.utc)).total_seconds()
+    return {**att, "cards": _paper_cards(att["problems"]), "live": live,
+            "seconds_left": max(0, int(left)), "expired": left <= 0}
+
+
+@app.route("/api/mock-oa")
+def api_mock_oa():
+    """Catalogue + history. The curated sets are enriched with their questions so a card can show
+    the ramp (2 Medium + 1 Hard) before you commit three hours to it."""
+    sets = []
+    for s in mockoa.curated():
+        cards = _paper_cards(s["problems"])
+        sets.append({
+            "id": s["id"], "title": s["title"], "company": s.get("company", ""),
+            "minutes": s["minutes"], "blurb": s.get("blurb", ""),
+            "themed": bool(s.get("themed")),
+            "questions": len(s["problems"]),
+            "difficulties": [c["difficulty"] for c in cards],
+            "estimate": mockoa.estimate(c["difficulty"] for c in cards),
+            "cards": cards,
+        })
+    running = store.mock_running()
+    return jsonify({
+        "sets": sets,
+        "durations": mockoa.DURATIONS,
+        "cost_min": mockoa.COST_MIN,
+        "running": _paper_state(running) if running else None,
+        "history": [h for h in store.mock_history(60) if h["status"] != "running"],
+    })
+
+
+@app.route("/api/mock-oa/random", methods=["POST"])
+def api_mock_oa_random():
+    """Compose a random paper WITHOUT starting it, so the shuffle button costs nothing and the
+    candidate can see what they are agreeing to."""
+    b = request.get_json(force=True) or {}
+    minutes = max(30, min(300, int(b.get("minutes") or 120)))
+    pool = store.indexed_rows()
+    solved = store.solved_ids()
+    picked = mockoa.compose(pool, minutes, solved=solved, seed=b.get("seed"))
+    if not picked:
+        return jsonify({"ok": False, "error": "the bank cannot fill a paper this long"}), 409
+    ids = [p["id"] for p in picked]
+    cards = _paper_cards(ids)
+    return jsonify({"ok": True, "minutes": minutes, "problems": ids, "cards": cards,
+                    "estimate": mockoa.estimate(c["difficulty"] for c in cards)})
+
+
+@app.route("/api/mock-oa/start", methods=["POST"])
+def api_mock_oa_start():
+    b = request.get_json(force=True) or {}
+    set_id = b.get("set_id")
+    if set_id:
+        s = mockoa.get_set(set_id)
+        if not s:
+            return jsonify({"ok": False, "error": "no such set"}), 404
+        title, minutes, ids = s["title"], s["minutes"], list(s["problems"])
+    else:
+        minutes = max(30, min(300, int(b.get("minutes") or 120)))
+        ids = [str(x) for x in (b.get("problems") or [])]
+        if not (mockoa.MIN_QUESTIONS <= len(ids) <= mockoa.MAX_QUESTIONS):
+            return jsonify({"ok": False, "error": "a paper is 2 to 4 questions"}), 400
+        if len(set(ids)) != len(ids):
+            return jsonify({"ok": False, "error": "duplicate question"}), 400
+        for pid in ids:
+            m = problems.meta_only(pid)
+            if not m or not m.get("runnable"):
+                return jsonify({"ok": False, "error": f"not a runnable problem: {pid}"}), 400
+        set_id, title = "random", f"Random paper · {minutes} min"
+    return jsonify({"ok": True, "attempt": _paper_state(store.mock_start(set_id, title, minutes, ids))})
+
+
+@app.route("/api/mock-oa/active")
+def api_mock_oa_active():
+    """Polled by the running-paper bar. When the deadline has passed the paper is closed HERE,
+    server-side, so a closed laptop still ends the OA at the right time and with the right score."""
+    att = store.mock_running()
+    if not att:
+        return jsonify({"running": None})
+    state = _paper_state(att)
+    if state["expired"]:
+        return jsonify({"running": None, "just_finished": store.mock_finish(att["id"])})
+    return jsonify({"running": state})
+
+
+@app.route("/api/mock-oa/finish", methods=["POST"])
+def api_mock_oa_finish():
+    b = request.get_json(force=True) or {}
+    att = store.mock_running()
+    aid = int(b.get("attempt_id") or (att or {}).get("id") or 0)
+    if not aid:
+        return jsonify({"ok": False, "error": "no running paper"}), 404
+    done = store.mock_finish(aid, status=b.get("status") or "finished")
+    if not done:
+        return jsonify({"ok": False, "error": "no such paper"}), 404
+    return jsonify({"ok": True, "attempt": {**done, "cards": _paper_cards(done["problems"])}})
+
+
+@app.route("/api/mock-oa/attempt/<int:aid>")
+def api_mock_oa_attempt(aid):
+    att = store.mock_get(aid)
+    if not att:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"attempt": {**att, "cards": _paper_cards(att["problems"])}})
+
+
+@app.route("/api/mock-oa/attempt/<int:aid>", methods=["DELETE"])
+def api_mock_oa_delete(aid):
+    return jsonify({"ok": store.mock_delete(aid)})
 
 
 # Generic compile-and-run: a gcc/ideone-style playground, not tied to any problem. Runs untrusted

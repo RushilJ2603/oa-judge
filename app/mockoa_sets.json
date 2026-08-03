@@ -1,0 +1,130 @@
+{
+  "_comment": "Hand-picked mock OA papers. Every set was chosen problem-by-problem, not sampled: the questions ramp (Q1 is the warm-up, the last one decides the paper), no two questions in a set want the same technique, and no problem appears in two sets. Company sets use that company's own bank problems where the bank has enough of them. `minutes` is the real paper length, hand-set per set, not the sum of the estimates. AUTHORING RULE: a blurb may describe pacing, ramp and traps, but must NEVER name the technique — the app hides tags and topics on problems for exactly this reason. The two sets marked \"themed\" are the deliberate exception: their whole point is drilling one family, and the title says so up front.",
+  "version": 1,
+  "sets": [
+    {
+      "id": "ms-screen-60",
+      "title": "Microsoft — Campus Screen",
+      "company": "Microsoft",
+      "minutes": 60,
+      "blurb": "A short screen. Bank Q1 quickly and give the rest of the hour to Q2 — that's the one that separates candidates.",
+      "problems": ["microsoft-q3-password-strength", "microsoft-q2-dynamic-network-strength"]
+    },
+    {
+      "id": "amzn-intern-60",
+      "title": "Amazon — SDE Intern OA",
+      "company": "Amazon",
+      "minutes": 60,
+      "blurb": "Two mediums and no warm-up — the intern paper opens at full difficulty. Read both before you start typing.",
+      "problems": ["oahelper-findbreachedemployees", "oahelper-warehouse-robotics-system"]
+    },
+    {
+      "id": "gs-screen-60",
+      "title": "Goldman Sachs — HackerRank Screen",
+      "company": "Goldman Sachs",
+      "minutes": 60,
+      "blurb": "Q1 takes five minutes if you find the shortcut and forty if you don't. Q2 rewards pinning down the exact rule before writing code.",
+      "problems": ["goldman-missed-courses", "goldman-unstable-tasks"]
+    },
+    {
+      "id": "deshaw-screen-60",
+      "title": "DE Shaw — Dev Screen",
+      "company": "DE Shaw",
+      "minutes": 60,
+      "blurb": "Both questions punish the obvious implementation: one on the size of the numbers, one on the size of the input.",
+      "problems": ["deshaw-add-one-to-digit-stream", "oahelper-minimize-abs-diff"]
+    },
+    {
+      "id": "uber-rapid-60",
+      "title": "Uber — Rapid Round",
+      "company": "Uber",
+      "minutes": 60,
+      "blurb": "Both questions have a short answer once you see it. Spend the first ten minutes looking, not typing.",
+      "problems": ["uber-q3-distinct-flips", "uber-q2-bundling-target"]
+    },
+
+    {
+      "id": "ms-full-120",
+      "title": "Microsoft — Full OA",
+      "company": "Microsoft",
+      "minutes": 120,
+      "blurb": "Q1 and Q2 are bankable in forty minutes between them. Q3 will take everything you leave it, so leave it plenty.",
+      "problems": ["tuf-best-time-to-buy-and-sell-stock-ii", "microsoft-q4-compare-flat-json", "microsoft-q6-maximize-binary-reverse-append"]
+    },
+    {
+      "id": "amzn-sde1-120",
+      "title": "Amazon — SDE-1 OA",
+      "company": "Amazon",
+      "minutes": 120,
+      "blurb": "Three genuine mediums and no easy question — exactly what Amazon ships. Triage matters more than depth here.",
+      "problems": ["oahelper-allocate-limited-inventory-items", "oahelper-flash-sale-revenue-maximization", "oahelper-lexicographic-removal-duel"]
+    },
+    {
+      "id": "gs-superday-120",
+      "title": "Goldman Sachs — Pre-Superday",
+      "company": "Goldman Sachs",
+      "minutes": 120,
+      "blurb": "A quick opener, then a long fiddly middle question, then one that needs a real idea. Don't let Q2 eat the paper.",
+      "problems": ["goldman-non-repeating-digit-product", "goldman-2048", "goldman-min-refueling-stops"]
+    },
+    {
+      "id": "grids-graphs-120",
+      "title": "Grids & Graphs — Themed Drill",
+      "company": "Mixed",
+      "themed": true,
+      "blurb": "Themed, so the family is no secret: three questions that are the same idea in three different costumes. The skill being drilled is recognising it the third time as fast as the first.",
+      "minutes": 120,
+      "problems": ["deshaw-grid-min-direction-cost", "oahelper-vertex-disappearance-in-a-graph", "cisco-q1-drone-delivery"]
+    },
+    {
+      "id": "google-screen-120",
+      "title": "Google — Coding Screen",
+      "company": "Google",
+      "minutes": 120,
+      "blurb": "Two setup questions and one that decides the paper. Q3 is worth more than Q1 and Q2 put together.",
+      "problems": ["oahelper-shrink-array", "oahelper-factory-quality-control-sensor-placement", "oahelper-queries-and-array"]
+    },
+
+    {
+      "id": "flipkart-hirepro-180",
+      "title": "Flipkart — HirePro Full OA",
+      "company": "Flipkart",
+      "minutes": 180,
+      "blurb": "The full HirePro shape. Bank the two mediums, then pick which of Q3 and Q4 you actually intend to finish — opening Q4 with thirty minutes left is how this paper is failed.",
+      "problems": ["flipkart-q2-marathon-checkpoints", "oahelper-find-highly-influential-people", "flipkart-q4-shipment-delay-risk", "oahelper-cure-the-virus"]
+    },
+    {
+      "id": "deshaw-onsite-180",
+      "title": "DE Shaw — Onsite-Level OA",
+      "company": "DE Shaw",
+      "minutes": 180,
+      "blurb": "The hardest paper in here. Q3 and Q4 both have an obvious solution that is a hundred times too slow, and the samples won't tell you.",
+      "problems": ["deshaw-q2-max-flips", "deshaw-max-square-submatrix-sum", "deshaw-q3-checkerboard-subgrids", "deshaw-q1-music-player"]
+    },
+    {
+      "id": "dp-heavy-180",
+      "title": "Dynamic Programming — Themed Drill",
+      "company": "Mixed",
+      "themed": true,
+      "minutes": 180,
+      "blurb": "Themed, so the family is no secret: four questions from one family, chosen because each needs a different shape of it. If you can only do one shape, this paper will show you which.",
+      "problems": ["oahelper-bobs-strategic-team-construction", "oahelper-almost-matching", "oahelper-dungeon-game", "oahelper-beautiful-strings"]
+    },
+    {
+      "id": "mixed-bag-180",
+      "title": "Mixed Bag — Generic Product OA",
+      "company": "Mixed",
+      "minutes": 180,
+      "blurb": "What most three-hour papers actually look like: four unrelated questions, one of them considerably nastier than it first reads.",
+      "problems": ["oahelper-buy-concert-tickets", "oahelper-encryption", "oahelper-construct-best-string", "millennium-q2-task-walk"]
+    },
+    {
+      "id": "citadel-quant-180",
+      "title": "Citadel — Quant Dev OA",
+      "company": "Citadel",
+      "minutes": 180,
+      "blurb": "Tight constraints throughout. Every question here has a solution that passes the samples and dies on the real tests — check your complexity against the limits before you submit.",
+      "problems": ["oahelper-find-minimum-idleness", "oahelper-minimum-generations-to-equalize-neurons", "oahelper-online-auction-sniper-detector", "oahelper-kth-number-containing-101-in-binary"]
+    }
+  ]
+}

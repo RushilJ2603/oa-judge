@@ -20,18 +20,20 @@
     document.querySelectorAll('.topnav-item').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
     const ws = document.querySelector('.workspace');
     const sv = $('sheet-view'), tv = $('tracker-view'), cv = $('compiler-view'), bc = $('breadcrumb');
-    const iv = $('interview-view');
+    const iv = $('interview-view'), mv = $('mock-view');
     if (ws) ws.style.display = view === 'judge' ? '' : 'none';
     if (sv) sv.style.display = (view === 'cp' || view === 'sd') ? 'flex' : 'none';
     if (tv) tv.style.display = view === 'tracker' ? 'block' : 'none';
     if (cv) cv.style.display = view === 'compiler' ? 'block' : 'none';
     if (iv) iv.style.display = view === 'interview' ? 'block' : 'none';
+    if (mv) mv.style.display = view === 'mock' ? 'block' : 'none';
     if (bc) bc.style.display = view === 'judge' ? '' : 'none';
     try { history.replaceState(null, '', view === 'judge' ? location.pathname : '#' + view); } catch (e) {}
     if (view === 'cp') loadSheet('cp');
     else if (view === 'sd') loadSheet('sd');
     else if (view === 'tracker') loadTracker();
     else if (view === 'compiler') renderCompiler();
+    else if (view === 'mock' && window.OAMockOA) window.OAMockOA.render();
     else if (view === 'interview' && window.OAInterview) window.OAInterview.render();
   }
 
@@ -879,7 +881,8 @@
   function boot() {
     document.querySelectorAll('.topnav-item').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
     const h = (location.hash || '').replace('#', '');
-    if (h === 'cp' || h === 'sd' || h === 'tracker' || h === 'compiler' || h === 'interview') switchView(h);
+    if (h === 'cp' || h === 'sd' || h === 'tracker' || h === 'compiler' || h === 'interview'
+        || h === 'mock') switchView(h);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
