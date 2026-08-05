@@ -16,11 +16,17 @@ quality is still enforced by the same tooling gates.
 - **Two public repos:** `RushilJ2603/oa-judge` (app, HEAD `009dc0f`) + `RushilJ2603/oa-problems`
   (bank, HEAD `bfdaeaf`). **The live volume bank is a real git checkout**, so a bank push → **Sync**
   (or `fly ssh git pull` + reindex — see dead_ends for the headless recipe) reaches live.
-- **Bank: 164 problems** (142 + 22 from Grok batch 10, all gated; the batch was picked HARD-FIRST,
-  so Hard went 33 -> 46) — sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper
-  (`oa-helper`)**. Sidebar groups by **source ▸ company**; company names are canonicalized at index
-  time (de shaw/DE Shaw → DE Shaw) and unknown/blank companies fall into a single **Practice** company.
-  Iris — Personal now includes a **Microsoft** company (6 gated problems, session 6).
+- **Bank: 166 problems live** (142 + 21 from Grok batch 10 + 3 Schrodinger). Difficulty is now
+  108 Medium / 47 Hard / 11 Easy — batch 10 was picked HARD-FIRST on purpose (Hard 33 → 47), because
+  the bank skewed Medium and a Mock OA paper needs a hard anchor. **22 of 22 gated packages passed
+  `gate_candidate.py`, and one (`oahelper-new-game`) was still REJECTED at merge** when the repo's
+  own `mutation_test.py` re-run scored 98.9% — the merge gate catching what the sandbox gate did not
+  is the pipeline working, not a fluke.
+  Sources: **Iris — Personal (`gyan`)**, **TUF+ (`tuf`)**, **OA-Helper (`oa-helper`)**. Sidebar groups
+  by **source ▸ company**; company names are canonicalized at index time (de shaw/DE Shaw → DE Shaw)
+  and unknown/blank companies fall into a single **Practice** company. Iris — Personal holds a
+  **Microsoft** company (6 gated problems, session 6) and now a **Schrodinger** one (3, session 9 —
+  recalled from the user's own OA; every reference written and stress-verified here, 100% mutation).
 - **Built-in compiler + per-problem scratchpad + standalone Compiler tab** — a reusable
   `OAEditor.create()` Monaco factory backs the solve editor, each problem's scratchpad, and a
   standalone Compiler tab; run C++/Python against custom stdin without submitting.

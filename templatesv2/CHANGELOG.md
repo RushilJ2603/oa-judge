@@ -42,6 +42,30 @@
   100% mutation score and re-verified by the repo's own tooling on the way in. Grok skipped 14 slugs
   on its own for being too easy or ambiguous, which is the behaviour that makes the batch usable.
 
+### Bank +3: Schrodinger (Iris — Personal), recalled from the user's own OA
+
+Every ambiguity was settled with the user before a line was written, and each reading was checked
+against their worked example first — the Q3 cost model only reconciles at 1 unit per machine (their
+own narration gives cost 5 for `20 -> 25`), which rules out the "1 unit per operation" reading that
+the problem text also admits and that would have made the sample answer 3 instead of 8.
+
+- `schrodinger-min-removal-unique` (Medium) — shortest contiguous block to delete so every letter is
+  distinct. What makes it not-quadratic: an all-distinct prefix or suffix is at most 26 characters,
+  so the search is a 27x27 table however long the string is.
+- `schrodinger-palindromic-ancestors` (Hard) — XOR prefix masks + 27 lookups per node in ONE dfs
+  answers every node at once. The per-query walk the user hit TLE with measures >30s here against a
+  3s limit. **The reported "were treeFrom/treeTo given reversed?" confusion is the problem itself:
+  the pairs are unordered.** Sample 2 is sample 1 with every edge flipped and the answers are
+  identical, which states the rule instead of leaving the solver to discover it.
+- `schrodinger-three-regions` (Medium) — 4^n labelling over n <= 10; a region that transfers its
+  machines away is spent, so the plan shape is forced. Edge 11 answers 2999999997, which overflows
+  a 32-bit result.
+
+References are mine and were stress-verified against independent brute forces before packaging
+(4000 random strings / 1500 random trees under random edge orientation / 600 random cost cases).
+`verify_all` + `audit` clean, mutation 100% on all three (31/31, 50/50, 25/25). Q3's limit is 4000ms
+because a plain Python 4^n enumeration measures 1.1s and the judge runs on a shared-cpu machine.
+
 ### Fixed / new tooling
 - `store.py` gained the mock-OA lifecycle; starting a paper while one runs **abandons** the first,
   because two live clocks would both claim the same submissions.
