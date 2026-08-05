@@ -33,14 +33,16 @@
   - Bug caught before shipping: the expiry payload had no `cards`, so the report the browser draws
     when the clock runs out would have had **no rows on it**.
 
-- **Grok authoring batch 10 — bank 142 → 164.** 36 slugs from the OA-Helper scrape (2,951 scraped,
+- **Grok authoring batch 10 — bank 142 → 163.** 36 slugs from the OA-Helper scrape (2,951 scraped,
   917 still eligible after de-duping against the bank and everything previously attempted).
   Deliberately **hard-first**: every eligible Hard was taken before topping up with Mediums, because
   the bank skewed 98 Medium / 33 Hard and a mock paper needs a hard anchor. Same untrusted-author
   pipeline as batches 5–9: Grok writes, `gate_candidate.py` decides, nothing merges without
-  `GATE: PASS`. **22 authored, 22 passed, 22 merged** (12 Hard, 10 Medium; Hard 33 → 46), each at a
-  100% mutation score and re-verified by the repo's own tooling on the way in. Grok skipped 14 slugs
-  on its own for being too easy or ambiguous, which is the behaviour that makes the batch usable.
+  `GATE: PASS`. **22 authored, 22 passed the sandbox gate, 21 merged** — `oahelper-new-game` was
+  rejected on the way in when the repo's own `mutation_test.py` scored it 98.9% (one mutant
+  survived). That is the merge gate catching what the candidate gate did not, which is exactly why
+  there are two of them. Grok also skipped 14 slugs on its own for being too easy or ambiguous,
+  which is the behaviour that makes the batch usable at all.
 
 ### Bank +3: Schrodinger (Iris — Personal), recalled from the user's own OA
 
