@@ -11,6 +11,7 @@ Prints a per-problem PASS/FAIL table and exits non-zero if anything failed.
 This does NOT trust anything an agent produced — it runs the code. Reference correctness itself was
 established earlier by brute-force cross-checks; here we only confirm the *package* is wired right.
 """
+import gzip
 import json
 import os
 import subprocess
@@ -19,6 +20,23 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PROBLEMS = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or os.path.join(ROOT, "problems"))
 PY = sys.executable or "python3"
+
+
+def _read_test(path_no_gz):
+    """Read a test file, transparently falling back to its gzipped sibling.
+
+    Large sample/edge inputs are stored compressed (.in.gz / .out.gz) so the bank stays hostable on
+    the free volume — the same scheme hidden tests already use. Callers pass the LOGICAL name.
+    Mirrors app/runner/problems.py::_read so the gate sees exactly what the judge sees.
+    """
+    if os.path.exists(path_no_gz):
+        with open(path_no_gz, encoding="utf-8") as f:
+            return f.read()
+    gz = path_no_gz + ".gz"
+    if os.path.exists(gz):
+        with gzip.open(gz, "rt", encoding="utf-8") as f:
+            return f.read()
+    return None
 
 
 def compile_cpp(path, out):
@@ -89,12 +107,17 @@ def check_problem(pid):
     sample_dir = os.path.join(pdir, "tests", "sample")
     n_samples = 0
     if ref_cmd and os.path.isdir(sample_dir):
-        for fn in sorted(os.listdir(sample_dir)):
-            if not fn.endswith(".in"):
-                continue
+        # Inputs may be stored gzipped (.in.gz); iterate logical stems so both spellings work.
+        stems = sorted({fn[:-6] if fn.endswith(".in.gz") else fn[:-3]
+                        for fn in os.listdir(sample_dir) if fn.endswith((".in", ".in.gz"))})
+        for stem in stems:
+            fn = stem + ".in"
             n_samples += 1
-            inp = open(os.path.join(sample_dir, fn)).read()
-            exp = open(os.path.join(sample_dir, fn[:-3] + ".out")).read()
+            inp = _read_test(os.path.join(sample_dir, fn))
+            exp = _read_test(os.path.join(sample_dir, stem + ".out"))
+            if inp is None or exp is None:
+                issues.append(f"sample {fn}: missing .in or .out")
+                continue
             rc, got, err = run(ref_cmd, inp)
             if rc != 0:
                 issues.append(f"reference crashed on sample {fn} (rc={rc})")

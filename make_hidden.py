@@ -32,6 +32,20 @@ def _write_gz(path_no_gz, text):
     with open(path_no_gz + ".gz", "wb") as fh:
         with gzip.GzipFile(fileobj=fh, mode="wb", mtime=0) as gz:
             gz.write(data)
+
+
+def _read_plain_or_gz(path_no_gz):
+    """Read a test file, transparently falling back to its gzipped sibling.
+    Mirrors app/runner/problems.py::_read so tooling sees exactly what the judge sees."""
+    if os.path.exists(path_no_gz):
+        with open(path_no_gz, encoding="utf-8") as f:
+            return f.read()
+    gz = path_no_gz + ".gz"
+    if os.path.exists(gz):
+        with gzip.open(gz, "rt", encoding="utf-8") as f:
+            return f.read()
+    return None
+
 # Honour OAJ_PROBLEMS_DIR so a candidate can be materialised in an isolated staging dir (this is how
 # gate_candidate.py builds hidden tests for a not-yet-merged package without touching the live bank).
 PROBLEMS = os.path.abspath(os.environ.get("OAJ_PROBLEMS_DIR") or os.path.join(ROOT, "problems"))
@@ -81,10 +95,16 @@ def main():
     # --- layer 1: curated edge cases (durable inputs, reference-computed outputs) ---
     n_edge = 0
     if os.path.isdir(edge):
-        for fn in sorted(os.listdir(edge)):
-            if not fn.endswith(".in"):
+        # Curated edge inputs may be stored gzipped (.in.gz) — large ones are compressed to keep the
+        # bank hostable. Iterate LOGICAL stems so both spellings are found: silently skipping a
+        # gzipped edge here would weaken every hidden suite built from it, with no visible error.
+        stems = sorted({f[:-6] if f.endswith(".in.gz") else f[:-3]
+                        for f in os.listdir(edge) if f.endswith((".in", ".in.gz"))})
+        for fn in (s + ".in" for s in stems):
+            inp = _read_plain_or_gz(os.path.join(edge, fn))
+            if inp is None:
+                print(f"  EDGE unreadable (no .in or .in.gz): {fn}")
                 continue
-            inp = open(os.path.join(edge, fn)).read()
             rc, out, err = solve(refcmd, inp)
             if rc != 0:
                 print(f"  EDGE reference FAILED on {fn}: rc={rc} {err.strip()[:120]}")

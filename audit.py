@@ -92,10 +92,17 @@ def audit() -> tuple[list[str], list[str]]:
         # Test coverage. Hard floor: at least one sample + a couple of edges. The STANDARD (warned
         # below) is >= 5 curated edges covering bounds, a MAX-SCALE case, an overflow trigger
         # (force 64-bit), an adversarial case, and a degenerate/no-answer case — see SOLUTION.md §4.
-        n_sample = len([f for f in os.listdir(os.path.join(pdir, "tests", "sample"))
-                        if f.endswith(".in")]) if os.path.isdir(os.path.join(pdir, "tests", "sample")) else 0
-        n_edge = len([f for f in os.listdir(os.path.join(pdir, "tests", "edge"))
-                      if f.endswith(".in")]) if os.path.isdir(os.path.join(pdir, "tests", "edge")) else 0
+        # Inputs may be stored gzipped (.in.gz) — large sample/edge cases are compressed to keep the
+        # bank hostable on the free volume, exactly as hidden tests are. Count both spellings.
+        def _n_inputs(group):
+            d = os.path.join(pdir, "tests", group)
+            if not os.path.isdir(d):
+                return 0
+            return len({f[:-6] if f.endswith(".in.gz") else f[:-3]
+                        for f in os.listdir(d) if f.endswith((".in", ".in.gz"))})
+
+        n_sample = _n_inputs("sample")
+        n_edge = _n_inputs("edge")
         if n_sample < 1:
             hard.append(f"{pid}: runnable but has no sample tests (mirror the statement's examples)")
         if n_edge < 2:
