@@ -466,11 +466,24 @@ and a run diffs HIT/PARTIAL/ADVANCE between paths. Prose differing is fine; a di
 different score.
 
 ## Known Issues / Tech Debt
-- **No JS runtime in WSL** (`node`/`deno`/`bun` all absent), so `interview.js` cannot even be
-  syntax-checked locally, let alone run. Session 7's TDZ `ReferenceError` (history list silently empty
-  while the tab said "(1)", endpoints 200 throughout) was found only in a browser. Mitigation used in
-  session 8: drive the same state machine through Python against a live `test_client()` and assert on
-  the JSON the UI consumes. That catches server bugs, not client ones.
+- ~~**No JS runtime in WSL**~~ — **WRONG, corrected session 10.** `node`/`deno`/`bun` are indeed absent
+  from WSL itself, but Windows has one: **`/mnt/c/Program Files/nodejs/node.exe` (v24.15.0)**, and it
+  runs from WSL. The catch that hid it: node.exe cannot resolve `/mnt/c/...` mount paths, so every
+  argument must be **Windows-style** (`C:\Users\jishu\Desktop\oa-judge\app\static\sheets.js`).
+
+  Frontend JS therefore CAN be syntax-checked and executed locally:
+  ```
+  "/mnt/c/Program Files/nodejs/node.exe" --check 'C:\Users\jishu\...\sheets.js'
+  "/mnt/c/Program Files/nodejs/node.exe" dom_harness.js <sheets.js> <payloads.json> <view> <out.json>
+  ```
+  `dom_harness.js` (in `trying task manager/study-map/`) stubs `document`/`fetch`/`location`/`window`
+  and captures what gets written into each mount point, so the real IIFE runs against the real
+  `/api/sheet/<sid>` payload. Session 10 used it to execute all 20 Interview-Questions sections and
+  confirm `cp`/`sd` did not regress. It proves **logic, never layout or CSS** — session 7's TDZ
+  `ReferenceError` class of bug is now catchable; a visual regression still is not.
+
+  The old mitigation (drive the state machine through Python against a live `test_client()`) is still
+  worth doing — it catches server bugs — but it is no longer the only option for client ones.
 - **Interview latency floor is ~16s** on the agy CLI path (0.3s spawn + ~5s auth + ~8s generation; no
   warm-up, and `--output-format stream-json` is parsed as prompt text so streaming is unavailable).
   `GEMINI_API_KEY` would fix it; see Next Session.

@@ -22,7 +22,7 @@
     const sv = $('sheet-view'), tv = $('tracker-view'), cv = $('compiler-view'), bc = $('breadcrumb');
     const iv = $('interview-view'), mv = $('mock-view');
     if (ws) ws.style.display = view === 'judge' ? '' : 'none';
-    if (sv) sv.style.display = (view === 'cp' || view === 'sd') ? 'flex' : 'none';
+    if (sv) sv.style.display = (view === 'cp' || view === 'sd' || view === 'iq') ? 'flex' : 'none';
     if (tv) tv.style.display = view === 'tracker' ? 'block' : 'none';
     if (cv) cv.style.display = view === 'compiler' ? 'block' : 'none';
     if (iv) iv.style.display = view === 'interview' ? 'block' : 'none';
@@ -31,6 +31,7 @@
     try { history.replaceState(null, '', view === 'judge' ? location.pathname : '#' + view); } catch (e) {}
     if (view === 'cp') loadSheet('cp');
     else if (view === 'sd') loadSheet('sd');
+    else if (view === 'iq') loadSheet('iq');
     else if (view === 'tracker') loadTracker();
     else if (view === 'compiler') renderCompiler();
     else if (view === 'mock' && window.OAMockOA) window.OAMockOA.render();
@@ -115,10 +116,19 @@
     const sec = sheet.sections[S.activeSection[sid] || 0];
     if (!sec) { $('sheet-content').innerHTML = ''; return; }
     const buckets = { core: [], extended: [], stretch: [] };
-    sec.items.forEach((it) => buckets[it.tier === 'core' ? 'core' : it.tier === 'stretch' ? 'stretch' : 'extended'].push(it));
-    const codeable = sid === 'cp';   // scratchpad is for the CP problems, not the SD reading list
+    if (sid === 'iq') {
+      // Interview questions have no tier — group by what you DO with them instead: write code, or
+      // talk. Coding first, since that's the half you can practise in the pad.
+      sec.items.forEach((it) => buckets[it.kind === 'coding' ? 'core' : 'extended'].push(it));
+    } else {
+      sec.items.forEach((it) => buckets[it.tier === 'core' ? 'core' : it.tier === 'stretch' ? 'stretch' : 'extended'].push(it));
+    }
+    // Scratchpad is for problems you actually code: CP items, and the coding half of the interview
+    // question bank. The SD reading list has nothing to type.
+    const codeable = sid === 'cp' || sid === 'iq';
+    const draw = (it) => (sid === 'iq' ? qrow(it, prog) : row(it, prog, codeable));
     const group = (label, items) => items.length
-      ? `<div class="tier-group">${label ? `<div class="tier-label">${label}</div>` : ''}${items.map((it) => row(it, prog, codeable)).join('')}</div>` : '';
+      ? `<div class="tier-group">${label ? `<div class="tier-label">${label}</div>` : ''}${items.map(draw).join('')}</div>` : '';
     const meta = [
       sec.placement_value ? `<span class="tm topic-pv ${esc(sec.placement_value)}">${esc(sec.placement_value)} value</span>` : '',
       sec.band ? `<span class="tm">${esc(sec.band)}</span>` : '',
@@ -128,7 +138,9 @@
       `<h2 class="topic-h">${esc(sec.title)}</h2>
        ${meta ? `<div class="topic-meta">${meta}</div>` : ''}
        ${sec.summary ? `<p class="topic-summary">${esc(sec.summary)}</p>` : ''}
-       ${group('Must-do core', buckets.core)}${group('Extended', buckets.extended)}${group('Stretch', buckets.stretch)}`;
+       ${sid === 'iq'
+          ? group('Coding', buckets.core) + group('Conceptual', buckets.extended)
+          : group('Must-do core', buckets.core) + group('Extended', buckets.extended) + group('Stretch', buckets.stretch)}`;
     const content = $('sheet-content');
     content.querySelectorAll('.prob-check').forEach((el) =>
       el.addEventListener('click', () => toggleItem(sid, el.dataset.item, el)));
@@ -149,6 +161,32 @@
           ${it.tag ? `<div class="prob-tag">${esc(it.tag)}</div>` : ''}
         </div>
         <div class="prob-side">${rb}<span class="plat-badge">${esc(it.platform || '')}</span>${tier}${code}</div>
+      </div>
+      <div class="prob-pad" hidden></div>
+    </div>`;
+  }
+
+  // Interview-question row. Different shape from a sheet problem: the QUESTION is the content (no
+  // url, no title), and provenance — which company, which year, OA vs interview — is what makes it
+  // worth reading. Coding ones get the scratch pad; there are no test cases and no verdict.
+  function qrow(it, prog) {
+    const done = prog[it.id] === 'done';
+    const badges = [
+      it.company ? `<span class="plat-badge">${esc(it.company)}</span>` : '',
+      it.year ? `<span class="tm">${esc(it.year)}</span>` : '',
+      it.stage ? `<span class="tm">${esc(it.stage)}</span>` : '',
+      it.branch ? `<span class="tm">${esc(it.branch)}</span>` : ''
+    ].filter(Boolean).join('');
+    const code = it.kind === 'coding'
+      ? `<button class="prob-code-btn" data-item="${esc(it.id)}" title="Scratch compiler — run it against your own input. No test cases here." aria-expanded="false">Code</button>` : '';
+    return `<div class="prob-item" data-item="${esc(it.id)}">
+      <div class="prob-row ${done ? 'done' : ''}">
+        <button class="prob-check ${done ? 'done' : ''}" data-item="${esc(it.id)}" title="Mark done" aria-pressed="${done}">${done ? '✓' : ''}</button>
+        <div class="prob-main">
+          <div class="prob-title" style="cursor:default">${esc(it.question)}</div>
+          <div class="prob-tag">${badges}</div>
+        </div>
+        <div class="prob-side">${code}</div>
       </div>
       <div class="prob-pad" hidden></div>
     </div>`;
@@ -881,7 +919,7 @@
   function boot() {
     document.querySelectorAll('.topnav-item').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
     const h = (location.hash || '').replace('#', '');
-    if (h === 'cp' || h === 'sd' || h === 'tracker' || h === 'compiler' || h === 'interview'
+    if (h === 'cp' || h === 'sd' || h === 'iq' || h === 'tracker' || h === 'compiler' || h === 'interview'
         || h === 'mock') switchView(h);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
