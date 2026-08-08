@@ -1,18 +1,5 @@
 # ── Personal data — never shared, never committed ──────────────
 app/data/
-
-# Your own note PDFs (62 MB). This repo is PUBLIC and git keeps blobs forever, so they are never
-# committed — but `fly deploy` uploads the local build context, not the git tree, so the Dockerfile
-# still bakes them into the image and the app serves them behind the login. Regenerate with
-# study-map/build_notes.py.
-notes/*
-!notes/.keep
-
-# The personal study plan: 1,017 dated tasks, and seed text naming specific OAs and interviews
-# ("the question that ended Teradata"). Same reasoning as notes/ — it reaches the deployed app
-# through the Docker build context, never through this public repo. Regenerate with
-# study-map/build_days.py.
-app/sheets/roadmap.json
 *.db
 *.db-wal
 *.db-shm

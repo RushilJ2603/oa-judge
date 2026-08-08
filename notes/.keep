@@ -1,3 +1,0 @@
-# The note PDFs and their section index are generated, not committed — this repo is public.
-# Rebuild them from the originals with:  python3 study-map/build_notes.py
-# The Dockerfile COPYs this directory, so it has to exist even when empty.
