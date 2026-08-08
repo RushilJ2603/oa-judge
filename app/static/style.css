@@ -1792,3 +1792,54 @@ select option { background: var(--bg-elev); color: var(--text); }
     .rd-detail { width: auto; border-left: 0; border-top: 1px solid var(--border); }
     .rd-task-side { flex-direction: column; gap: 5px; }
 }
+
+/* --- roadmap: the written guide, and the learn/practice/reference split --- */
+.rd-role { flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: .06em; padding: 3px 6px;
+    border-radius: 4px; margin-top: 2px; min-width: 58px; text-align: center; }
+.rd-role.learn { background: color-mix(in srgb, #3d6bff 15%, transparent); color: #3d6bff; }
+.rd-role.practice { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.rd-role.ref { background: var(--bg-sunken); color: var(--text-muted); }
+.rd-task-note.how { border-left-color: var(--border-strong); color: var(--text-muted); }
+.rd-task-note.how b { color: var(--text); }
+
+.rd-detail-why { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10.5px;
+    color: var(--text-muted); margin-top: 2px; }
+.rd-rrow.practice { border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); padding-left: 9px; }
+.rd-rrow.learn { border-left: 2px solid color-mix(in srgb, #3d6bff 40%, transparent); padding-left: 9px; }
+.rd-rrow.ref { border-left: 2px solid var(--border-strong); padding-left: 9px; }
+.rd-rhow { font-size: 11px; color: var(--text-muted); line-height: 1.55; margin-top: 4px; }
+.gd-readbtn { display: inline-block; margin: 14px 0 4px; }
+
+/* The guide itself: a document, so it gets document typography and a comfortable measure. */
+.gd-doc { max-width: 860px; }
+.gd-jump { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.gd-h1 { font-size: 27px; font-weight: 750; letter-spacing: -0.024em; margin: 4px 0 14px; line-height: 1.2; }
+.gd-h2 { font-size: 17.5px; font-weight: 700; letter-spacing: -0.014em; margin: 34px 0 10px;
+    padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+.gd-h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 8px; }
+.gd-h4 { font-size: 13px; font-weight: 700; margin: 18px 0 6px; color: var(--text-muted); }
+.gd-p { font-size: 14.5px; line-height: 1.72; margin: 0 0 14px; }
+.gd-ul, .gd-ol { font-size: 14.5px; line-height: 1.72; margin: 0 0 14px; padding-left: 24px; }
+.gd-ul li, .gd-ol li { margin-bottom: 5px; }
+.gd-quote { margin: 0 0 14px; padding: 11px 16px; border-left: 3px solid var(--accent);
+    background: var(--bg-elev); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 14px; line-height: 1.65; }
+.gd-hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
+.gd-pre { background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px 14px; overflow-x: auto; margin: 0 0 16px; }
+.gd-pre code { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
+.gd-doc code { font-family: var(--mono); font-size: 0.9em; background: var(--bg-sunken);
+    padding: 1.5px 5px; border-radius: 4px; }
+.gd-doc a { color: var(--accent); }
+.gd-tablewrap { overflow-x: auto; margin: 0 0 18px; }
+.gd-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.gd-table th, .gd-table td { border: 1px solid var(--border); padding: 8px 11px;
+    text-align: left; vertical-align: top; line-height: 1.55; }
+.gd-table th { background: var(--bg-elev); font-weight: 700; white-space: nowrap; }
+.gd-table code { white-space: nowrap; }
+
+@media (max-width: 900px) {
+    .gd-h1 { font-size: 21px; }
+    .gd-p, .gd-ul, .gd-ol { font-size: 14px; }
+    .rd-role { min-width: 0; padding: 2px 5px; font-size: 8.5px; }
+}

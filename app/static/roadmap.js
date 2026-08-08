@@ -20,7 +20,98 @@
     return r.json();
   }
 
-  const S = { data: null, prog: {}, mode: 'today', week: null, dom: null, q: '', days: {}, order: [] };
+  const S = { data: null, prog: {}, mode: 'today', week: null, dom: null, q: '', days: {}, order: [],
+              guide: 'OVERVIEW' };
+
+  // ---------------------------------------------------------------- markdown
+  // Small on purpose. The guides use a deliberately narrow subset — headings, tables, lists,
+  // blockquotes, fenced code, bold/italic/code/links — so a 60-line renderer covers all of it and
+  // there is no library to ship. Everything is escaped BEFORE any pattern runs, so no authored
+  // content can inject markup.
+  function inline(t) {
+    return esc(t)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Non-greedy, and NOT [^*]+ — bold containing an italic ("asked *more* at the full-time
+      // stage") is common in the guides, and a no-asterisks-inside rule leaves it raw on screen.
+      // Bold runs before italic so the inner single asterisks are still there to match.
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g,
+               '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  function md(src) {
+    const lines = String(src || '').split('\n');
+    const out = [];
+    let i = 0, list = null, para = [], item = null;
+    // The source hard-wraps at 100 columns, so **bold** and [links](…) routinely straddle two
+    // lines. Inline formatting therefore runs on the JOINED text of a paragraph or list item, never
+    // line by line — doing it per line leaves the asterisks visible on screen.
+    const flushPara = () => {
+      if (para.length) { out.push(`<p class="gd-p">${inline(para.join(' '))}</p>`); para = []; }
+    };
+    const flushItem = () => {
+      if (item !== null) { out.push(`<li>${inline(item.join(' '))}</li>`); item = null; }
+    };
+    const closeList = () => {
+      flushItem();
+      if (list) { out.push(`</${list}>`); list = null; }
+    };
+    const flushAll = () => { flushPara(); closeList(); };
+    while (i < lines.length) {
+      const ln = lines[i];
+      if (/^```/.test(ln)) {                                     // fenced code
+        flushAll();
+        const buf = [];
+        for (i++; i < lines.length && !/^```/.test(lines[i]); i++) buf.push(lines[i]);
+        i++;
+        out.push(`<pre class="gd-pre"><code>${esc(buf.join('\n'))}</code></pre>`);
+        continue;
+      }
+      if (/^\|/.test(ln) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || '')) {   // table
+        flushAll();
+        const cells = (r) => r.replace(/^\||\|$/g, '').split('|').map((c) => inline(c.trim()));
+        const head = cells(ln);
+        i += 2;
+        const body = [];
+        for (; i < lines.length && /^\|/.test(lines[i]); i++) body.push(cells(lines[i]));
+        out.push(`<div class="gd-tablewrap"><table class="gd-table"><thead><tr>${
+          head.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${
+          body.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')
+          }</tbody></table></div>`);
+        continue;
+      }
+      let m;
+      if ((m = /^(#{1,4})\s+(.*)$/.exec(ln))) {
+        flushAll(); out.push(`<h${m[1].length} class="gd-h${m[1].length}">${inline(m[2])}</h${m[1].length}>`);
+      } else if (/^---+$/.test(ln.trim())) {
+        flushAll(); out.push('<hr class="gd-hr">');
+      } else if (/^>\s?/.test(ln)) {                             // blockquote, possibly wrapped
+        flushAll();
+        const buf = [];
+        for (; i < lines.length && /^>\s?/.test(lines[i]); i++) buf.push(lines[i].replace(/^>\s?/, ''));
+        out.push(`<blockquote class="gd-quote">${inline(buf.join(' '))}</blockquote>`);
+        continue;
+      } else if ((m = /^[-*]\s+(.*)$/.exec(ln))) {
+        flushPara(); flushItem();
+        if (list !== 'ul') { closeList(); out.push('<ul class="gd-ul">'); list = 'ul'; }
+        item = [m[1]];
+      } else if ((m = /^\d+\.\s+(.*)$/.exec(ln))) {
+        flushPara(); flushItem();
+        if (list !== 'ol') { closeList(); out.push('<ol class="gd-ol">'); list = 'ol'; }
+        item = [m[1]];
+      } else if (!ln.trim()) {
+        flushAll();
+      } else if (item !== null) {
+        item.push(ln.trim());                                    // wrapped list item
+      } else {
+        para.push(ln.trim());                                    // wrapped paragraph
+      }
+      i++;
+    }
+    flushAll();
+    return out.join('\n');
+  }
 
   const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const today = () => iso(new Date());
@@ -78,7 +169,58 @@
     document.querySelectorAll('.rd-mode').forEach((b) => b.classList.toggle('active', b.dataset.mode === S.mode));
     if (S.mode === 'today') renderToday();
     else if (S.mode === 'plan') renderPlan();
+    else if (S.mode === 'guide') renderGuide();
     else renderMap();
+  }
+
+  // ---------------------------------------------------------------- guide
+  // The written plan: one page per subject, plus the whole-plan overview. Everything else in this
+  // tab tells you WHAT to do today; this is the only place that says why, in what order, and how
+  // the resources fit together.
+  function renderGuide() {
+    const briefs = S.data.briefs || {};
+    const byCode = {};
+    S.data.graph.forEach((g) => { byCode[g.code] = g; });
+    // Built from the GUIDES, not from the graph: the subjects delivered inside a project carry no
+    // scheduled hours and so never appear in the graph, but they still have something to read.
+    const codes = Object.keys(briefs).filter((c) => c !== 'OVERVIEW').sort((a, b) => {
+      const ga = byCode[a], gb = byCode[b];
+      return (ga ? ga.tier : 9) - (gb ? gb.tier : 9)
+          || (gb ? gb.planned : 0) - (ga ? ga.planned : 0) || a.localeCompare(b);
+    });
+    const seen = new Set();
+    let rail = `<div class="rail-topic ${S.guide === 'OVERVIEW' ? 'active' : ''}" data-g="OVERVIEW">
+        <div class="rail-trow"><span class="rail-tname"><b>The whole plan</b></span></div></div>
+      <div class="rail-section-h">By subject</div>`;
+    codes.forEach((c) => {
+      if (seen.has(briefs[c])) return;        // the four coursework subjects share one guide
+      seen.add(briefs[c]);
+      const g = byCode[c];
+      const name = (g && g.short) || (md(briefs[c]).match(/<h1[^>]*>(.*?)<\/h1>/) || [, c])[1];
+      rail += `<div class="rail-topic ${S.guide === c ? 'active' : ''}" data-g="${esc(c)}">
+        <div class="rail-trow"><span class="rail-tname">${name}</span>
+          <span class="rail-tcount">${g && g.planned ? g.planned + ' h' : 'in a project'}</span>
+        </div></div>`;
+    });
+
+    const cur = briefs[S.guide] ? S.guide : 'OVERVIEW';
+    const d = byCode[cur];
+    $('rd-body').innerHTML = `<div class="sheet-body rd-split">
+        <aside class="sheet-rail" id="rd-rail">${rail}</aside>
+        <div class="sheet-content gd-doc" id="rd-content">
+          ${d ? `<div class="gd-jump">
+            <button class="rd-open" data-jump="map" data-dom="${esc(d.code)}">See it in the map ↗</button>
+            <button class="rd-open" data-jump="plan">Find it in the plan ↗</button></div>` : ''}
+          ${md(briefs[cur])}</div></div>`;
+    $('rd-rail').querySelectorAll('[data-g]').forEach((el) => el.addEventListener('click', () => {
+      S.guide = el.dataset.g; render();
+      const c = $('rd-content'); if (c) c.scrollTop = 0;
+    }));
+    $('rd-body').querySelectorAll('[data-jump]').forEach((el) => el.addEventListener('click', () => {
+      if (el.dataset.jump === 'map') { S.dom = el.dataset.dom; S.mode = 'map'; }
+      else { S.q = (d && d.short) || ''; S.mode = 'plan'; const s = $('rd-search'); if (s) s.value = S.q; }
+      render();
+    }));
   }
 
   // ---------------------------------------------------------------- today
@@ -140,12 +282,17 @@
       <div class="rd-task-row ${done ? 'done' : ''}">
         <button class="prob-check ${done ? 'done' : ''}" data-item="${esc(it.id)}" aria-pressed="${done}" title="Mark done">${done ? '✓' : ''}</button>
         <span class="rd-dom" style="--dc:${esc(it.color)}" title="${esc(it.dname)}">${esc(it.label)}</span>
+        <span class="rd-role ${esc(it.role || '')}" title="${it.role === 'practice'
+            ? 'Practice — something other than you says whether you were right'
+            : it.role === 'ref' ? 'Reference — look-up only, never read front to back'
+            : 'Learn — where the knowledge comes from'}">${esc((it.role || 'learn').toUpperCase())}</span>
         <span class="rd-h">${it.h}h</span>
         <div class="rd-task-main">
           <div class="rd-task-title"><span class="rd-verb">${esc(it.verb)}</span> ${esc(it.title)}</div>
           ${sub ? `<div class="rd-task-sub">${esc(sub)}</div>` : ''}
-          ${it.leaf ? `<div class="rd-task-leaf">${esc(it.dcode)} → ${esc(it.leaf)}${it.at ? ` · <span class="rd-at">${esc(it.at)}</span>` : ''}</div>` : ''}
+          ${it.leaf ? `<div class="rd-task-leaf">${esc(it.dname)} → ${esc(it.leaf)}${it.at ? ` · <span class="rd-at">${esc(it.at)}</span>` : ''}</div>` : ''}
           ${it.note ? `<div class="rd-task-note">${esc(it.note)}</div>` : ''}
+          ${!it.note && it.how ? `<div class="rd-task-note how"><b>How to use it</b> ${esc(it.how)}</div>` : ''}
         </div>
         <div class="rd-task-side">${link}${pad}</div>
       </div>
@@ -315,6 +462,9 @@
     $('rd-body').querySelectorAll('.rd-res').forEach((el) => el.addEventListener('click', () => {
       if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
     }));
+    $('rd-body').querySelectorAll('[data-read]').forEach((el) => el.addEventListener('click', () => {
+      S.guide = el.dataset.read; S.mode = 'guide'; render();
+    }));
   }
 
   function domDetail(d, p) {
@@ -324,12 +474,24 @@
         <div><h3>${esc(d.name)}</h3>
           <div class="rd-detail-meta">${esc(TIER_NAME[d.tier] || '')} · ${d.planned} h planned · ${pct}% ticked</div></div>
       </div>
-      <div class="rd-detail-sec">Resources <span>${d.resources.length}</span></div>
-      ${d.resources.map((r) => `<div class="rd-rrow">
-        ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)} ↗</a>`
-                : `<span>${esc(r.name)}</span>`}
-        <div class="rd-rmeta">${esc(r.verb)} · ${r.hrs} h${r.total ? ` · ${r.total} ${esc(r.unit)}` : ''}</div>
-      </div>`).join('')}
+      ${S.data.briefs && S.data.briefs[d.code]
+        ? `<button class="rd-open gd-readbtn" data-read="${esc(d.code)}">Read the guide for this subject ↗</button>` : ''}
+      ${['learn', 'practice', 'ref'].map((role) => {
+        const rs = d.resources.filter((r) => (r.role || 'learn') === role);
+        if (!rs.length) return '';
+        const label = { learn: 'Learn', practice: 'Practice', ref: 'Reference' }[role];
+        const why = { learn: 'where the knowledge comes from',
+                      practice: 'something else says whether you were right',
+                      ref: 'look-up only — never read front to back' }[role];
+        return `<div class="rd-detail-sec">${label} <span>${rs.length}</span>
+            <div class="rd-detail-why">${why}</div></div>
+          ${rs.map((r) => `<div class="rd-rrow ${esc(role)}">
+            ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)} ↗</a>`
+                    : `<span>${esc(r.name)}</span>`}
+            <div class="rd-rmeta">${r.hrs ? `${r.hrs} h` : 'no scheduled hours'}${r.total ? ` · ${r.total} ${esc(r.unit)}` : ''}</div>
+            ${r.how ? `<div class="rd-rhow">${esc(r.how)}</div>` : ''}
+          </div>`).join('')}`;
+      }).join('')}
       <div class="rd-detail-sec">Subdomains <span>${d.leaves.length}</span></div>
       <div class="rd-leaves">${d.leaves.map((l) => l.url
         ? `<a class="rd-leaf has" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.at)}">${esc(l.name)}</a>`
