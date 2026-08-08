@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OA Judge</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=1">
-    <link rel="stylesheet" href="/static/style.css?v=43">
+    <link rel="stylesheet" href="/static/style.css?v=44">
 </head>
 <body>
     <header class="app-header">
@@ -14,6 +14,7 @@
             <span class="app-name">OA&nbsp;Judge</span>
             <nav class="topnav" id="topnav" aria-label="Sections">
                 <button class="topnav-item active" data-view="judge">Judge</button>
+                <button class="topnav-item" data-view="roadmap">Roadmap</button>
                 <button class="topnav-item" data-view="cp">CP Sheet</button>
                 <button class="topnav-item" data-view="sd">System&nbsp;Design</button>
                 <button class="topnav-item" data-view="tracker">Tracker</button>
@@ -171,6 +172,28 @@
         </div>
     </section>
 
+    <!-- ===== Roadmap view: the study plan, day by day. Same shell as the sheets (head + meter),
+         but three modes — today's tasks, the 42-week plan, and the domain/resource graph. ===== -->
+    <section class="rd-view" id="roadmap-view" style="display:none">
+        <div class="sheet-head">
+            <div class="sheet-head-main">
+                <h1 class="sheet-title" id="rd-title"></h1>
+                <p class="sheet-sub" id="rd-sub"></p>
+            </div>
+            <div class="sheet-meter" id="rd-meter"></div>
+        </div>
+        <div class="rd-bar">
+            <div class="rd-modes" role="group" aria-label="Roadmap view">
+                <button class="rd-mode active" data-mode="today">Today</button>
+                <button class="rd-mode" data-mode="plan">Plan</button>
+                <button class="rd-mode" data-mode="map">Map</button>
+            </div>
+            <input id="rd-search" type="text" placeholder="Find a task, resource or subdomain across all 42 weeks…"
+                   autocomplete="off" spellcheck="false">
+        </div>
+        <div class="rd-body" id="rd-body"></div>
+    </section>
+
     <!-- ===== Contest tracker view ===== -->
     <section class="tracker-view" id="tracker-view" style="display:none">
         <div class="tracker-inner" id="tracker-inner"></div>
@@ -218,6 +241,7 @@
     <script src="/static/app.js?v=19"></script>
     <script src="/static/interview.js?v=16"></script>
     <script src="/static/mockoa.js?v=1"></script>
-    <script src="/static/sheets.js?v=27"></script>
+    <script src="/static/sheets.js?v=28"></script>
+    <script src="/static/roadmap.js?v=1"></script>
 </body>
 </html>

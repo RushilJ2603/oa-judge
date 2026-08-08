@@ -20,16 +20,18 @@
     document.querySelectorAll('.topnav-item').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
     const ws = document.querySelector('.workspace');
     const sv = $('sheet-view'), tv = $('tracker-view'), cv = $('compiler-view'), bc = $('breadcrumb');
-    const iv = $('interview-view'), mv = $('mock-view');
+    const iv = $('interview-view'), mv = $('mock-view'), rv = $('roadmap-view');
     if (ws) ws.style.display = view === 'judge' ? '' : 'none';
     if (sv) sv.style.display = (view === 'cp' || view === 'sd' || view === 'iq') ? 'flex' : 'none';
     if (tv) tv.style.display = view === 'tracker' ? 'block' : 'none';
     if (cv) cv.style.display = view === 'compiler' ? 'block' : 'none';
     if (iv) iv.style.display = view === 'interview' ? 'block' : 'none';
     if (mv) mv.style.display = view === 'mock' ? 'block' : 'none';
+    if (rv) rv.style.display = view === 'roadmap' ? 'flex' : 'none';
     if (bc) bc.style.display = view === 'judge' ? '' : 'none';
     try { history.replaceState(null, '', view === 'judge' ? location.pathname : '#' + view); } catch (e) {}
-    if (view === 'cp') loadSheet('cp');
+    if (view === 'roadmap' && window.OARoadmap) window.OARoadmap.render();
+    else if (view === 'cp') loadSheet('cp');
     else if (view === 'sd') loadSheet('sd');
     else if (view === 'iq') loadSheet('iq');
     else if (view === 'tracker') loadTracker();
@@ -920,7 +922,12 @@
     document.querySelectorAll('.topnav-item').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
     const h = (location.hash || '').replace('#', '');
     if (h === 'cp' || h === 'sd' || h === 'iq' || h === 'tracker' || h === 'compiler' || h === 'interview'
-        || h === 'mock') switchView(h);
+        || h === 'mock' || h === 'roadmap') switchView(h);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+
+  // The scratchpad is the one piece the roadmap tab reuses verbatim — same markup contract
+  // (.prob-item > .prob-pad, data-item on the button), same /api/sheet-code storage. Exported
+  // rather than duplicated, so a fix to the pad fixes it everywhere.
+  window.OAPad = { toggle: togglePad };
 })();

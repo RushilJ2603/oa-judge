@@ -12,6 +12,9 @@ RUN apt-get update \
 RUN pip install --no-cache-dir flask waitress
 
 WORKDIR /app
+# Notes before app/: 62 MB of PDFs that change roughly never, so this layer stays cached across
+# every ordinary code deploy. Put it after app/ and each deploy re-uploads it.
+COPY notes/ /app/notes/
 COPY app/ /app/app/
 COPY verify_all.py make_hidden.py /app/
 

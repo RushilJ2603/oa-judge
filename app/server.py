@@ -18,6 +18,10 @@ import store  # noqa: E402  (v2 SQLite persistence; replaces runner.history)
 from runner import execute, md, problems, stress  # noqa: E402
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+# The note PDFs that RESOURCES.md cites as actual resources (7 files, 62 MB, 1909 pages). They sit
+# outside app/ so they are not importable, and outside static/ so the login guard covers them —
+# these are the user's own notes, not public assets.
+NOTES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "notes")
 app = Flask(__name__, static_folder=None)
 
 # Session signing key. In hosted mode it must be stable (set OAJ_SECRET_KEY) so logins survive a
@@ -81,6 +85,11 @@ def _resolve_user():
 def _no_cache(resp):
     # Local dev tool: never let the browser serve stale index.html/app.js/style.css.
     # (A cached editor is exactly why a CSS fix can look like "still broken" after reload.)
+    # The note PDFs are the exception: they are immutable 20 MB files and re-downloading one every
+    # time a roadmap task links into it would make the feature unusable on a phone.
+    if request.path.startswith("/notes/"):
+        resp.headers["Cache-Control"] = "private, max-age=604800"
+        return resp
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
@@ -95,6 +104,33 @@ def index():
 @app.route("/static/<path:path>")
 def static_files(path):
     return send_from_directory(STATIC_DIR, path)
+
+
+# ----------------------------------------------------------------- hosted notes
+# A roadmap task that says "revise your C++ notes" is dead text unless it opens the notes. These
+# serve the cited PDFs and their section index, so a task can link to /notes/cpp.pdf#page=359 —
+# the exact page on strict weak ordering, not page 1 of 499.
+_NOTES_INDEX_PATH = os.path.join(NOTES_DIR, "index.json")
+
+
+@app.route("/notes/<path:fn>")
+def notes_file(fn):
+    if not fn.endswith(".pdf"):
+        return jsonify({"error": "not found"}), 404
+    return send_from_directory(NOTES_DIR, fn, mimetype="application/pdf")
+
+
+@app.route("/api/notes")
+def api_notes():
+    """{slug: {title, file, pages, toc[]}} — the outline of every hosted PDF, so the UI can offer a
+    section jump without shipping a PDF parser to the browser."""
+    try:
+        with open(_NOTES_INDEX_PATH, encoding="utf-8") as f:
+            idx = json.load(f)
+    except Exception:
+        idx = {}
+    have = {s: v for s, v in idx.items() if os.path.exists(os.path.join(NOTES_DIR, v["file"]))}
+    return jsonify({"notes": have})
 
 
 # ----------------------------------------------------------------- problem list / detail
